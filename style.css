@@ -1,0 +1,1081 @@
+/* ==========================================================================
+   Jake's Resume LaTeX Builder - Studio CSS
+   Modern Dark Studio + Exact Jake Gutierrez LaTeX Paper Typography
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/dreampulse/computer-modern-web-font@master/fonts.css');
+
+/* ==========================================================================
+   Zero-Margin Print Page Box (Suppresses Browser Header/Footer Timestamps & URLs)
+   ========================================================================== */
+@page {
+  size: letter portrait;
+  margin: 0mm !important;
+}
+@page :left {
+  margin: 0mm !important;
+}
+@page :right {
+  margin: 0mm !important;
+}
+@page :first {
+  margin: 0mm !important;
+}
+
+:root {
+  /* UI Dark Theme Variables */
+  --bg-main: #090d16;
+  --bg-surface: #111726;
+  --bg-surface-elevated: #182238;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-active: #6366f1;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-glow: rgba(99, 102, 241, 0.35);
+  --accent-cyan: #06b6d4;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #f43f5e;
+  --danger: #ef4444;
+
+  /* Resume Paper Tokens */
+  --paper-bg: #ffffff;
+  --paper-text: #000000;
+  --paper-rule: #000000;
+  --paper-link: #000000;
+
+  /* Sizing */
+  --header-height: 64px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --transition-fast: 0.15s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ==========================================================================
+   High-Contrast, Visible Scrollbars
+   ========================================================================== */
+html, body {
+  scrollbar-width: auto;
+  scrollbar-color: #6366f1 #0f172a;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b1120;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4f46e5;
+  border-radius: 6px;
+  border: 2px solid #0b1120;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6366f1;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+}
+
+/* ==========================================================================
+   Header Bar (Sticky & Responsive)
+   ========================================================================== */
+.header-bar {
+  position: sticky;
+  top: 0;
+  height: var(--header-height);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  z-index: 200;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.brand-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-cyan) 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px var(--primary-glow);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+.brand-text h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.brand-text span {
+  font-size: 0.7rem;
+  color: var(--accent-cyan);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+/* View Mode Toggles */
+.view-mode-group {
+  display: flex;
+  background: var(--bg-surface-elevated);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.view-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all var(--transition-fast);
+}
+
+.view-btn:hover {
+  color: #fff;
+}
+
+.view-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.preset-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-surface-elevated);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.preset-selector-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.preset-select {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.preset-select option {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-secondary {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-overleaf {
+  background: #1f683a;
+  color: #fff;
+  border-color: #2e8540;
+}
+.btn-overleaf:hover {
+  background: #19522e;
+}
+
+.btn-emerald {
+  background: #059669;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+.btn-emerald:hover {
+  background: #047857;
+}
+
+.btn-amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.btn-amber:hover {
+  background: rgba(245, 158, 11, 0.35);
+}
+
+.btn-sm {
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.btn-icon {
+  padding: 0.28rem 0.45rem;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+/* ==========================================================================
+   Main Application Layout
+   ========================================================================== */
+.app-container {
+  display: flex;
+  min-height: calc(100vh - var(--header-height));
+  width: 100%;
+}
+
+/* Mode 1: Split View (Default) */
+.app-container.view-split .form-pane {
+  width: 48%;
+  height: calc(100vh - var(--header-height));
+  overflow-y: scroll;
+}
+.app-container.view-split .preview-pane {
+  width: 52%;
+  height: calc(100vh - var(--header-height));
+  display: flex;
+}
+
+/* Mode 2: Form Only */
+.app-container.view-form-only .form-pane {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  height: auto;
+  overflow-y: visible;
+}
+.app-container.view-form-only .preview-pane {
+  display: none !important;
+}
+
+/* Mode 3: Preview Only */
+.app-container.view-preview-only .form-pane {
+  display: none !important;
+}
+.app-container.view-preview-only .preview-pane {
+  width: 100%;
+  height: calc(100vh - var(--header-height));
+  display: flex;
+}
+
+/* Left Form Pane */
+.form-pane {
+  padding: 1.25rem;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-main);
+  scrollbar-gutter: stable;
+}
+
+/* Sticky Quick-Jump Navigation Bar inside Form */
+.form-quick-nav {
+  position: sticky;
+  top: 0;
+  background: rgba(9, 13, 22, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 0.5rem 0 0.8rem 0;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 30;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.quick-nav-chips {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.chip-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.55rem;
+  border-radius: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+.chip-btn:hover {
+  background: var(--bg-surface-elevated);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.quick-tools-right {
+  display: flex;
+  gap: 0.35rem;
+}
+
+/* Action Verbs Helper Bar */
+.action-verbs-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-subtle);
+}
+
+.action-verbs-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.verb-chip {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.verb-chip:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Right Preview Pane */
+.preview-pane {
+  display: flex;
+  flex-direction: column;
+  background: #060911;
+  position: relative;
+}
+
+/* ==========================================================================
+   Form Components & Accordion Cards
+   ========================================================================== */
+.section-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.section-card:focus-within {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.section-header {
+  padding: 0.8rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  user-select: none;
+}
+
+.section-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.section-title svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-cyan);
+}
+
+.section-toggle-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.section-card.collapsed .section-toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.section-card.collapsed .section-body {
+  display: none;
+}
+
+.section-card:not(.collapsed) .section-header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.section-body {
+  padding: 1rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.form-group {
+  margin-bottom: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-control {
+  width: 100%;
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  padding: 0.45rem 0.65rem;
+  outline: none;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.input-with-action {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.test-link-btn {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-cyan);
+  padding: 0.42rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.test-link-btn:hover {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: var(--accent-cyan);
+}
+
+.repeatable-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.repeatable-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+
+.repeatable-item-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.reorder-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.bullet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+
+.bullet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.bullet-indicator {
+  margin-top: 0.5rem;
+  color: var(--accent-cyan);
+  font-size: 0.75rem;
+}
+
+.tip-pill {
+  background: rgba(99, 102, 241, 0.08);
+  border-left: 3px solid var(--primary);
+  padding: 0.45rem 0.7rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.72rem;
+  color: #c7d2fe;
+  margin-bottom: 0.85rem;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Preview Toolbar & Tabs
+   ========================================================================== */
+.preview-toolbar {
+  height: 48px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  z-index: 10;
+}
+
+.preview-tabs {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  color: #fff;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--bg-surface-elevated);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.zoom-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  border-radius: 3px;
+}
+.zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.zoom-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 38px;
+  text-align: center;
+}
+
+.page-counter-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.page-counter-badge.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-amber);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* ==========================================================================
+   Visual Resume Canvas (Tuned to Exact Jake's LaTeX Compaction)
+   ========================================================================== */
+.preview-scroll-area {
+  flex: 1;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1.5rem 1rem 4rem 1rem;
+  background: #090e1a;
+}
+
+/* The A4/Letter Sheet matching Jake Gutierrez fonts */
+.resume-paper {
+  width: 8.5in;
+  min-height: 11in;
+  height: auto;
+  background: var(--paper-bg) !important;
+  color: var(--paper-text) !important;
+  padding: 0.5in;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  font-family: 'Computer Modern Serif', 'CMU Serif', 'Latin Modern Roman', 'Times New Roman', serif;
+  font-size: 11pt;
+  line-height: 1.22;
+  position: relative;
+  transform-origin: top center;
+  transition: transform var(--transition-fast);
+}
+
+/* 1. Heading (Jake Ryan style) */
+.res-header {
+  text-align: center;
+  margin-bottom: 2pt;
+}
+
+.res-name {
+  font-size: 21pt;
+  font-weight: 700;
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  margin-bottom: 1pt;
+  line-height: 1.05;
+}
+
+.res-contacts {
+  font-size: 9.5pt;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0 4pt;
+  line-height: 1.22;
+}
+
+.res-contacts a,
+.resume-paper a {
+  color: #000000 !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.res-contacts a:hover,
+.resume-paper a:hover {
+  color: #0a4b78 !important;
+}
+
+.res-sep {
+  color: #000;
+  font-weight: 400;
+}
+
+/* 2. Section Headings (Tuned with LaTeX \vspace{-4pt} equivalents) */
+.res-section {
+  margin-top: 3.5pt;
+  margin-bottom: 1.5pt;
+}
+
+.res-section-title {
+  font-size: 11pt;
+  font-weight: 700;
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  border-bottom: 1.2px solid #000000;
+  padding-bottom: 0.5pt;
+  margin-bottom: 2.5pt;
+}
+
+/* 3. Subheadings (Tuned with \vspace{-7pt} equivalents) */
+.res-subheading {
+  margin-bottom: 2pt;
+}
+
+.res-row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+}
+
+.res-bold {
+  font-weight: 700;
+}
+
+.res-italic {
+  font-style: italic;
+  font-size: 9.5pt;
+}
+
+.res-dates {
+  font-size: 9.5pt;
+  white-space: nowrap;
+}
+
+.res-location {
+  font-size: 9.5pt;
+  white-space: nowrap;
+}
+
+.res-subdetails {
+  font-size: 9.5pt;
+  margin-top: 1pt;
+}
+
+/* 4. Bullets (Tuned with \vspace{-2pt} item equivalents) */
+.res-bullets {
+  list-style-type: disc;
+  padding-left: 17pt;
+  margin-top: 0.5pt;
+  margin-bottom: 2pt;
+}
+
+.res-bullets li {
+  font-size: 9.5pt;
+  line-height: 1.22;
+  margin-bottom: 0.8pt;
+}
+
+/* 5. Skills */
+.res-skills-list {
+  padding-left: 0;
+  list-style: none;
+  font-size: 9.5pt;
+  line-height: 1.26;
+}
+
+.res-skills-list li {
+  margin-bottom: 0.8pt;
+}
+
+/* Compact Mode for Auto-Fit */
+.resume-paper.compact-mode {
+  line-height: 1.16;
+}
+.resume-paper.compact-mode .res-name {
+  font-size: 19pt;
+}
+.resume-paper.compact-mode .res-section {
+  margin-top: 2.5pt;
+  margin-bottom: 1pt;
+}
+.resume-paper.compact-mode .res-section-title {
+  font-size: 10.5pt;
+  margin-bottom: 1.5pt;
+  padding-bottom: 0.5pt;
+}
+.resume-paper.compact-mode .res-subheading {
+  margin-bottom: 1.5pt;
+}
+.resume-paper.compact-mode .res-bullets {
+  margin-top: 0.5pt;
+  margin-bottom: 1.5pt;
+}
+.resume-paper.compact-mode .res-bullets li {
+  line-height: 1.18;
+  margin-bottom: 0.5pt;
+}
+.resume-paper.compact-mode .res-skills-list li {
+  line-height: 1.2;
+  margin-bottom: 0.5pt;
+}
+
+/* ==========================================================================
+   LaTeX Code Editor View
+   ========================================================================== */
+.latex-view-container {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  background: #080c14;
+  overflow: hidden;
+}
+
+.latex-view-container.active {
+  display: flex;
+}
+
+.latex-code-header {
+  padding: 0.6rem 1.25rem;
+  background: #0f172a;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.latex-code-area {
+  flex: 1;
+  overflow-y: scroll;
+  padding: 1.25rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+  white-space: pre;
+  tab-size: 2;
+  background: #090d16;
+}
+
+/* Toast Notice */
+.toast-notice {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1e293b;
+  color: #fff;
+  border: 1px solid var(--primary);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px var(--primary-glow);
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 500;
+}
+
+.toast-notice.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ==========================================================================
+   Print Rules (Zero Browser Headers/Footers, Clean Overleaf Style)
+   ========================================================================== */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0mm !important;
+  }
+
+  @page :left {
+    margin: 0mm !important;
+  }
+  @page :right {
+    margin: 0mm !important;
+  }
+  @page :first {
+    margin: 0mm !important;
+  }
+
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .header-bar,
+  .form-pane,
+  .preview-toolbar,
+  .latex-view-container,
+  .toast-notice,
+  .form-quick-nav {
+    display: none !important;
+  }
+
+  .app-container,
+  .preview-pane,
+  .preview-scroll-area {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  .resume-paper {
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    padding: 0.5in !important;
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+    min-height: 11in !important;
+    height: auto !important;
+    transform: none !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+/* Responsive Stacking for Small Laptops & Mobile */
+@media (max-width: 992px) {
+  .app-container.view-split {
+    flex-direction: column;
+    height: auto;
+  }
+  .app-container.view-split .form-pane,
+  .app-container.view-split .preview-pane {
+    width: 100%;
+    height: auto;
+    overflow-y: visible;
+  }
+  .preview-scroll-area {
+    height: 700px;
+  }
+}

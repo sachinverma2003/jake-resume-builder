@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jake's Resume LaTeX Builder | B.Tech Campus Placements</title>
+  <meta name="description" content="Generate 100% error-free LaTeX Jake's Resume for B.Tech campus placements. Instant live visual preview, ATS-friendly single-column layout, and 1-click Overleaf export.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Header Navigation (Sticky) -->
+  <header class="header-bar">
+    <div class="brand-wrapper">
+      <div class="brand-icon">
+        <span>&Sigma;</span>
+      </div>
+      <div class="brand-text">
+        <h1>Jake's Resume Builder</h1>
+        <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Layout View Mode Selector -->
+      <div class="view-mode-group">
+        <button id="btn-view-split" class="view-btn active" title="Split Screen 50/50">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          Split
+        </button>
+        <button id="btn-view-form" class="view-btn" title="Editor Full Screen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Form Only
+        </button>
+        <button id="btn-view-preview" class="view-btn" title="Resume Preview Full Screen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Resume Only
+        </button>
+      </div>
+
+      <!-- Preset Switcher -->
+      <div class="preset-selector-group">
+        <label for="preset-select">Preset:</label>
+        <select id="preset-select" class="preset-select">
+          <option value="jake" selected>Jake Ryan (Original Standard Template)</option>
+          <option value="sde">SDE / Full Stack Profile (NIT Trichy)</option>
+          <option value="aiml">AI / ML &amp; Data Science (IIT Kharagpur)</option>
+          <option value="fresher">Fresher / Campus Placements (VIT)</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="btn-copy-latex" class="btn btn-secondary" title="Copy clean LaTeX code">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy LaTeX
+        </button>
+        <button id="btn-download-tex" class="btn btn-primary" title="Download .tex file">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Download .tex
+        </button>
+        <button id="btn-open-overleaf" class="btn btn-overleaf" title="Compile directly on Overleaf in 1-click">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          Open in Overleaf
+        </button>
+        <button id="btn-print-pdf" class="btn btn-emerald" title="Download clean 1-page PDF directly (No browser headers, URLs, or timestamps)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export PDF
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main id="app-container" class="app-container view-split">
+    
+    <!-- LEFT PANE: Form Builder -->
+    <aside id="form-pane" class="form-pane">
+
+      <!-- Sticky Quick-Navigation Bar -->
+      <nav class="form-quick-nav">
+        <div class="quick-nav-chips">
+          <button class="chip-btn" onclick="scrollToSection('sec-header')">👤 Header</button>
+          <button class="chip-btn" onclick="scrollToSection('sec-education')">🎓 Education</button>
+          <button class="chip-btn" onclick="scrollToSection('sec-experience')">💼 Experience</button>
+          <button class="chip-btn" onclick="scrollToSection('sec-projects')">🚀 Projects</button>
+          <button class="chip-btn" onclick="scrollToSection('sec-skills')">⚡ Skills</button>
+          <button class="chip-btn" onclick="scrollToSection('sec-certs')">📜 Certs</button>
+          <button class="chip-btn" onclick="scrollToSection('sec-honors')">🏆 Honors</button>
+        </div>
+        <div class="quick-tools-right">
+          <button id="btn-toggle-all" class="chip-btn" title="Expand or Collapse All Cards">Collapse All</button>
+        </div>
+      </nav>
+
+      <!-- Placement Tip Banner -->
+      <div class="tip-pill">
+        <strong>💡 Jake Gutierrez Template:</strong> Single-column ATS format with 0.5-inch margins and Computer Modern typography. Bullets use the STAR method. All links generate valid <code>\href{...}</code> syntax with automatic character escaping.
+      </div>
+
+      <!-- 1. Personal Info & Links -->
+      <div id="sec-header" class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Personal &amp; Contact Links
+          </div>
+          <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="inp-name">Full Name</label>
+              <input type="text" id="inp-name" class="form-control" placeholder="Jake Ryan">
+            </div>
+            <div class="form-group">
+              <label for="inp-phone">Phone Number</label>
+              <input type="text" id="inp-phone" class="form-control" placeholder="123-456-7890">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="inp-email">Email Address</label>
+            <input type="email" id="inp-email" class="form-control" placeholder="jake@su.edu">
+          </div>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="inp-linkedin">LinkedIn Profile URL</label>
+              <div class="input-with-action">
+                <input type="url" id="inp-linkedin" class="form-control" placeholder="https://linkedin.com/in/jake">
+                <a id="test-linkedin" href="#" target="_blank" class="test-link-btn" style="display:none;">Test ↗</a>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="inp-linkedin-display">LinkedIn Display Text</label>
+              <input type="text" id="inp-linkedin-display" class="form-control" placeholder="linkedin.com/in/jake">
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="inp-github">GitHub Profile URL</label>
+              <div class="input-with-action">
+                <input type="url" id="inp-github" class="form-control" placeholder="https://github.com/jake">
+                <a id="test-github" href="#" target="_blank" class="test-link-btn" style="display:none;">Test ↗</a>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="inp-github-display">GitHub Display Text</label>
+              <input type="text" id="inp-github-display" class="form-control" placeholder="github.com/jake">
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="inp-leetcode">Coding Profile (LeetCode/Codeforces/Portfolio)</label>
+              <input type="url" id="inp-leetcode" class="form-control" placeholder="https://leetcode.com/jake">
+            </div>
+            <div class="form-group">
+              <label for="inp-leetcode-display">Coding Display Text</label>
+              <input type="text" id="inp-leetcode-display" class="form-control" placeholder="leetcode.com/jake">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inp-portfolio">Portfolio / Personal Website (Optional)</label>
+            <input type="url" id="inp-portfolio" class="form-control" placeholder="https://jakeryan.dev">
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Education -->
+      <div id="sec-education" class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+            Education
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addEducation();">+ Add School</button>
+            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="education-list"></div>
+        </div>
+      </div>
+
+      <!-- 3. Work Experience / Internships -->
+      <div id="sec-experience" class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+            Experience &amp; Internships
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addExperience();">+ Add Role</button>
+            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="action-verbs-bar">
+            <span class="action-verbs-label">Action Verbs:</span>
+            <button type="button" class="verb-chip" onclick="insertActionVerb('Engineered')">+ Engineered</button>
+            <button type="button" class="verb-chip" onclick="insertActionVerb('Architected')">+ Architected</button>
+            <button type="button" class="verb-chip" onclick="insertActionVerb('Optimized')">+ Optimized</button>
+            <button type="button" class="verb-chip" onclick="insertActionVerb('Spearheaded')">+ Spearheaded</button>
+            <button type="button" class="verb-chip" onclick="insertActionVerb('Implemented')">+ Implemented</button>
+            <button type="button" class="verb-chip" onclick="insertActionVerb('Benchmarked')">+ Benchmarked</button>
+          </div>
+          <div id="experience-list"></div>
+        </div>
+      </div>
+
+      <!-- 4. Projects -->
+      <div id="sec-projects" class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+            Technical &amp; Academic Projects
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addProject();">+ Add Project</button>
+            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="projects-list"></div>
+        </div>
+      </div>
+
+      <!-- 5. Technical Skills -->
+      <div id="sec-skills" class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            Technical Skills
+          </div>
+          <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="section-body">
+          <div class="form-group">
+            <label for="inp-skills-lang">Languages</label>
+            <input type="text" id="inp-skills-lang" class="form-control" placeholder="Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R">
+          </div>
+          <div class="form-group">
+            <label for="inp-skills-frameworks">Frameworks</label>
+            <input type="text" id="inp-skills-frameworks" class="form-control" placeholder="React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI">
+          </div>
+          <div class="form-group">
+            <label for="inp-skills-tools">Developer Tools</label>
+            <input type="text" id="inp-skills-tools" class="form-control" placeholder="Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse">
+          </div>
+          <div class="form-group">
+            <label for="inp-skills-libraries">Libraries</label>
+            <input type="text" id="inp-skills-libraries" class="form-control" placeholder="pandas, NumPy, Matplotlib">
+          </div>
+          <div class="form-group">
+            <label for="inp-skills-coursework">Core CS Coursework (Optional)</label>
+            <input type="text" id="inp-skills-coursework" class="form-control" placeholder="Data Structures & Algorithms, OS, DBMS, Computer Networks, OOP">
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Certifications (with Clickable Links) -->
+      <div id="sec-certs" class="section-card collapsed">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+            Certifications (Optional)
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addCertification();">+ Add Cert</button>
+            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="certifications-list"></div>
+        </div>
+      </div>
+
+      <!-- 7. Honors & Achievements -->
+      <div id="sec-honors" class="section-card collapsed">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 6 14.5 10.5 19.5 11.2 16 14.5 17 19.5 12 17 7 19.5 8 14.5 4.5 11.2 9.5 10.5 12 6"></polygon></svg>
+            Honors &amp; Achievements (Optional)
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addAchievement();">+ Add Honor</button>
+            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="achievements-list"></div>
+        </div>
+      </div>
+
+      <div style="height: 40px;"></div>
+    </aside>
+
+    <!-- RIGHT PANE: Dual Preview -->
+    <section id="preview-pane" class="preview-pane">
+      
+      <!-- Toolbar -->
+      <div class="preview-toolbar">
+        <!-- Tab Switcher -->
+        <div class="preview-tabs">
+          <button id="tab-visual" class="tab-btn active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Visual Resume (1 Page)
+          </button>
+          <button id="tab-latex" class="tab-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            LaTeX Code (.tex)
+          </button>
+        </div>
+
+        <!-- Controls & Badge -->
+        <div class="preview-controls">
+          <div id="page-counter-badge" class="page-counter-badge">
+            ✓ 1 Page &bull; ATS Compliant
+          </div>
+
+          <div class="zoom-controls">
+            <button id="zoom-out" class="zoom-btn" title="Zoom Out">&minus;</button>
+            <span id="zoom-label" class="zoom-label">85%</span>
+            <button id="zoom-in" class="zoom-btn" title="Zoom In">&plus;</button>
+            <button id="zoom-reset" class="zoom-btn" title="Fit Window">Fit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 1: Visual Resume Preview Area (Scrollable) -->
+      <div id="visual-preview-area" class="preview-scroll-area">
+        <div id="visual-resume" class="resume-paper">
+          <!-- Dynamic Content rendered by app.js matching Jake Ryan template -->
+        </div>
+      </div>
+
+      <!-- Tab 2: LaTeX Code Output Container -->
+      <div id="latex-view-container" class="latex-view-container">
+        <div class="latex-code-header">
+          <span>LaTeX Document Source (Compliant with Overleaf pdflatex)</span>
+          <span style="color: var(--accent-cyan);">Jake Gutierrez Template</span>
+        </div>
+        <pre id="latex-code-output" class="latex-code-area"></pre>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-notice" class="toast-notice">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-emerald);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    <span id="toast-message">Action Successful!</span>
+  </div>
+
+  <!-- Scripts -->
+  <script src="html2pdf.bundle.min.js"></script>
+  <script src="template.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
