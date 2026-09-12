@@ -5,6 +5,25 @@
 
 // Global Application State initialized with Jake Ryan Original Preset
 let resumeState = JSON.parse(JSON.stringify(BTECH_PRESETS.jake));
+if (!resumeState.sectionOrder) {
+  resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+}
+if (!resumeState.introduction) {
+  resumeState.introduction = { enabled: false, text: '' };
+}
+if (typeof normalizeSkills === 'function') {
+  resumeState.skills = normalizeSkills(resumeState.skills);
+}
+
+const SECTION_METADATA = {
+  introduction: { id: 'sec-intro', title: 'Introduction / Summary', shortTitle: 'Intro', icon: '📝' },
+  education: { id: 'sec-education', title: 'Education', shortTitle: 'Education', icon: '🎓' },
+  experience: { id: 'sec-experience', title: 'Experience', shortTitle: 'Experience', icon: '💼' },
+  projects: { id: 'sec-projects', title: 'Projects', shortTitle: 'Projects', icon: '🚀' },
+  skills: { id: 'sec-skills', title: 'Technical Skills', shortTitle: 'Skills', icon: '⚡' },
+  certifications: { id: 'sec-certs', title: 'Certifications', shortTitle: 'Certs', icon: '📜' },
+  achievements: { id: 'sec-honors', title: 'Honors & Achievements', shortTitle: 'Honors', icon: '🏆' }
+};
 
 let currentOptions = {
   fontSize: '11pt',
@@ -29,12 +48,18 @@ const toastMessage = document.getElementById('toast-message');
 /**
  * Initialize Application
  */
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   populateFormFromState();
   updatePreviews();
   setupEventListeners();
   applyZoom(currentZoom);
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 /**
  * Populate all form inputs based on current resumeState
@@ -56,12 +81,11 @@ function populateFormFromState() {
   updateTestLink('test-linkedin', resumeState.personal.linkedin);
   updateTestLink('test-github', resumeState.personal.github);
 
-  // Technical Skills
-  document.getElementById('inp-skills-lang').value = resumeState.skills.languages || '';
-  document.getElementById('inp-skills-frameworks').value = resumeState.skills.frameworks || '';
-  document.getElementById('inp-skills-tools').value = resumeState.skills.tools || '';
-  document.getElementById('inp-skills-libraries').value = resumeState.skills.libraries || '';
-  document.getElementById('inp-skills-coursework').value = resumeState.skills.coursework || '';
+  // Introduction Section
+  renderIntroductionSection();
+
+  // Dynamic Skills List
+  renderSkillsList();
 
   // Render Dynamic Repeatable Lists
   renderEducationList();
@@ -69,6 +93,9 @@ function populateFormFromState() {
   renderProjectsList();
   renderCertificationsList();
   renderAchievementsList();
+
+  // Reorder Form Section Cards in DOM
+  reorderFormSectionCards();
 }
 
 function updateTestLink(elemId, url) {
@@ -92,6 +119,15 @@ function setupEventListeners() {
     const selected = e.target.value;
     if (BTECH_PRESETS[selected]) {
       resumeState = JSON.parse(JSON.stringify(BTECH_PRESETS[selected]));
+      if (!resumeState.sectionOrder) {
+        resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+      }
+      if (!resumeState.introduction) {
+        resumeState.introduction = { enabled: false, text: '' };
+      }
+      if (typeof normalizeSkills === 'function') {
+        resumeState.skills = normalizeSkills(resumeState.skills);
+      }
       // Reset options to default
       currentOptions.fontSize = '11pt';
       currentOptions.sectionSpacing = '-4pt';
@@ -171,24 +207,7 @@ function setupEventListeners() {
     }
   });
 
-  // Skills Inputs
-  const skillInputs = [
-    { id: 'inp-skills-lang', key: 'languages' },
-    { id: 'inp-skills-frameworks', key: 'frameworks' },
-    { id: 'inp-skills-tools', key: 'tools' },
-    { id: 'inp-skills-libraries', key: 'libraries' },
-    { id: 'inp-skills-coursework', key: 'coursework' }
-  ];
 
-  skillInputs.forEach(({ id, key }) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', (e) => {
-        resumeState.skills[key] = e.target.value;
-        updatePreviews();
-      });
-    }
-  });
 
   // Accordion Toggle
   document.querySelectorAll('.section-header').forEach(header => {
@@ -351,164 +370,199 @@ function renderVisualResume() {
     </header>
   `;
 
-  // 2. Education
-  if (education && education.length > 0) {
-    html += `
-      <section class="res-section">
-        <div class="res-section-title">Education</div>
-    `;
-    education.forEach(edu => {
-      const gpaText = edu.gpa ? ` | CGPA/Percentage: ${escapeHtml(edu.gpa)}` : '';
-      const courseworkText = edu.coursework ? `<div class="res-subdetails"><strong>Relevant Coursework:</strong> ${escapeHtml(edu.coursework)}</div>` : '';
-      html += `
-        <div class="res-subheading">
-          <div class="res-row-between">
-            <span class="res-bold">${escapeHtml(edu.institution)}</span>
-            <span class="res-location">${escapeHtml(edu.location)}</span>
-          </div>
-          <div class="res-row-between">
-            <span class="res-italic">${escapeHtml(edu.degree)}${gpaText}</span>
-            <span class="res-dates">${escapeHtml(edu.dates)}</span>
-          </div>
-          ${courseworkText}
-        </div>
-      `;
-    });
-    html += `</section>`;
-  }
+  // Dynamic Reorderable Sections Rendering
+  const visualGenerators = {
+    introduction: () => renderIntroductionVisual(resumeState.introduction),
+    education: () => renderEducationVisual(resumeState.education),
+    experience: () => renderExperienceVisual(resumeState.experience),
+    projects: () => renderProjectsVisual(resumeState.projects),
+    skills: () => renderSkillsVisual(resumeState.skills),
+    certifications: () => renderCertificationsVisual(resumeState.certifications, currentOptions.showCertifications),
+    achievements: () => renderAchievementsVisual(resumeState.achievements, currentOptions.showAchievements)
+  };
 
-  // 3. Experience
-  if (experience && experience.length > 0) {
-    html += `
-      <section class="res-section">
-        <div class="res-section-title">Experience</div>
-    `;
-    experience.forEach(exp => {
-      html += `
-        <div class="res-subheading">
-          <div class="res-row-between">
-            <span class="res-bold">${escapeHtml(exp.role)}</span>
-            <span class="res-dates">${escapeHtml(exp.dates)}</span>
-          </div>
-          <div class="res-row-between">
-            <span class="res-italic">${escapeHtml(exp.company)}</span>
-            <span class="res-location">${escapeHtml(exp.location)}</span>
-          </div>
-          <ul class="res-bullets">
-            ${exp.bullets.filter(b => b.trim()).map(b => `<li>${escapeHtml(b)}</li>`).join('')}
-          </ul>
-        </div>
-      `;
-    });
-    html += `</section>`;
-  }
+  const defaultOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+  const order = (resumeState.sectionOrder && resumeState.sectionOrder.length > 0)
+    ? resumeState.sectionOrder
+    : defaultOrder;
 
-  // 4. Projects (with Clickable Links)
-  if (projects && projects.length > 0) {
-    html += `
-      <section class="res-section">
-        <div class="res-section-title">Projects</div>
-    `;
-    projects.forEach(proj => {
-      let linkItems = [];
-      if (proj.liveUrl) {
-        linkItems.push(`<a href="${normalizeUrl(proj.liveUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(proj.liveLabel || 'Live Demo')}</a>`);
-      }
-      if (proj.githubUrl) {
-        linkItems.push(`<a href="${normalizeUrl(proj.githubUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(proj.githubLabel || 'GitHub')}</a>`);
-      }
-
-      const techPart = proj.techStack ? ` | <em>${escapeHtml(proj.techStack)}</em>` : '';
-      const linksPart = linkItems.length > 0 ? ` | ${linkItems.join(' | ')}` : '';
-
-      html += `
-        <div class="res-subheading">
-          <div class="res-row-between">
-            <span><strong class="res-bold">${escapeHtml(proj.title)}</strong>${techPart}${linksPart}</span>
-            <span class="res-dates">${escapeHtml(proj.dates)}</span>
-          </div>
-          <ul class="res-bullets">
-            ${proj.bullets.filter(b => b.trim()).map(b => `<li>${escapeHtml(b)}</li>`).join('')}
-          </ul>
-        </div>
-      `;
-    });
-    html += `</section>`;
-  }
-
-  // 5. Technical Skills (Exact Jake's format)
-  if (skills) {
-    const hasSkills = skills.languages || skills.frameworks || skills.tools || skills.libraries || skills.coursework || skills.other;
-    if (hasSkills) {
-      html += `
-        <section class="res-section">
-          <div class="res-section-title">Technical Skills</div>
-          <ul class="res-skills-list">
-      `;
-      if (skills.languages) {
-        html += `<li><strong>Languages:</strong> ${escapeHtml(skills.languages)}</li>`;
-      }
-      if (skills.frameworks) {
-        html += `<li><strong>Frameworks:</strong> ${escapeHtml(skills.frameworks)}</li>`;
-      }
-      if (skills.tools) {
-        html += `<li><strong>Developer Tools:</strong> ${escapeHtml(skills.tools)}</li>`;
-      }
-      if (skills.libraries) {
-        html += `<li><strong>Libraries:</strong> ${escapeHtml(skills.libraries)}</li>`;
-      }
-      if (skills.coursework) {
-        html += `<li><strong>Core CS Coursework:</strong> ${escapeHtml(skills.coursework)}</li>`;
-      }
-      if (skills.other) {
-        html += `<li><strong>Other:</strong> ${escapeHtml(skills.other)}</li>`;
-      }
-      html += `</ul></section>`;
+  order.forEach(secKey => {
+    if (visualGenerators[secKey]) {
+      html += visualGenerators[secKey]();
     }
-  }
-
-  // 6. Certifications (Optional with Clickable Links)
-  if (currentOptions.showCertifications && certifications && certifications.length > 0) {
-    html += `
-      <section class="res-section">
-        <div class="res-section-title">Certifications</div>
-        <ul class="res-skills-list">
-    `;
-    certifications.forEach(cert => {
-      let certInfo = `<strong>${escapeHtml(cert.name)}</strong>`;
-      if (cert.issuer) certInfo += ` &mdash; ${escapeHtml(cert.issuer)}`;
-      if (cert.date) certInfo += ` <span style="float: right; font-style: italic;">${escapeHtml(cert.date)}</span>`;
-
-      if (cert.url) {
-        const linkText = cert.credentialId 
-          ? `Credential ID: ${escapeHtml(cert.credentialId)} [Verify]` 
-          : `Verify Certificate`;
-        certInfo += `<div style="font-size: 9pt; margin-left: 10pt; margin-top: 1pt;"><a href="${normalizeUrl(cert.url)}" target="_blank" rel="noopener noreferrer">${linkText}</a></div>`;
-      }
-      html += `<li>${certInfo}</li>`;
-    });
-    html += `</ul></section>`;
-  }
-
-  // 7. Honors & Achievements (Optional with Clickable Links)
-  if (currentOptions.showAchievements && achievements && achievements.length > 0) {
-    html += `
-      <section class="res-section">
-        <div class="res-section-title">Honors & Achievements</div>
-        <ul class="res-bullets">
-    `;
-    achievements.forEach(ach => {
-      let line = `<strong>${escapeHtml(ach.title)}</strong>`;
-      if (ach.description) line += `: ${escapeHtml(ach.description)}`;
-      if (ach.url) {
-        line += ` [<a href="${normalizeUrl(ach.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ach.linkLabel || 'Link')}</a>]`;
-      }
-      html += `<li>${line}</li>`;
-    });
-    html += `</ul></section>`;
-  }
+  });
 
   visualResume.innerHTML = html;
+}
+
+// 0. Introduction / Summary Visual
+function renderIntroductionVisual(intro) {
+  if (!intro) return '';
+  const isEnabled = typeof intro === 'object' ? intro.enabled !== false : Boolean(intro);
+  const text = typeof intro === 'object' ? (intro.text || '') : String(intro);
+  if (!isEnabled || !text.trim()) return '';
+
+  return `
+    <section class="res-section">
+      <div class="res-section-title">Introduction</div>
+      <div class="res-intro-text">${escapeHtml(text.trim())}</div>
+    </section>
+  `;
+}
+
+// 1. Education Visual
+function renderEducationVisual(education) {
+  if (!education || education.length === 0) return '';
+  let html = `
+    <section class="res-section">
+      <div class="res-section-title">Education</div>
+  `;
+  education.forEach(edu => {
+    const gpaText = edu.gpa ? ` | CGPA/Percentage: ${escapeHtml(edu.gpa)}` : '';
+    const courseworkText = edu.coursework ? `<div class="res-subdetails"><strong>Relevant Coursework:</strong> ${escapeHtml(edu.coursework)}</div>` : '';
+    html += `
+      <div class="res-subheading">
+        <div class="res-row-between">
+          <span class="res-bold">${escapeHtml(edu.institution)}</span>
+          <span class="res-location">${escapeHtml(edu.location)}</span>
+        </div>
+        <div class="res-row-between">
+          <span class="res-italic">${escapeHtml(edu.degree)}${gpaText}</span>
+          <span class="res-dates">${escapeHtml(edu.dates)}</span>
+        </div>
+        ${courseworkText}
+      </div>
+    `;
+  });
+  html += `</section>`;
+  return html;
+}
+
+// 2. Experience Visual
+function renderExperienceVisual(experience) {
+  if (!experience || experience.length === 0) return '';
+  let html = `
+    <section class="res-section">
+      <div class="res-section-title">Experience</div>
+  `;
+  experience.forEach(exp => {
+    html += `
+      <div class="res-subheading">
+        <div class="res-row-between">
+          <span class="res-bold">${escapeHtml(exp.role)}</span>
+          <span class="res-dates">${escapeHtml(exp.dates)}</span>
+        </div>
+        <div class="res-row-between">
+          <span class="res-italic">${escapeHtml(exp.company)}</span>
+          <span class="res-location">${escapeHtml(exp.location)}</span>
+        </div>
+        <ul class="res-bullets">
+          ${exp.bullets.filter(b => b.trim()).map(b => `<li>${escapeHtml(b)}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  });
+  html += `</section>`;
+  return html;
+}
+
+// 3. Projects Visual
+function renderProjectsVisual(projects) {
+  if (!projects || projects.length === 0) return '';
+  let html = `
+    <section class="res-section">
+      <div class="res-section-title">Projects</div>
+  `;
+  projects.forEach(proj => {
+    let linkItems = [];
+    if (proj.liveUrl) {
+      linkItems.push(`<a href="${normalizeUrl(proj.liveUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(proj.liveLabel || 'Live Demo')}</a>`);
+    }
+    if (proj.githubUrl) {
+      linkItems.push(`<a href="${normalizeUrl(proj.githubUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(proj.githubLabel || 'GitHub')}</a>`);
+    }
+
+    const techPart = proj.techStack ? ` | <em>${escapeHtml(proj.techStack)}</em>` : '';
+    const linksPart = linkItems.length > 0 ? ` | ${linkItems.join(' | ')}` : '';
+
+    html += `
+      <div class="res-subheading">
+        <div class="res-row-between">
+          <span><strong class="res-bold">${escapeHtml(proj.title)}</strong>${techPart}${linksPart}</span>
+          <span class="res-dates">${escapeHtml(proj.dates)}</span>
+        </div>
+        <ul class="res-bullets">
+          ${proj.bullets.filter(b => b.trim()).map(b => `<li>${escapeHtml(b)}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  });
+  html += `</section>`;
+  return html;
+}
+
+// 4. Technical Skills Visual (Dynamic Categories & Subsections)
+function renderSkillsVisual(skills) {
+  const normSkills = typeof normalizeSkills === 'function' ? normalizeSkills(skills) : skills;
+  if (!normSkills || normSkills.length === 0) return '';
+  const activeRows = normSkills.filter(s => s.category && s.category.trim() && s.items && s.items.trim());
+  if (activeRows.length === 0) return '';
+
+  let html = `
+    <section class="res-section">
+      <div class="res-section-title">Technical Skills</div>
+      <ul class="res-skills-list">
+  `;
+  activeRows.forEach(item => {
+    html += `<li><strong>${escapeHtml(item.category.trim())}:</strong> ${escapeHtml(item.items.trim())}</li>`;
+  });
+  html += `</ul></section>`;
+  return html;
+}
+
+// 5. Certifications Visual
+function renderCertificationsVisual(certifications, showCertifications = true) {
+  if (!showCertifications || !certifications || certifications.length === 0) return '';
+  let html = `
+    <section class="res-section">
+      <div class="res-section-title">Certifications</div>
+      <ul class="res-skills-list">
+  `;
+  certifications.forEach(cert => {
+    let certInfo = `<strong>${escapeHtml(cert.name)}</strong>`;
+    if (cert.issuer) certInfo += ` &mdash; ${escapeHtml(cert.issuer)}`;
+    if (cert.date) certInfo += ` <span style="float: right; font-style: italic;">${escapeHtml(cert.date)}</span>`;
+
+    if (cert.url) {
+      const linkText = cert.credentialId 
+        ? `Credential ID: ${escapeHtml(cert.credentialId)} [Verify]` 
+        : `Verify Certificate`;
+      certInfo += `<div style="font-size: 9pt; margin-left: 10pt; margin-top: 1pt;"><a href="${normalizeUrl(cert.url)}" target="_blank" rel="noopener noreferrer">${linkText}</a></div>`;
+    }
+    html += `<li>${certInfo}</li>`;
+  });
+  html += `</ul></section>`;
+  return html;
+}
+
+// 6. Honors & Achievements Visual
+function renderAchievementsVisual(achievements, showAchievements = true) {
+  if (!showAchievements || !achievements || achievements.length === 0) return '';
+  let html = `
+    <section class="res-section">
+      <div class="res-section-title">Honors & Achievements</div>
+      <ul class="res-bullets">
+  `;
+  achievements.forEach(ach => {
+    let line = `<strong>${escapeHtml(ach.title)}</strong>`;
+    if (ach.description) line += `: ${escapeHtml(ach.description)}`;
+    if (ach.url) {
+      line += ` [<a href="${normalizeUrl(ach.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ach.linkLabel || 'Link')}</a>]`;
+    }
+    html += `<li>${line}</li>`;
+  });
+  html += `</ul></section>`;
+  return html;
 }
 
 /**
@@ -1145,3 +1199,345 @@ function removeAchievement(idx) {
   renderAchievementsList();
   updatePreviews();
 }
+
+/* ==========================================================================
+   Dynamic Technical Skills Category Management
+   ========================================================================== */
+
+function renderSkillsList() {
+  const container = document.getElementById('skills-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (typeof normalizeSkills === 'function') {
+    resumeState.skills = normalizeSkills(resumeState.skills);
+  }
+
+  if (!Array.isArray(resumeState.skills) || resumeState.skills.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 0.8rem; text-align: center; color: var(--text-muted); font-size: 0.8rem; border: 1px dashed var(--border-subtle); border-radius: var(--radius-sm);">
+        No skill categories yet. Use the quick buttons above or click below to add one.
+      </div>
+    `;
+    return;
+  }
+
+  resumeState.skills.forEach((skill, idx) => {
+    const item = document.createElement('div');
+    item.className = 'repeatable-item skill-card-item';
+    item.innerHTML = `
+      <div class="repeatable-item-header">
+        <span class="repeatable-item-title">
+          <span class="sub-order-pill">${idx + 1}</span>
+          <strong>${escapeHtml(skill.category || 'Untitled Category')}</strong>
+        </span>
+        <div class="reorder-group">
+          <button type="button" class="btn btn-sm btn-secondary btn-icon" onclick="moveSkillCategory(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
+          <button type="button" class="btn btn-sm btn-secondary btn-icon" onclick="moveSkillCategory(${idx}, 1)" ${idx === resumeState.skills.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeSkillCategory(${idx})">Remove</button>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Category Title</label>
+          <input type="text" class="form-control" value="${escapeHtml(skill.category || '')}" placeholder="e.g. Languages, Cloud & DevOps" oninput="updateSkillField(${idx}, 'category', this.value)">
+        </div>
+        <div class="form-group">
+          <label>Skills &amp; Technologies (Sub-section)</label>
+          <input type="text" class="form-control" value="${escapeHtml(skill.items || '')}" placeholder="e.g. Python, Java, C++, Docker, AWS" oninput="updateSkillField(${idx}, 'items', this.value)">
+        </div>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+function updateSkillField(idx, field, val) {
+  if (resumeState.skills && resumeState.skills[idx]) {
+    resumeState.skills[idx][field] = val;
+    // Update live card title
+    const container = document.getElementById('skills-list');
+    if (container && container.children[idx]) {
+      const titleSpan = container.children[idx].querySelector('.repeatable-item-title strong');
+      if (titleSpan && field === 'category') {
+        titleSpan.textContent = val || 'Untitled Category';
+      }
+    }
+    updatePreviews();
+  }
+}
+
+function addSkillCategory(catName = '', defaultItems = '') {
+  if (typeof normalizeSkills === 'function') {
+    resumeState.skills = normalizeSkills(resumeState.skills);
+  }
+  if (!Array.isArray(resumeState.skills)) resumeState.skills = [];
+
+  resumeState.skills.push({
+    category: catName || 'New Skill Category',
+    items: defaultItems || ''
+  });
+
+  renderSkillsList();
+  updatePreviews();
+  showToast('✓ Added skill category!');
+}
+window.addSkillCategory = addSkillCategory;
+
+function quickAddSkillCategory(category, items) {
+  addSkillCategory(category, items);
+}
+window.quickAddSkillCategory = quickAddSkillCategory;
+
+function removeSkillCategory(idx) {
+  if (resumeState.skills && resumeState.skills[idx]) {
+    resumeState.skills.splice(idx, 1);
+    renderSkillsList();
+    updatePreviews();
+    showToast('Removed skill category');
+  }
+}
+window.removeSkillCategory = removeSkillCategory;
+
+function moveSkillCategory(idx, direction) {
+  const targetIdx = idx + direction;
+  if (targetIdx < 0 || targetIdx >= resumeState.skills.length) return;
+  const temp = resumeState.skills[idx];
+  resumeState.skills[idx] = resumeState.skills[targetIdx];
+  resumeState.skills[targetIdx] = temp;
+  renderSkillsList();
+  updatePreviews();
+}
+window.moveSkillCategory = moveSkillCategory;
+
+/* ==========================================================================
+   Main Resume Section Reordering (Sequence Manager)
+   ========================================================================== */
+
+function moveSection(sectionKey, direction) {
+  if (!resumeState.sectionOrder) {
+    resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+  }
+  const idx = resumeState.sectionOrder.indexOf(sectionKey);
+  if (idx === -1) return;
+  const targetIdx = idx + direction;
+  if (targetIdx < 0 || targetIdx >= resumeState.sectionOrder.length) return;
+
+  const temp = resumeState.sectionOrder[idx];
+  resumeState.sectionOrder[idx] = resumeState.sectionOrder[targetIdx];
+  resumeState.sectionOrder[targetIdx] = temp;
+
+  reorderFormSectionCards();
+  updatePreviews();
+
+  // Clear active state on preset buttons if custom order
+  document.querySelectorAll('.order-chip-btn').forEach(btn => btn.classList.remove('active'));
+
+  const secTitle = SECTION_METADATA[sectionKey]?.title || sectionKey;
+  showToast(`Moved ${secTitle} ${direction < 0 ? '↑ Up' : '↓ Down'}`);
+}
+window.moveSection = moveSection;
+
+function setSectionOrderPreset(presetKey) {
+  const presets = {
+    standard: ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'],
+    fresher: ['introduction', 'education', 'skills', 'projects', 'experience', 'certifications', 'achievements'],
+    experienced: ['introduction', 'experience', 'projects', 'skills', 'education', 'certifications', 'achievements'],
+    skillsFirst: ['introduction', 'skills', 'projects', 'experience', 'education', 'certifications', 'achievements']
+  };
+
+  if (presets[presetKey]) {
+    resumeState.sectionOrder = [...presets[presetKey]];
+
+    // Update active button state
+    document.querySelectorAll('.order-chip-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`btn-order-${presetKey}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    reorderFormSectionCards();
+    updatePreviews();
+    showToast(`Applied ${presetKey.toUpperCase()} section order!`);
+  }
+}
+window.setSectionOrderPreset = setSectionOrderPreset;
+
+function reorderFormSectionCards() {
+  const container = document.getElementById('reorderable-sections-container');
+  if (!container) return;
+
+  const order = resumeState.sectionOrder || ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+
+  order.forEach((secKey, index) => {
+    const meta = SECTION_METADATA[secKey];
+    if (!meta) return;
+    const card = document.getElementById(meta.id);
+    if (card) {
+      container.appendChild(card);
+      // Update badge number
+      const badge = card.querySelector('.section-order-badge');
+      if (badge) badge.textContent = index + 1;
+      // Update buttons disabled status
+      const btnUp = card.querySelector('.btn-order-up');
+      const btnDown = card.querySelector('.btn-order-down');
+      if (btnUp) btnUp.disabled = (index === 0);
+      if (btnDown) btnDown.disabled = (index === order.length - 1);
+    }
+  });
+
+  updateQuickNavChips(order);
+}
+
+function updateQuickNavChips(order) {
+  const navContainer = document.querySelector('.quick-nav-chips');
+  if (!navContainer) return;
+
+  const chips = [
+    { id: 'sec-header', label: '👤 Header' }
+  ];
+
+  order.forEach(secKey => {
+    const meta = SECTION_METADATA[secKey];
+    if (meta) {
+      const label = meta.shortTitle ? `${meta.icon} ${meta.shortTitle}` : `${meta.icon} ${meta.title.split(' ')[0]}`;
+      chips.push({ id: meta.id, label });
+    }
+  });
+
+  navContainer.innerHTML = chips.map(c => `
+    <button type="button" class="chip-btn" onclick="scrollToSection('${c.id}')">${c.label}</button>
+  `).join('');
+}
+
+function scrollToSection(secId) {
+  const el = document.getElementById(secId);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.remove('collapsed');
+  }
+}
+
+/* ==========================================================================
+   Introduction / Summary Section Management
+   ========================================================================== */
+
+function renderIntroductionSection() {
+  if (!resumeState.introduction) {
+    resumeState.introduction = { enabled: false, text: '' };
+  }
+  const intro = resumeState.introduction;
+  const textarea = document.getElementById('inp-intro-text');
+  const btnToggle = document.getElementById('btn-toggle-intro');
+  const notice = document.getElementById('intro-hidden-notice');
+  const formGroup = document.getElementById('intro-form-group');
+  const countSpan = document.getElementById('intro-char-count');
+
+  if (textarea) {
+    textarea.value = intro.text || '';
+    if (countSpan) countSpan.textContent = `${(intro.text || '').length} chars`;
+  }
+
+  if (btnToggle) {
+    if (intro.enabled) {
+      btnToggle.textContent = 'Remove Section';
+      btnToggle.className = 'btn btn-sm btn-danger';
+      if (formGroup) formGroup.style.display = 'flex';
+      if (notice) notice.style.display = 'none';
+    } else {
+      btnToggle.textContent = '+ Add Introduction';
+      btnToggle.className = 'btn btn-sm btn-emerald';
+      if (formGroup) formGroup.style.display = 'none';
+      if (notice) notice.style.display = 'block';
+    }
+  }
+}
+
+function updateIntroductionText(val) {
+  if (!resumeState.introduction) {
+    resumeState.introduction = { enabled: true, text: '' };
+  }
+  resumeState.introduction.text = val;
+  const countSpan = document.getElementById('intro-char-count');
+  if (countSpan) countSpan.textContent = `${val.length} chars`;
+  updatePreviews();
+}
+
+function toggleIntroductionSection(forceState) {
+  if (!resumeState.introduction) {
+    resumeState.introduction = { enabled: false, text: '' };
+  }
+  if (typeof forceState === 'boolean') {
+    resumeState.introduction.enabled = forceState;
+  } else {
+    resumeState.introduction.enabled = !resumeState.introduction.enabled;
+  }
+
+  // If newly enabled and empty, provide a quality starter draft
+  if (resumeState.introduction.enabled && (!resumeState.introduction.text || !resumeState.introduction.text.trim())) {
+    resumeState.introduction.text = 'Dynamic and results-driven B.Tech Computer Science undergraduate with strong foundations in Data Structures, Algorithms, and Software Engineering. Eager to contribute to scalable, high-impact software solutions.';
+  }
+
+  renderIntroductionSection();
+  updatePreviews();
+  showToast(resumeState.introduction.enabled ? '✓ Enabled Introduction section on resume' : 'Removed Introduction section from resume');
+}
+
+function applyIntroTemplate(type) {
+  const templates = {
+    sde: 'Results-driven B.Tech Computer Science graduate specializing in scalable backend architectures, distributed systems, and modern cloud infrastructure. Experienced with high-traffic web applications in Java, Python, and Node.js.',
+    aiml: 'Passionate B.Tech Computer Science student specializing in Machine Learning, Computer Vision, and Deep Learning pipelines. Hands-on experience developing neural networks with PyTorch and deploying scalable ML models.',
+    fresher: 'Motivated B.Tech Computer Science undergraduate with strong problem-solving skills in Data Structures & Algorithms. Eager to contribute to high-impact projects with proficiency in modern web development and software design.',
+    clear: ''
+  };
+
+  if (!resumeState.introduction) {
+    resumeState.introduction = { enabled: true, text: '' };
+  }
+  resumeState.introduction.enabled = (type !== 'clear');
+  resumeState.introduction.text = templates[type] !== undefined ? templates[type] : '';
+  renderIntroductionSection();
+  updatePreviews();
+  showToast(type === 'clear' ? 'Cleared introduction text' : `Applied ${type.toUpperCase()} introduction template!`);
+}
+
+// Explicit Global Window Bindings for Inline HTML Event Handlers
+window.initApp = initApp;
+window.scrollToSection = scrollToSection;
+window.setSectionOrderPreset = setSectionOrderPreset;
+window.moveSection = moveSection;
+window.reorderFormSectionCards = reorderFormSectionCards;
+window.renderIntroductionSection = renderIntroductionSection;
+window.updateIntroductionText = updateIntroductionText;
+window.toggleIntroductionSection = toggleIntroductionSection;
+window.applyIntroTemplate = applyIntroTemplate;
+window.addEducation = addEducation;
+window.removeEducation = removeEducation;
+window.updateEduField = updateEduField;
+window.addExperience = addExperience;
+window.removeExperience = removeExperience;
+window.updateExpField = updateExpField;
+window.insertActionVerb = insertActionVerb;
+window.addProject = addProject;
+window.removeProject = removeProject;
+window.updateProjField = updateProjField;
+window.addBullet = addBullet;
+window.removeBullet = removeBullet;
+window.updateBullet = updateBullet;
+window.renderSkillsList = renderSkillsList;
+window.updateSkillField = updateSkillField;
+window.addSkillCategory = addSkillCategory;
+window.quickAddSkillCategory = quickAddSkillCategory;
+window.removeSkillCategory = removeSkillCategory;
+window.moveSkillCategory = moveSkillCategory;
+window.addCertification = addCertification;
+window.removeCertification = removeCertification;
+window.updateCertField = updateCertField;
+window.addAchievement = addAchievement;
+window.removeAchievement = removeAchievement;
+window.updateAchField = updateAchField;
+window.moveItem = moveItem;
+window.autoFitToOnePage = autoFitToOnePage;
+window.exportCleanPdf = exportCleanPdf;
+window.copyLatexCode = copyLatexCode;
+window.downloadTexFile = downloadTexFile;
+window.openInOverleaf = openInOverleaf;
+

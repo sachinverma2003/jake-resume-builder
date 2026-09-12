@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jake's Resume LaTeX Builder | B.Tech Campus Placements</title>
   <meta name="description" content="Generate 100% error-free LaTeX Jake's Resume for B.Tech campus placements. Instant live visual preview, ATS-friendly single-column layout, and 1-click Overleaf export.">
-  <link rel="stylesheet" href="style.css">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="stylesheet" href="style.css?v=2.3">
 </head>
 <body>
 
@@ -16,7 +19,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder</h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v2.3</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -80,18 +83,33 @@
       <!-- Sticky Quick-Navigation Bar -->
       <nav class="form-quick-nav">
         <div class="quick-nav-chips">
-          <button class="chip-btn" onclick="scrollToSection('sec-header')">👤 Header</button>
-          <button class="chip-btn" onclick="scrollToSection('sec-education')">🎓 Education</button>
-          <button class="chip-btn" onclick="scrollToSection('sec-experience')">💼 Experience</button>
-          <button class="chip-btn" onclick="scrollToSection('sec-projects')">🚀 Projects</button>
-          <button class="chip-btn" onclick="scrollToSection('sec-skills')">⚡ Skills</button>
-          <button class="chip-btn" onclick="scrollToSection('sec-certs')">📜 Certs</button>
-          <button class="chip-btn" onclick="scrollToSection('sec-honors')">🏆 Honors</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-header')">👤 Header</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-intro')">📝 Intro</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-education')">🎓 Education</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-experience')">💼 Experience</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-projects')">🚀 Projects</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-skills')">⚡ Skills</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-certs')">📜 Certs</button>
+          <button type="button" class="chip-btn" onclick="scrollToSection('sec-honors')">🏆 Honors</button>
         </div>
         <div class="quick-tools-right">
           <button id="btn-toggle-all" class="chip-btn" title="Expand or Collapse All Cards">Collapse All</button>
         </div>
       </nav>
+
+      <!-- Section Sequence Reorder Bar -->
+      <div class="section-sequence-bar">
+        <div class="sequence-bar-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 15 12 20 17 15"></polyline><polyline points="7 9 12 4 17 9"></polyline></svg>
+          <span>Section Order:</span>
+        </div>
+        <div class="sequence-preset-chips">
+          <button type="button" class="order-chip-btn active" id="btn-order-standard" onclick="setSectionOrderPreset('standard')" title="Education → Experience → Projects → Skills">🎓 Standard</button>
+          <button type="button" class="order-chip-btn" id="btn-order-fresher" onclick="setSectionOrderPreset('fresher')" title="Education → Skills → Projects → Experience">🚀 Fresher</button>
+          <button type="button" class="order-chip-btn" id="btn-order-experienced" onclick="setSectionOrderPreset('experienced')" title="Experience → Projects → Skills → Education">💼 Experienced</button>
+          <button type="button" class="order-chip-btn" id="btn-order-skillsFirst" onclick="setSectionOrderPreset('skillsFirst')" title="Skills → Projects → Experience → Education">⚡ Skills First</button>
+        </div>
+      </div>
 
       <!-- Placement Tip Banner -->
       <div class="tip-pill">
@@ -169,132 +187,211 @@
         </div>
       </div>
 
-      <!-- 2. Education -->
-      <div id="sec-education" class="section-card">
-        <div class="section-header">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-            Education
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addEducation();">+ Add School</button>
-            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </div>
-        </div>
-        <div class="section-body">
-          <div id="education-list"></div>
-        </div>
-      </div>
+      <!-- Reorderable Sections Container -->
+      <div id="reorderable-sections-container">
 
-      <!-- 3. Work Experience / Internships -->
-      <div id="sec-experience" class="section-card">
-        <div class="section-header">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-            Experience &amp; Internships
+        <!-- 1. Introduction / Professional Summary (Optional) -->
+        <div id="sec-intro" class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <span class="section-order-badge">1</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              Introduction / Summary (Optional)
+            </div>
+            <div class="section-header-actions" onclick="event.stopPropagation()">
+              <div class="section-reorder-group">
+                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('introduction', -1)" title="Move Section Up">↑</button>
+                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('introduction', 1)" title="Move Section Down">↓</button>
+              </div>
+              <button type="button" id="btn-toggle-intro" class="btn btn-sm btn-danger" onclick="toggleIntroductionSection()">Remove Section</button>
+              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addExperience();">+ Add Role</button>
-            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </div>
-        </div>
-        <div class="section-body">
-          <div class="action-verbs-bar">
-            <span class="action-verbs-label">Action Verbs:</span>
-            <button type="button" class="verb-chip" onclick="insertActionVerb('Engineered')">+ Engineered</button>
-            <button type="button" class="verb-chip" onclick="insertActionVerb('Architected')">+ Architected</button>
-            <button type="button" class="verb-chip" onclick="insertActionVerb('Optimized')">+ Optimized</button>
-            <button type="button" class="verb-chip" onclick="insertActionVerb('Spearheaded')">+ Spearheaded</button>
-            <button type="button" class="verb-chip" onclick="insertActionVerb('Implemented')">+ Implemented</button>
-            <button type="button" class="verb-chip" onclick="insertActionVerb('Benchmarked')">+ Benchmarked</button>
-          </div>
-          <div id="experience-list"></div>
-        </div>
-      </div>
+          <div class="section-body">
+            <!-- Quick Introduction Templates -->
+            <div class="quick-intro-chips">
+              <span class="chips-label">Quick Templates:</span>
+              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('sde')">💻 SDE / Full Stack</button>
+              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('aiml')">🤖 AI / ML</button>
+              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('fresher')">🎓 Fresher / Campus</button>
+              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('clear')">🧹 Clear</button>
+            </div>
 
-      <!-- 4. Projects -->
-      <div id="sec-projects" class="section-card">
-        <div class="section-header">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-            Technical &amp; Academic Projects
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addProject();">+ Add Project</button>
-            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </div>
-        </div>
-        <div class="section-body">
-          <div id="projects-list"></div>
-        </div>
-      </div>
+            <div class="form-group" id="intro-form-group">
+              <label for="inp-intro-text">
+                <span>Summary / Objective Text (2-3 concise ATS lines recommended)</span>
+                <span id="intro-char-count" style="font-weight: 400; color: var(--text-muted); font-size: 0.7rem;">0 chars</span>
+              </label>
+              <textarea id="inp-intro-text" class="form-control" rows="3" placeholder="Dynamic, results-driven B.Tech Computer Science undergraduate with strong foundation in Data Structures, Algorithms, and Full Stack Development..." oninput="updateIntroductionText(this.value)"></textarea>
+            </div>
 
-      <!-- 5. Technical Skills -->
-      <div id="sec-skills" class="section-card">
-        <div class="section-header">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            Technical Skills
-          </div>
-          <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-        <div class="section-body">
-          <div class="form-group">
-            <label for="inp-skills-lang">Languages</label>
-            <input type="text" id="inp-skills-lang" class="form-control" placeholder="Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R">
-          </div>
-          <div class="form-group">
-            <label for="inp-skills-frameworks">Frameworks</label>
-            <input type="text" id="inp-skills-frameworks" class="form-control" placeholder="React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI">
-          </div>
-          <div class="form-group">
-            <label for="inp-skills-tools">Developer Tools</label>
-            <input type="text" id="inp-skills-tools" class="form-control" placeholder="Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse">
-          </div>
-          <div class="form-group">
-            <label for="inp-skills-libraries">Libraries</label>
-            <input type="text" id="inp-skills-libraries" class="form-control" placeholder="pandas, NumPy, Matplotlib">
-          </div>
-          <div class="form-group">
-            <label for="inp-skills-coursework">Core CS Coursework (Optional)</label>
-            <input type="text" id="inp-skills-coursework" class="form-control" placeholder="Data Structures & Algorithms, OS, DBMS, Computer Networks, OOP">
+            <div id="intro-hidden-notice" style="display: none; padding: 0.8rem; text-align: center; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.3); border-radius: var(--radius-sm); margin-top: 0.5rem;">
+              <span style="color: #f87171; font-size: 0.8rem; font-weight: 600;">Introduction section is currently hidden / removed from resume.</span>
+              <div style="margin-top: 0.4rem;">
+                <button type="button" class="btn btn-sm btn-primary" onclick="toggleIntroductionSection(true)">+ Enable Introduction</button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- 6. Certifications (with Clickable Links) -->
-      <div id="sec-certs" class="section-card collapsed">
-        <div class="section-header">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
-            Certifications (Optional)
+        <!-- 2. Education -->
+        <div id="sec-education" class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <span class="section-order-badge">1</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+              Education
+            </div>
+            <div class="section-header-actions" onclick="event.stopPropagation()">
+              <div class="section-reorder-group">
+                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('education', -1)" title="Move Section Up">↑</button>
+                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('education', 1)" title="Move Section Down">↓</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addEducation();">+ Add School</button>
+              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addCertification();">+ Add Cert</button>
-            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <div class="section-body">
+            <div id="education-list"></div>
           </div>
         </div>
-        <div class="section-body">
-          <div id="certifications-list"></div>
-        </div>
-      </div>
 
-      <!-- 7. Honors & Achievements -->
-      <div id="sec-honors" class="section-card collapsed">
-        <div class="section-header">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 6 14.5 10.5 19.5 11.2 16 14.5 17 19.5 12 17 7 19.5 8 14.5 4.5 11.2 9.5 10.5 12 6"></polygon></svg>
-            Honors &amp; Achievements (Optional)
+        <!-- 3. Work Experience / Internships -->
+        <div id="sec-experience" class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <span class="section-order-badge">2</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+              Experience &amp; Internships
+            </div>
+            <div class="section-header-actions" onclick="event.stopPropagation()">
+              <div class="section-reorder-group">
+                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('experience', -1)" title="Move Section Up">↑</button>
+                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('experience', 1)" title="Move Section Down">↓</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addExperience();">+ Add Role</button>
+              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); addAchievement();">+ Add Honor</button>
-            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <div class="section-body">
+            <div class="action-verbs-bar">
+              <span class="action-verbs-label">Action Verbs:</span>
+              <button type="button" class="verb-chip" onclick="insertActionVerb('Engineered')">+ Engineered</button>
+              <button type="button" class="verb-chip" onclick="insertActionVerb('Architected')">+ Architected</button>
+              <button type="button" class="verb-chip" onclick="insertActionVerb('Optimized')">+ Optimized</button>
+              <button type="button" class="verb-chip" onclick="insertActionVerb('Spearheaded')">+ Spearheaded</button>
+              <button type="button" class="verb-chip" onclick="insertActionVerb('Implemented')">+ Implemented</button>
+              <button type="button" class="verb-chip" onclick="insertActionVerb('Benchmarked')">+ Benchmarked</button>
+            </div>
+            <div id="experience-list"></div>
           </div>
         </div>
-        <div class="section-body">
-          <div id="achievements-list"></div>
+
+        <!-- 4. Projects -->
+        <div id="sec-projects" class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <span class="section-order-badge">3</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+              Technical &amp; Academic Projects
+            </div>
+            <div class="section-header-actions" onclick="event.stopPropagation()">
+              <div class="section-reorder-group">
+                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('projects', -1)" title="Move Section Up">↑</button>
+                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('projects', 1)" title="Move Section Down">↓</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addProject();">+ Add Project</button>
+              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+          </div>
+          <div class="section-body">
+            <div id="projects-list"></div>
+          </div>
         </div>
-      </div>
+
+        <!-- 5. Technical Skills -->
+        <div id="sec-skills" class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <span class="section-order-badge">4</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              Technical Skills
+            </div>
+            <div class="section-header-actions" onclick="event.stopPropagation()">
+              <div class="section-reorder-group">
+                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('skills', -1)" title="Move Section Up">↑</button>
+                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('skills', 1)" title="Move Section Down">↓</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addSkillCategory();">+ Add Category</button>
+              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+          </div>
+          <div class="section-body">
+            <!-- Quick Add Category Chips -->
+            <div class="quick-skills-chips">
+              <span class="chips-label">Quick Add:</span>
+              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Languages', 'Java, Python, C/C++, SQL, JavaScript')">+ Languages</button>
+              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Frameworks', 'React, Node.js, Express, Spring Boot')">+ Frameworks</button>
+              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Cloud & DevOps', 'AWS (EC2, S3), Docker, Kubernetes, CI/CD, Git')">+ Cloud &amp; DevOps</button>
+              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Databases', 'PostgreSQL, MySQL, MongoDB, Redis')">+ Databases</button>
+              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('AI & Machine Learning', 'PyTorch, TensorFlow, scikit-learn, OpenCV')">+ AI &amp; ML</button>
+              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Core CS Coursework', 'DSA, DBMS, Operating Systems, Networks, OOPs')">+ Core CS</button>
+            </div>
+
+            <!-- Dynamic Skill Categories List -->
+            <div id="skills-list"></div>
+
+            <button type="button" class="btn btn-outline btn-full-width" onclick="addSkillCategory()" style="margin-top: 0.6rem;">
+              + Add Custom Skill Category
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. Certifications (with Clickable Links) -->
+        <div id="sec-certs" class="section-card collapsed">
+          <div class="section-header">
+            <div class="section-title">
+              <span class="section-order-badge">5</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+              Certifications (Optional)
+            </div>
+            <div class="section-header-actions" onclick="event.stopPropagation()">
+              <div class="section-reorder-group">
+                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('certifications', -1)" title="Move Section Up">↑</button>
+                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('certifications', 1)" title="Move Section Down">↓</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addCertification();">+ Add Cert</button>
+              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+          </div>
+          <div class="section-body">
+            <div id="certifications-list"></div>
+          </div>
+        </div>
+
+        <!-- 7. Honors & Achievements -->
+        <div id="sec-honors" class="section-card collapsed">
+          <div class="section-header">
+            <div class="section-title">
+              <span class="section-order-badge">6</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 6 14.5 10.5 19.5 11.2 16 14.5 17 19.5 12 17 7 19.5 8 14.5 4.5 11.2 9.5 10.5 12 6"></polygon></svg>
+              Honors &amp; Achievements (Optional)
+            </div>
+            <div class="section-header-actions" onclick="event.stopPropagation()">
+              <div class="section-reorder-group">
+                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('achievements', -1)" title="Move Section Up">↑</button>
+                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('achievements', 1)" title="Move Section Down">↓</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="addAchievement();">+ Add Honor</button>
+              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+          </div>
+          <div class="section-body">
+            <div id="achievements-list"></div>
+          </div>
+        </div>
+
+      </div> <!-- /reorderable-sections-container -->
 
       <div style="height: 40px;"></div>
     </aside>
@@ -357,9 +454,9 @@
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts -->
+  <!-- Scripts (Cache-Busted v2.3) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js"></script>
-  <script src="app.js"></script>
+  <script src="template.js?v=2.3"></script>
+  <script src="app.js?v=2.3"></script>
 </body>
 </html>

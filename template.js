@@ -62,6 +62,163 @@ function createLatexHref(url, displayText = null) {
 }
 
 /**
+ * Normalizes skills structure into an array of { category, items }
+ */
+function normalizeSkills(skills) {
+  if (Array.isArray(skills)) {
+    return skills.map(s => ({
+      category: s.category || '',
+      items: s.items || ''
+    }));
+  }
+  if (!skills || typeof skills !== 'object') {
+    return [];
+  }
+  const list = [];
+  if (skills.languages) list.push({ category: 'Languages', items: skills.languages });
+  if (skills.frameworks) list.push({ category: 'Frameworks', items: skills.frameworks });
+  if (skills.tools) list.push({ category: 'Developer Tools', items: skills.tools });
+  if (skills.libraries) list.push({ category: 'Libraries', items: skills.libraries });
+  if (skills.coursework) list.push({ category: 'Core CS Coursework', items: skills.coursework });
+  if (skills.other) list.push({ category: 'Other', items: skills.other });
+  return list;
+}
+
+// 0. Introduction / Professional Summary Section LaTeX
+function generateIntroductionLatex(intro) {
+  if (!intro) return '';
+  const isEnabled = typeof intro === 'object' ? intro.enabled !== false : Boolean(intro);
+  const text = typeof intro === 'object' ? (intro.text || '') : String(intro);
+  if (!isEnabled || !text.trim()) return '';
+
+  let latex = `\n%-----------INTRODUCTION / PROFESSIONAL SUMMARY-----------\n\\section{Introduction}\n \\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n     ${escapeLatex(text.trim())}\n    }}\n \\end{itemize}\n`;
+  return latex;
+}
+
+// 1. Education Section LaTeX
+function generateEducationLatex(education) {
+  if (!education || education.length === 0) return '';
+  let latex = `\n%-----------EDUCATION-----------\n\\section{Education}\n  \\resumeSubHeadingListStart\n`;
+  education.forEach(edu => {
+    let degreeLine = escapeLatex(edu.degree);
+    if (edu.gpa) {
+      degreeLine += ` \\hspace{1pt}$|$\\hspace{1pt} CGPA/Percentage: ${escapeLatex(edu.gpa)}`;
+    }
+    if (edu.coursework) {
+      degreeLine += ` \\\\ \\small{\\textbf{Relevant Coursework:} ${escapeLatex(edu.coursework)}}`;
+    }
+    latex += `    \\resumeSubheading\n      {${escapeLatex(edu.institution)}}{${escapeLatex(edu.location)}}\n      {${degreeLine}}{${escapeLatex(edu.dates)}}\n`;
+  });
+  latex += `  \\resumeSubHeadingListEnd\n`;
+  return latex;
+}
+
+// 2. Experience Section LaTeX
+function generateExperienceLatex(experience) {
+  if (!experience || experience.length === 0) return '';
+  let latex = `\n%-----------EXPERIENCE-----------\n\\section{Experience}\n  \\resumeSubHeadingListStart\n`;
+  experience.forEach(exp => {
+    latex += `    \\resumeSubheading\n      {${escapeLatex(exp.role)}}{${escapeLatex(exp.dates)}}\n      {${escapeLatex(exp.company)}}{${escapeLatex(exp.location)}}\n      \\resumeItemListStart\n`;
+    if (exp.bullets && exp.bullets.length > 0) {
+      exp.bullets.forEach(bullet => {
+        if (bullet.trim()) {
+          latex += `        \\resumeItem{${escapeLatex(bullet)}}\n`;
+        }
+      });
+    }
+    latex += `      \\resumeItemListEnd\n`;
+  });
+  latex += `  \\resumeSubHeadingListEnd\n`;
+  return latex;
+}
+
+// 3. Projects Section LaTeX
+function generateProjectsLatex(projects) {
+  if (!projects || projects.length === 0) return '';
+  let latex = `\n%-----------PROJECTS-----------\n\\section{Projects}\n    \\resumeSubHeadingListStart\n`;
+  projects.forEach(proj => {
+    let titlePart = `\\textbf{${escapeLatex(proj.title)}}`;
+    if (proj.techStack) {
+      titlePart += ` $|$ \\emph{${escapeLatex(proj.techStack)}}`;
+    }
+    if (proj.liveUrl) {
+      titlePart += ` $|$ ${createLatexHref(proj.liveUrl, proj.liveLabel || 'Live Demo')}`;
+    }
+    if (proj.githubUrl) {
+      titlePart += ` $|$ ${createLatexHref(proj.githubUrl, proj.githubLabel || 'GitHub')}`;
+    }
+
+    latex += `      \\resumeProjectHeading\n          {${titlePart}}{${escapeLatex(proj.dates)}}\n          \\resumeItemListStart\n`;
+    if (proj.bullets && proj.bullets.length > 0) {
+      proj.bullets.forEach(bullet => {
+        if (bullet.trim()) {
+          latex += `            \\resumeItem{${escapeLatex(bullet)}}\n`;
+        }
+      });
+    }
+    latex += `          \\resumeItemListEnd\n`;
+  });
+  latex += `    \\resumeSubHeadingListEnd\n`;
+  return latex;
+}
+
+// 4. Technical Skills Section LaTeX (Supports dynamic categories & sub-sections)
+function generateSkillsLatex(skills) {
+  const normSkills = normalizeSkills(skills);
+  if (!normSkills || normSkills.length === 0) return '';
+  const activeRows = normSkills.filter(s => s.category && s.category.trim() && s.items && s.items.trim());
+  if (activeRows.length === 0) return '';
+
+  let latex = `\n%-----------TECHNICAL SKILLS-----------\n\\section{Technical Skills}\n \\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n`;
+  const skillRows = activeRows.map(s => `     \\textbf{${escapeLatex(s.category.trim())}}{: ${escapeLatex(s.items.trim())}}`);
+  latex += skillRows.join(' \\\\\n') + `\n    }}\n \\end{itemize}\n`;
+  return latex;
+}
+
+// 5. Certifications Section LaTeX
+function generateCertificationsLatex(certifications, showCertifications = true) {
+  if (!showCertifications || !certifications || certifications.length === 0) return '';
+  let latex = `\n%-----------CERTIFICATIONS-----------\n\\section{Certifications}\n \\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n`;
+  const certRows = [];
+  certifications.forEach(cert => {
+    let row = `     \\textbf{${escapeLatex(cert.name)}}`;
+    if (cert.issuer) {
+      row += ` -- ${escapeLatex(cert.issuer)}`;
+    }
+    if (cert.date) {
+      row += ` \\hfill \\textit{${escapeLatex(cert.date)}}`;
+    }
+    if (cert.url) {
+      const linkText = cert.credentialId 
+        ? `Credential ID: ${escapeLatex(cert.credentialId)} [Verify]` 
+        : 'Verify Certificate';
+      row += ` \\\\ \\hspace{10pt} \\footnotesize{${createLatexHref(cert.url, linkText)}}`;
+    }
+    certRows.push(row);
+  });
+  latex += certRows.join(' \\\\\n') + `\n    }}\n \\end{itemize}\n`;
+  return latex;
+}
+
+// 6. Honors & Achievements Section LaTeX
+function generateAchievementsLatex(achievements, showAchievements = true) {
+  if (!showAchievements || !achievements || achievements.length === 0) return '';
+  let latex = `\n%-----------HONORS & ACHIEVEMENTS-----------\n\\section{Honors \\& Achievements}\n \\resumeItemListStart\n`;
+  achievements.forEach(ach => {
+    let line = escapeLatex(ach.title);
+    if (ach.description) {
+      line += `: ${escapeLatex(ach.description)}`;
+    }
+    if (ach.url) {
+      line += ` [${createLatexHref(ach.url, ach.linkLabel || 'Proof/Link')}]`;
+    }
+    latex += `    \\resumeItem{${line}}\n`;
+  });
+  latex += ` \\resumeItemListEnd\n`;
+  return latex;
+}
+
+/**
  * Generate Complete Jake's Resume LaTeX Code
  * Matches Jake Gutierrez resume structure 100%
  */
@@ -212,170 +369,27 @@ function generateLatexCode(resumeData, options = {}) {
 \\end{center}
 `;
 
-  // EDUCATION SECTION
-  if (education && education.length > 0) {
-    latex += `\n%-----------EDUCATION-----------
-\\section{Education}
-  \\resumeSubHeadingListStart
-`;
-    education.forEach(edu => {
-      let degreeLine = escapeLatex(edu.degree);
-      if (edu.gpa) {
-        degreeLine += ` \\hspace{1pt}$|$\\hspace{1pt} CGPA/Percentage: ${escapeLatex(edu.gpa)}`;
-      }
-      if (edu.coursework) {
-        degreeLine += ` \\\\ \\small{\\textbf{Relevant Coursework:} ${escapeLatex(edu.coursework)}}`;
-      }
-      
-      latex += `    \\resumeSubheading
-      {${escapeLatex(edu.institution)}}{${escapeLatex(edu.location)}}
-      {${degreeLine}}{${escapeLatex(edu.dates)}}
-`;
-    });
-    latex += `  \\resumeSubHeadingListEnd\n`;
-  }
+  // Dynamic Reorderable Sections Rendering
+  const sectionGenerators = {
+    introduction: () => generateIntroductionLatex(resumeData.introduction),
+    education: () => generateEducationLatex(education),
+    experience: () => generateExperienceLatex(experience),
+    projects: () => generateProjectsLatex(projects),
+    skills: () => generateSkillsLatex(skills),
+    certifications: () => generateCertificationsLatex(certifications, showCertifications),
+    achievements: () => generateAchievementsLatex(achievements, showAchievements)
+  };
 
-  // EXPERIENCE SECTION
-  if (experience && experience.length > 0) {
-    latex += `\n%-----------EXPERIENCE-----------
-\\section{Experience}
-  \\resumeSubHeadingListStart
-`;
-    experience.forEach(exp => {
-      latex += `    \\resumeSubheading
-      {${escapeLatex(exp.role)}}{${escapeLatex(exp.dates)}}
-      {${escapeLatex(exp.company)}}{${escapeLatex(exp.location)}}
-      \\resumeItemListStart
-`;
-      if (exp.bullets && exp.bullets.length > 0) {
-        exp.bullets.forEach(bullet => {
-          if (bullet.trim()) {
-            latex += `        \\resumeItem{${escapeLatex(bullet)}}
-`;
-          }
-        });
-      }
-      latex += `      \\resumeItemListEnd
-`;
-    });
-    latex += `  \\resumeSubHeadingListEnd\n`;
-  }
+  const defaultOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+  const order = (resumeData.sectionOrder && resumeData.sectionOrder.length > 0)
+    ? resumeData.sectionOrder
+    : defaultOrder;
 
-  // PROJECTS SECTION
-  if (projects && projects.length > 0) {
-    latex += `\n%-----------PROJECTS-----------
-\\section{Projects}
-    \\resumeSubHeadingListStart
-`;
-    projects.forEach(proj => {
-      let titlePart = `\\textbf{${escapeLatex(proj.title)}}`;
-      if (proj.techStack) {
-        titlePart += ` $|$ \\emph{${escapeLatex(proj.techStack)}}`;
-      }
-      // Clickable Links for Projects
-      if (proj.liveUrl) {
-        titlePart += ` $|$ ${createLatexHref(proj.liveUrl, proj.liveLabel || 'Live Demo')}`;
-      }
-      if (proj.githubUrl) {
-        titlePart += ` $|$ ${createLatexHref(proj.githubUrl, proj.githubLabel || 'GitHub')}`;
-      }
-
-      latex += `      \\resumeProjectHeading
-          {${titlePart}}{${escapeLatex(proj.dates)}}
-          \\resumeItemListStart
-`;
-      if (proj.bullets && proj.bullets.length > 0) {
-        proj.bullets.forEach(bullet => {
-          if (bullet.trim()) {
-            latex += `            \\resumeItem{${escapeLatex(bullet)}}
-`;
-          }
-        });
-      }
-      latex += `          \\resumeItemListEnd
-`;
-    });
-    latex += `    \\resumeSubHeadingListEnd\n`;
-  }
-
-  // TECHNICAL SKILLS SECTION
-  if (skills) {
-    const hasAnySkills = skills.languages || skills.frameworks || skills.tools || skills.libraries || skills.coursework || skills.other;
-    if (hasAnySkills) {
-      latex += `\n%-----------TECHNICAL SKILLS-----------
-\\section{Technical Skills}
- \\begin{itemize}[leftmargin=0.15in, label={}]
-    \\small{\\item{
-`;
-      const skillRows = [];
-      if (skills.languages) {
-        skillRows.push(`     \\textbf{Languages}{: ${escapeLatex(skills.languages)}}`);
-      }
-      if (skills.frameworks) {
-        skillRows.push(`     \\textbf{Frameworks}{: ${escapeLatex(skills.frameworks)}}`);
-      }
-      if (skills.tools) {
-        skillRows.push(`     \\textbf{Developer Tools}{: ${escapeLatex(skills.tools)}}`);
-      }
-      if (skills.libraries) {
-        skillRows.push(`     \\textbf{Libraries}{: ${escapeLatex(skills.libraries)}}`);
-      }
-      if (skills.coursework) {
-        skillRows.push(`     \\textbf{Core CS Coursework}{: ${escapeLatex(skills.coursework)}}`);
-      }
-      if (skills.other) {
-        skillRows.push(`     \\textbf{Other}{: ${escapeLatex(skills.other)}}`);
-      }
-      latex += skillRows.join(' \\\\\n') + `\n    }}\n \\end{itemize}\n`;
+  order.forEach(secKey => {
+    if (sectionGenerators[secKey]) {
+      latex += sectionGenerators[secKey]();
     }
-  }
-
-  // CERTIFICATIONS SECTION (with Clickable Verify Links)
-  if (showCertifications && certifications && certifications.length > 0) {
-    latex += `\n%-----------CERTIFICATIONS-----------
-\\section{Certifications}
- \\begin{itemize}[leftmargin=0.15in, label={}]
-    \\small{\\item{
-`;
-    const certRows = [];
-    certifications.forEach(cert => {
-      let row = `     \\textbf{${escapeLatex(cert.name)}}`;
-      if (cert.issuer) {
-        row += ` -- ${escapeLatex(cert.issuer)}`;
-      }
-      if (cert.date) {
-        row += ` \\hfill \\textit{${escapeLatex(cert.date)}}`;
-      }
-      // Clickable Verification Link
-      if (cert.url) {
-        const linkText = cert.credentialId 
-          ? `Credential ID: ${escapeLatex(cert.credentialId)} [Verify]` 
-          : 'Verify Certificate';
-        row += ` \\\\ \\hspace{10pt} \\footnotesize{${createLatexHref(cert.url, linkText)}}`;
-      }
-      certRows.push(row);
-    });
-    latex += certRows.join(' \\\\\n') + `\n    }}\n \\end{itemize}\n`;
-  }
-
-  // HONORS / ACHIEVEMENTS SECTION (with Clickable Profile / Contest Links)
-  if (showAchievements && achievements && achievements.length > 0) {
-    latex += `\n%-----------HONORS & ACHIEVEMENTS-----------
-\\section{Honors \\& Achievements}
- \\resumeItemListStart
-`;
-    achievements.forEach(ach => {
-      let line = escapeLatex(ach.title);
-      if (ach.description) {
-        line += `: ${escapeLatex(ach.description)}`;
-      }
-      if (ach.url) {
-        line += ` [${createLatexHref(ach.url, ach.linkLabel || 'Proof/Link')}]`;
-      }
-      latex += `    \\resumeItem{${line}}\n`;
-    });
-    latex += ` \\resumeItemListEnd\n`;
-  }
+  });
 
   latex += `\n%-------------------------------------------
 \\end{document}
@@ -494,14 +508,17 @@ const BTECH_PRESETS = {
         ]
       }
     ],
-    skills: {
-      languages: 'Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R',
-      frameworks: 'React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI',
-      tools: 'Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse',
-      libraries: 'pandas, NumPy, Matplotlib',
-      coursework: '',
-      other: ''
+    introduction: {
+      enabled: false,
+      text: 'Dedicated Computer Science student with practical experience in full stack software development, system design, and algorithms. Proven track record in developing high-throughput web applications and open-source software.'
     },
+    sectionOrder: ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'],
+    skills: [
+      { category: 'Languages', items: 'Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R' },
+      { category: 'Frameworks', items: 'React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI' },
+      { category: 'Developer Tools', items: 'Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse' },
+      { category: 'Libraries', items: 'pandas, NumPy, Matplotlib' }
+    ],
     certifications: [],
     achievements: []
   },
@@ -578,14 +595,18 @@ const BTECH_PRESETS = {
         ]
       }
     ],
-    skills: {
-      languages: 'C++, Java, Python, JavaScript, TypeScript, SQL, Go',
-      frameworks: 'React, Next.js, Node.js, Express.js, Tailwind CSS, Spring Boot',
-      tools: 'Git, GitHub, Docker, Kubernetes, AWS (EC2, S3), Redis, PostgreSQL, MongoDB, Linux',
-      libraries: 'Prisma ORM, Redux Toolkit, Socket.io, gRPC',
-      coursework: 'Object-Oriented Programming, Data Structures & Algorithms, Distributed Systems',
-      other: ''
+    introduction: {
+      enabled: true,
+      text: 'Results-driven B.Tech Computer Science graduate specializing in scalable backend architectures, distributed systems, and modern cloud infrastructure. Experienced with high-traffic web applications in Java and Node.js.'
     },
+    sectionOrder: ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'],
+    skills: [
+      { category: 'Languages', items: 'C++, Java, Python, JavaScript, TypeScript, SQL, Go' },
+      { category: 'Frameworks', items: 'React, Next.js, Node.js, Express.js, Tailwind CSS, Spring Boot' },
+      { category: 'Developer Tools', items: 'Git, GitHub, Docker, Kubernetes, AWS (EC2, S3), Redis, PostgreSQL, MongoDB, Linux' },
+      { category: 'Libraries', items: 'Prisma ORM, Redux Toolkit, Socket.io, gRPC' },
+      { category: 'Core CS Coursework', items: 'Object-Oriented Programming, Data Structures & Algorithms, Distributed Systems' }
+    ],
     certifications: [
       {
         name: 'AWS Certified Solutions Architect -- Associate',
@@ -677,14 +698,18 @@ const BTECH_PRESETS = {
         ]
       }
     ],
-    skills: {
-      languages: 'Python, C++, SQL, R, Bash',
-      frameworks: 'PyTorch, TensorFlow, Hugging Face Transformers, LangChain, FastAPI',
-      tools: 'Docker, MLflow, Weights & Biases, Git, CUDA, Linux, AWS Sagemaker',
-      libraries: 'scikit-learn, OpenCV, NumPy, pandas, Matplotlib, ChromaDB',
-      coursework: 'Statistical Machine Learning, Deep Neural Networks, Vector Databases',
-      other: ''
+    introduction: {
+      enabled: true,
+      text: 'Pre-final B.Tech Computer Science student specializing in Machine Learning, Computer Vision, and Deep Learning pipelines. Experienced in developing neural network architectures using PyTorch and deploying scalable ML models.'
     },
+    sectionOrder: ['introduction', 'education', 'skills', 'projects', 'experience', 'certifications', 'achievements'],
+    skills: [
+      { category: 'Languages', items: 'Python, C++, SQL, R, Bash' },
+      { category: 'AI & Deep Learning', items: 'PyTorch, TensorFlow, Hugging Face Transformers, LangChain, FastAPI' },
+      { category: 'MLOps & Cloud Tools', items: 'Docker, MLflow, Weights & Biases, Git, CUDA, Linux, AWS Sagemaker' },
+      { category: 'Libraries', items: 'scikit-learn, OpenCV, NumPy, pandas, Matplotlib, ChromaDB' },
+      { category: 'Core Coursework', items: 'Statistical Machine Learning, Deep Neural Networks, Vector Databases' }
+    ],
     certifications: [
       {
         name: 'Deep Learning Specialization (5 Courses)',
@@ -777,14 +802,18 @@ const BTECH_PRESETS = {
         ]
       }
     ],
-    skills: {
-      languages: 'Java, C++, JavaScript, TypeScript, SQL, HTML5, CSS3',
-      frameworks: 'React, Node.js, Express.js, Next.js, Tailwind CSS, Bootstrap',
-      tools: 'Git, GitHub, VS Code, Postman, MongoDB, PostgreSQL, Vercel, Netlify, Linux',
-      libraries: 'Chart.js, Axios, Mongoose, Prisma',
-      coursework: 'Operating Systems, Object-Oriented Analysis & Design, Cloud Computing Basics',
-      other: ''
+    introduction: {
+      enabled: true,
+      text: 'Motivated B.Tech Computer Science undergraduate with strong problem-solving skills in Data Structures & Algorithms. Eager to contribute to software development projects with expertise in Java, Python, and modern web frameworks.'
     },
+    sectionOrder: ['introduction', 'education', 'skills', 'projects', 'experience', 'certifications', 'achievements'],
+    skills: [
+      { category: 'Languages', items: 'Java, C++, JavaScript, TypeScript, SQL, HTML5, CSS3' },
+      { category: 'Frameworks', items: 'React, Node.js, Express.js, Next.js, Tailwind CSS, Bootstrap' },
+      { category: 'Developer Tools', items: 'Git, GitHub, VS Code, Postman, MongoDB, PostgreSQL, Vercel, Netlify, Linux' },
+      { category: 'Libraries', items: 'Chart.js, Axios, Mongoose, Prisma' },
+      { category: 'Core CS Coursework', items: 'Operating Systems, Object-Oriented Analysis & Design, Cloud Computing Basics' }
+    ],
     certifications: [
       {
         name: 'HackerRank Problem Solving (Advanced) Certificate',
@@ -817,6 +846,8 @@ if (typeof window !== 'undefined') {
   window.normalizeUrl = normalizeUrl;
   window.cleanUrlDisplay = cleanUrlDisplay;
   window.createLatexHref = createLatexHref;
+  window.normalizeSkills = normalizeSkills;
+  window.generateIntroductionLatex = generateIntroductionLatex;
   window.generateLatexCode = generateLatexCode;
   window.BTECH_PRESETS = BTECH_PRESETS;
 }
@@ -827,6 +858,8 @@ if (typeof module !== 'undefined' && module.exports) {
     normalizeUrl,
     cleanUrlDisplay,
     createLatexHref,
+    normalizeSkills,
+    generateIntroductionLatex,
     generateLatexCode,
     BTECH_PRESETS
   };
