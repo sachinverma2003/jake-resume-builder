@@ -33,10 +33,22 @@
     /**
      * Parse raw plain text into normalized resumeState
      */
-    parseText: function (rawText) {
+    parseText: function (rawText, extractedLinks = []) {
+      // Support object input { text, links }
+      if (rawText && typeof rawText === 'object') {
+        if (Array.isArray(rawText.links) && (!extractedLinks || extractedLinks.length === 0)) {
+          extractedLinks = rawText.links;
+        }
+        rawText = rawText.text || '';
+      }
+
       if (!rawText || typeof rawText !== 'string') {
         return createEmptyState();
       }
+
+      // Normalize links
+      const linkUrls = (Array.isArray(extractedLinks) ? extractedLinks : [])
+        .map(l => (typeof l === 'string' ? l : (l && l.url ? l.url : ''))).filter(Boolean);
 
       // Normalize line breaks and clean whitespace
       const lines = rawText
@@ -48,8 +60,8 @@
 
       if (lines.length === 0) return createEmptyState();
 
-      // 1. Extract Personal Info from top section
-      const personal = extractPersonalInfo(lines, rawText);
+      // 1. Extract Personal Info from top section (using lines, rawText, and linkUrls)
+      const personal = extractPersonalInfo(lines, rawText, linkUrls);
 
       // 2. Segment lines into categorized sections
       const sections = segmentSections(lines);
@@ -57,9 +69,9 @@
       // 3. Parse individual sections
       const education = parseEducation(sections.education || []);
       const experience = parseExperience(sections.experience || []);
-      const projects = parseProjects(sections.projects || []);
+      const projects = parseProjects(sections.projects || [], linkUrls);
       const skills = parseSkills(sections.skills || []);
-      const certifications = parseCertifications(sections.certifications || []);
+      const certifications = parseCertifications(sections.certifications || [], linkUrls);
       const achievements = parseAchievements(sections.achievements || []);
       const introduction = parseIntroduction(sections.introduction || []);
 
@@ -175,7 +187,8 @@
 
     /**
      * In-browser PDF extraction using Mozilla PDF.js
-     * Reads all text elements across all pages, sorts by coordinates, and returns structured text
+     * Reads all text elements and link annotations across all pages, sorts by coordinates,
+     * and returns structured text + all hyperlink destinations.
      */
     extractTextFromPdf: async function (pdfDataBuffer, progressCallback) {
       if (typeof pdfjsLib === 'undefined') {
@@ -193,13 +206,34 @@
       const pdf = await loadingTask.promise;
       const numPages = pdf.numPages;
       let fullTextLines = [];
+      const extractedLinks = [];
 
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         if (progressCallback) progressCallback(`Processing page ${pageNum} of ${numPages}...`);
         const page = await pdf.getPage(pageNum);
         const textContent = await page.getTextContent();
         
-        // Group items by horizontal and vertical coordinate (approximate lines)
+        // 1. Extract link annotations from this page
+        try {
+          const annotations = await page.getAnnotations();
+          if (Array.isArray(annotations)) {
+            annotations.forEach(annot => {
+              if (annot.subtype === 'Link') {
+                const linkUrl = annot.url || annot.unsafeUrl || (annot.action && annot.action.uri);
+                if (linkUrl && typeof linkUrl === 'string' && linkUrl.trim()) {
+                  const clean = linkUrl.trim();
+                  if (!extractedLinks.includes(clean)) {
+                    extractedLinks.push(clean);
+                  }
+                }
+              }
+            });
+          }
+        } catch (annotErr) {
+          console.warn('Could not extract PDF annotations on page ' + pageNum, annotErr);
+        }
+
+        // 2. Group items by horizontal and vertical coordinate (approximate lines)
         const items = textContent.items.map(item => ({
           str: item.str,
           x: Math.round(item.transform[4]),
@@ -241,7 +275,24 @@
         fullTextLines = fullTextLines.concat(pageLines);
       }
 
-      return fullTextLines.join('\n');
+      // 3. Fallback scan on raw binary buffer for uncompressed /URI definitions
+      try {
+        const rawUris = extractUrisFromPdfBuffer(pdfDataBuffer);
+        rawUris.forEach(u => {
+          if (!extractedLinks.includes(u)) {
+            extractedLinks.push(u);
+          }
+        });
+      } catch (bufErr) {
+        // optional fallback
+      }
+
+      const textResult = fullTextLines.join('\n');
+      return {
+        text: textResult,
+        links: extractedLinks,
+        toString: function () { return this.text; }
+      };
     }
   };
 
@@ -286,9 +337,45 @@
   }
 
   /**
-   * 1. Extract Personal Contact Information
+   * Helper: Scan binary buffer for URI annotations (fallback)
    */
-  function extractPersonalInfo(lines, rawText) {
+  function extractUrisFromPdfBuffer(buffer) {
+    const urls = [];
+    if (!buffer) return urls;
+    try {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunk = 8192;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+
+      const uriRegex = /\/URI\s*\(([^)]+)\)/g;
+      let match;
+      while ((match = uriRegex.exec(binary)) !== null) {
+        const u = match[1].trim();
+        if (!urls.includes(u)) urls.push(u);
+      }
+
+      const httpRegex = /https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}[^\s<>()"'\\\/]*[^\s<>()"',;.]/g;
+      while ((match = httpRegex.exec(binary)) !== null) {
+        const u = match[0].trim();
+        if (!urls.includes(u) && !u.includes('ams.org') && !u.includes('sil.org') && !u.includes('w3.org') && !u.includes('adobe.com')) {
+          urls.push(u);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return urls;
+  }
+
+  /**
+   * 1. Extract Personal Contact Information
+   * Extracts Name, Phone, Email, LinkedIn, GitHub, LeetCode, Portfolio
+   * using text content and all extracted PDF hyperlink annotations.
+   */
+  function extractPersonalInfo(lines, rawText, linkUrls = []) {
     const personal = {
       fullName: '',
       phone: '',
@@ -303,39 +390,71 @@
       portfolioDisplay: ''
     };
 
-    // Extract Email
+    // Extract Email: first from rawText, then fallback to linkUrls
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i;
     const emailMatch = rawText.match(emailRegex);
-    if (emailMatch) personal.email = emailMatch[1].trim();
+    if (emailMatch) {
+      personal.email = emailMatch[1].trim();
+    } else if (linkUrls.length > 0) {
+      const mailto = linkUrls.find(u => u.startsWith('mailto:'));
+      if (mailto) {
+        personal.email = mailto.replace(/^mailto:/i, '').trim();
+      }
+    }
 
     // Extract Phone (Supports +91 98765 43210, +1 (123) 456-7890, 10-digit numbers)
     const phoneRegex = /(?:\+?91[-.\s]*)?[6-9]\d{4}[-.\s]?\d{5}|(?:\+?\d{1,3}[-.\s]*)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b[6-9]\d{9}\b/;
     const phoneMatch = rawText.match(phoneRegex);
     if (phoneMatch) personal.phone = phoneMatch[0].trim();
 
-    // Extract LinkedIn
+    // Extract LinkedIn: first from rawText, then fallback to linkUrls
     const linkedinRegex = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/i;
     const linkedinMatch = rawText.match(linkedinRegex);
     if (linkedinMatch) {
       personal.linkedin = `https://linkedin.com/in/${linkedinMatch[1]}`;
       personal.linkedinDisplay = `linkedin.com/in/${linkedinMatch[1]}`;
+    } else if (linkUrls.length > 0) {
+      const lnk = linkUrls.find(u => linkedinRegex.test(u));
+      if (lnk) {
+        const m = lnk.match(linkedinRegex);
+        personal.linkedin = `https://linkedin.com/in/${m[1]}`;
+        personal.linkedinDisplay = `linkedin.com/in/${m[1]}`;
+      }
     }
 
-    // Extract GitHub
+    // Extract GitHub: first from rawText, then fallback to linkUrls
     const githubRegex = /(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_-]+)/i;
     const githubMatch = rawText.match(githubRegex);
     if (githubMatch && !['sponsors', 'features', 'topics', 'trending'].includes(githubMatch[1].toLowerCase())) {
       personal.github = `https://github.com/${githubMatch[1]}`;
       personal.githubDisplay = `github.com/${githubMatch[1]}`;
+    } else if (linkUrls.length > 0) {
+      const gh = linkUrls.find(u => {
+        const m = u.match(githubRegex);
+        return m && !['sponsors', 'features', 'topics', 'trending'].includes(m[1].toLowerCase());
+      });
+      if (gh) {
+        const m = gh.match(githubRegex);
+        personal.github = `https://github.com/${m[1]}`;
+        personal.githubDisplay = `github.com/${m[1]}`;
+      }
     }
 
-    // Extract LeetCode / Coding Profile
+    // Extract LeetCode / Coding Profile: first from rawText, then fallback to linkUrls
     const leetcodeRegex = /(?:https?:\/\/)?(?:www\.)?(leetcode\.com\/(?:u\/)?[a-zA-Z0-9_-]+|codeforces\.com\/profile\/[a-zA-Z0-9_-]+|kaggle\.com\/[a-zA-Z0-9_-]+)/i;
     const leetcodeMatch = rawText.match(leetcodeRegex);
     if (leetcodeMatch) {
       const url = leetcodeMatch[0].startsWith('http') ? leetcodeMatch[0] : `https://${leetcodeMatch[0]}`;
       personal.leetcode = url;
       personal.leetcodeDisplay = cleanUrlDisplay(url);
+    } else if (linkUrls.length > 0) {
+      const lc = linkUrls.find(u => leetcodeRegex.test(u));
+      if (lc) {
+        const m = lc.match(leetcodeRegex);
+        const url = m[0].startsWith('http') ? m[0] : `https://${m[0]}`;
+        personal.leetcode = url;
+        personal.leetcodeDisplay = cleanUrlDisplay(url);
+      }
     }
 
     // Extract Portfolio URL (any generic link not matched above)
@@ -343,15 +462,33 @@
     let urlMatch;
     while ((urlMatch = urlRegex.exec(rawText)) !== null) {
       const found = urlMatch[0];
-      if (!found.includes('@') && !found.includes('pdf') && !found.includes('coursera') && !found.includes('aws')) {
+      if (!found.includes('@') && !found.includes('pdf') && !found.includes('coursera') && !found.includes('aws') && !found.includes('drive.google.com')) {
         personal.portfolio = found;
         personal.portfolioDisplay = cleanUrlDisplay(found);
         break;
       }
     }
+    if (!personal.portfolio && linkUrls.length > 0) {
+      const portLink = linkUrls.find(u => {
+        return /^https?:\/\//i.test(u) &&
+               !u.includes('linkedin.com') &&
+               !u.includes('github.com') &&
+               !u.includes('leetcode.com') &&
+               !u.includes('codeforces.com') &&
+               !u.includes('kaggle.com') &&
+               !u.includes('drive.google.com') &&
+               !u.includes('coursera.org') &&
+               !u.includes('credly.com') &&
+               !u.includes('certmetrics.com');
+      });
+      if (portLink) {
+        personal.portfolio = portLink;
+        personal.portfolioDisplay = cleanUrlDisplay(portLink);
+      }
+    }
 
     // Extract Candidate Name from top 5 lines
-    const ignoreNames = /^(?:resume|curriculum\s+vitae|cv|contact|personal|profile|page\s+\d+|phone|email)$/i;
+    const ignoreNames = /^(?:resume|curriculum\s+vitae|cv|contact|personal|profile|page\s+\d+|phone|email|linkedin|leetcode|github)$/i;
     for (let i = 0; i < Math.min(lines.length, 5); i++) {
       const line = lines[i].replace(/[|•,;].*$/, '').trim();
       // Name candidate: 2 to 4 words, alphabetic, no @ or digits, reasonable length
@@ -787,10 +924,14 @@
   /**
    * 6. Parse Certifications
    */
-  function parseCertifications(lines) {
-    if (!lines || lines.length === 0) return [];
+  function parseCertifications(rawLines, linkUrls = []) {
+    if (!rawLines || rawLines.length === 0) return [];
+    const lines = stitchSectionBullets(rawLines);
     const certs = [];
     const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\b/i;
+
+    const certLinks = (linkUrls || []).filter(u => /drive\.google\.com|coursera\.org|credly\.com|certmetrics\.com|verify|certificate/i.test(u));
+    let linkIdx = 0;
 
     lines.forEach(line => {
       const clean = line.replace(/^[•\-*+\s]+/, '').trim();
@@ -799,6 +940,7 @@
       let name = clean;
       let issuer = '';
       let date = '';
+      let url = '';
 
       const dateMatch = clean.match(dateRegex);
       if (dateMatch) {
@@ -812,12 +954,16 @@
         issuer = parts.slice(1).join(' - ');
       }
 
+      if (linkIdx < certLinks.length) {
+        url = certLinks[linkIdx++];
+      }
+
       certs.push({
         name: name.replace(/[|,\-–\s]+$/, '').trim(),
         issuer: issuer || '',
         date: date || '',
         credentialId: '',
-        url: ''
+        url: url
       });
     });
 

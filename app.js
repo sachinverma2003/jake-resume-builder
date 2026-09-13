@@ -1788,13 +1788,15 @@ async function processResumeFile(file) {
       if (typeof ResumeParser === 'undefined' || !ResumeParser.extractTextFromPdf) {
         throw new Error('PDF extraction engine not loaded. Please ensure you are connected or refresh the page.');
       }
-      setParseLoading(true, 'Extracting text and structure from PDF...');
+      setParseLoading(true, 'Extracting text and hyperlinks from PDF...');
       const arrayBuffer = await file.arrayBuffer();
-      const extractedText = await ResumeParser.extractTextFromPdf(arrayBuffer, (percent) => {
-        setParseLoading(true, `Reading PDF pages (${percent}%)...`);
+      const pdfExtraction = await ResumeParser.extractTextFromPdf(arrayBuffer, (percent) => {
+        setParseLoading(true, `Reading PDF pages & hyperlinks (${percent}%)...`);
       });
-      setParseLoading(true, 'Analyzing sections, contact info, and experiences...');
-      parsedResult = ResumeParser.parseText(extractedText);
+      setParseLoading(true, 'Analyzing sections, contact links, and experiences...');
+      const text = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.text) ? pdfExtraction.text : pdfExtraction;
+      const links = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.links) ? pdfExtraction.links : [];
+      parsedResult = ResumeParser.parseText(text, links);
     } else if (filename.endsWith('.tex')) {
       setParseLoading(true, 'Parsing LaTeX document...');
       const texContent = await file.text();
@@ -1856,6 +1858,14 @@ function showExtractionSummary(data) {
   }
 
   if (summaryBadges) {
+    let contactCount = 0;
+    if (data.personal?.phone) contactCount++;
+    if (data.personal?.email) contactCount++;
+    if (data.personal?.linkedin) contactCount++;
+    if (data.personal?.github) contactCount++;
+    if (data.personal?.leetcode) contactCount++;
+    if (data.personal?.portfolio) contactCount++;
+
     const badges = [
       { count: data.education?.length || 0, label: 'Education' },
       { count: data.experience?.length || 0, label: 'Experience' },
@@ -1864,6 +1874,10 @@ function showExtractionSummary(data) {
       { count: data.certifications?.length || 0, label: 'Certificates' },
       { count: data.achievements?.length || 0, label: 'Honors' }
     ];
+
+    if (contactCount > 0) {
+      badges.unshift({ count: contactCount, label: 'Contact & Links' });
+    }
 
     if (data.introduction?.enabled && data.introduction?.text) {
       badges.unshift({ count: '✓', label: 'Introduction' });
