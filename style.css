@@ -240,6 +240,60 @@ html, body {
   color: var(--text-primary);
 }
 
+/* Multi-Resume Profile Selector */
+.profile-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-surface-elevated);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.profile-selector-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.profile-select {
+  background: transparent;
+  color: var(--accent-cyan);
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  max-width: 140px;
+}
+
+.profile-select option {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+
+.btn-profile-manage {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.22rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.15s ease;
+}
+
+.btn-profile-manage:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 /* Auto-Save Status Indicator */
 .autosave-indicator {
   display: flex;
@@ -475,6 +529,58 @@ html, body {
   width: 100%;
   height: calc(100vh - var(--header-height));
   display: flex;
+}
+
+/* Draggable Splitter Divider */
+.drag-splitter {
+  width: 12px;
+  margin: 0 -6px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+  touch-action: none;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.drag-splitter:hover,
+.drag-splitter.is-active {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.drag-splitter-handle {
+  width: 4px;
+  height: 48px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  transition: all 0.15s ease;
+}
+
+.drag-splitter:hover .drag-splitter-handle,
+.drag-splitter.is-active .drag-splitter-handle {
+  background: var(--primary);
+  height: 72px;
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
+body.is-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.is-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* Hide splitter in non-split modes or mobile */
+.app-container.view-form-only #drag-splitter,
+.app-container.view-preview-only #drag-splitter {
+  display: none !important;
 }
 
 /* Left Form Pane */
@@ -1812,6 +1918,227 @@ html, body {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+}
+
+/* ==========================================================================
+   Multi-Resume Profile Manager Modal Styles
+   ========================================================================== */
+.profile-create-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-subtle);
+  align-items: center;
+}
+
+.profile-create-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.profiles-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.profile-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.9rem;
+  transition: all 0.15s ease;
+  gap: 0.75rem;
+}
+
+.profile-card-item:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.profile-card-item.active {
+  border-color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.06);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.12);
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.profile-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-title-text {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-badge-active {
+  background: rgba(6, 182, 212, 0.2);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+
+.profile-meta-text {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.profile-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Smooth Drag-and-Drop Handles & Drop Indicators
+   ========================================================================== */
+.section-drag-handle,
+.item-drag-handle,
+.bullet-drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  user-select: none;
+  font-size: 0.85rem;
+  letter-spacing: -1px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-drag-handle:hover,
+.item-drag-handle:hover,
+.bullet-drag-handle:hover {
+  color: #fff;
+  background: rgba(99, 102, 241, 0.25);
+}
+
+.section-drag-handle:active,
+.item-drag-handle:active,
+.bullet-drag-handle:active {
+  cursor: grabbing;
+}
+
+.is-dragging {
+  opacity: 0.38 !important;
+  transform: scale(0.995);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.drag-over-top {
+  border-top: 2.5px solid var(--primary) !important;
+  box-shadow: 0 -4px 10px rgba(99, 102, 241, 0.35);
+}
+
+.drag-over-bottom {
+  border-bottom: 2.5px solid var(--primary) !important;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
+}
+
+.bullet-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  transition: all 0.15s ease;
+}
+
+.bullet-item.is-dragging {
+  opacity: 0.35;
+}
+
+.bullet-item.drag-over-top {
+  border-top: 2px solid var(--primary);
+}
+
+.bullet-item.drag-over-bottom {
+  border-bottom: 2px solid var(--primary);
+}
+
+/* ==========================================================================
+   Two-Way Click-to-Edit Visual Sync
+   ========================================================================== */
+#visual-resume [data-jump-target],
+#visual-resume [data-jump-section] {
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease, outline 0.15s ease;
+  border-radius: 2px;
+}
+
+#visual-resume [data-jump-target]:hover,
+#visual-resume [data-jump-section]:hover {
+  background-color: rgba(99, 102, 241, 0.08);
+  outline: 1px dashed rgba(99, 102, 241, 0.45);
+}
+
+@keyframes jumpGlowPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.85);
+    border-color: #6366f1 !important;
+    background-color: rgba(99, 102, 241, 0.12) !important;
+  }
+  35% {
+    box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.28);
+    border-color: #6366f1 !important;
+    background-color: rgba(99, 102, 241, 0.16) !important;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    border-color: var(--border-subtle);
+    background-color: transparent;
+  }
+}
+
+.jump-highlight {
+  animation: jumpGlowPulse 1.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-color: #6366f1 !important;
+}
+
+/* Ensure no jump outlines appear in print or PDF export */
+@media print {
+  #visual-resume [data-jump-target],
+  #visual-resume [data-jump-section] {
+    cursor: default !important;
+    background-color: transparent !important;
+    outline: none !important;
+  }
+}
+
+.exporting-pdf #visual-resume [data-jump-target],
+.exporting-pdf #visual-resume [data-jump-section] {
+  cursor: default !important;
+  background-color: transparent !important;
+  outline: none !important;
 }
 
 /* ==========================================================================

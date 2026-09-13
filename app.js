@@ -46,9 +46,15 @@ const toastNotice = document.getElementById('toast-notice');
 const toastMessage = document.getElementById('toast-message');
 
 /* ==========================================================================
-   Continuous Local Auto-Save & Draft Recovery System
+   Multi-Resume Profiles & Continuous Auto-Save System
    ========================================================================== */
 const STORAGE_KEY = 'jake_resume_draft_v1';
+const PROFILES_STORAGE_KEY = 'jake_resume_profiles_v1';
+const ACTIVE_PROFILE_ID_KEY = 'jake_active_profile_id_v1';
+const SPLIT_STORAGE_KEY = 'jake_split_ratio_v1';
+
+let resumeProfiles = [];
+let activeProfileId = 'prof_default';
 let isAutoSaveSuspended = false;
 let autoSaveTimer = null;
 let lastSavedTimestamp = null;
@@ -71,8 +77,13 @@ function updateAutosaveStatus(status, text) {
     label.textContent = text;
   }
   if (indicator && lastSavedTimestamp) {
-    indicator.title = `Last auto-saved: ${new Date(lastSavedTimestamp).toLocaleString()}. You can safely close or refresh this tab anytime.`;
+    indicator.title = `Last auto-saved: ${new Date(lastSavedTimestamp).toLocaleString()}. Active profile: "${getActiveProfileName()}". Edits are continuously auto-saved.`;
   }
+}
+
+function getActiveProfileName() {
+  const p = resumeProfiles.find(item => item.id === activeProfileId);
+  return p ? p.name : 'Default Profile';
 }
 
 function scheduleAutoSave() {
@@ -84,12 +95,16 @@ function scheduleAutoSave() {
   autoSaveTimer = setTimeout(() => {
     try {
       lastSavedTimestamp = Date.now();
-      const payload = {
-        state: resumeState,
-        options: currentOptions,
-        updatedAt: lastSavedTimestamp
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      
+      // Update active profile in resumeProfiles
+      const profIdx = resumeProfiles.findIndex(p => p.id === activeProfileId);
+      if (profIdx !== -1) {
+        resumeProfiles[profIdx].state = JSON.parse(JSON.stringify(resumeState));
+        resumeProfiles[profIdx].options = JSON.parse(JSON.stringify(currentOptions));
+        resumeProfiles[profIdx].updatedAt = lastSavedTimestamp;
+      }
+
+      saveProfilesToStorage();
       updateAutosaveStatus('saved', formatSavedTime(lastSavedTimestamp));
     } catch (err) {
       console.error('Failed to auto-save draft to localStorage:', err);
@@ -98,57 +113,337 @@ function scheduleAutoSave() {
   }, 400);
 }
 
-function loadDraftFromStorage() {
+function saveProfilesToStorage() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.state && parsed.state.personal) {
-      resumeState = parsed.state;
-      if (parsed.options) {
-        currentOptions = { ...currentOptions, ...parsed.options };
-      }
-      lastSavedTimestamp = parsed.updatedAt || Date.now();
+    localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(resumeProfiles));
+    localStorage.setItem(ACTIVE_PROFILE_ID_KEY, activeProfileId);
 
-      if (!resumeState.sectionOrder) {
-        resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
-      }
-      if (!resumeState.introduction) {
-        resumeState.introduction = { enabled: false, text: '' };
-      }
-      if (typeof normalizeSkills === 'function') {
-        resumeState.skills = normalizeSkills(resumeState.skills);
-      }
-
-      updateAutosaveStatus('saved', formatSavedTime(lastSavedTimestamp));
-
-      setTimeout(() => {
-        showToast('✓ Restored your in-progress resume draft');
-      }, 400);
-
-      return true;
+    // Backward compatibility with older single-draft key
+    const currentProf = resumeProfiles.find(p => p.id === activeProfileId);
+    if (currentProf) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        state: currentProf.state,
+        options: currentProf.options,
+        updatedAt: currentProf.updatedAt
+      }));
     }
   } catch (err) {
-    console.warn('Could not restore draft from localStorage:', err);
+    console.error('Error saving profiles to localStorage:', err);
   }
-  return false;
 }
+
+function initProfiles() {
+  try {
+    const rawProfiles = localStorage.getItem(PROFILES_STORAGE_KEY);
+    const savedActiveId = localStorage.getItem(ACTIVE_PROFILE_ID_KEY);
+
+    if (rawProfiles) {
+      resumeProfiles = JSON.parse(rawProfiles);
+    }
+
+    if (!Array.isArray(resumeProfiles) || resumeProfiles.length === 0) {
+      // Migrate from old single draft or seed from preset
+      const rawDraft = localStorage.getItem(STORAGE_KEY);
+      let initialDraftState = null;
+      let initialOptions = null;
+      let initialTimestamp = Date.now();
+
+      if (rawDraft) {
+        try {
+          const parsed = JSON.parse(rawDraft);
+          if (parsed && parsed.state && parsed.state.personal) {
+            initialDraftState = parsed.state;
+            initialOptions = parsed.options;
+            initialTimestamp = parsed.updatedAt || Date.now();
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+
+      if (!initialDraftState) {
+        initialDraftState = JSON.parse(JSON.stringify(BTECH_PRESETS.sde || BTECH_PRESETS.jake));
+      }
+
+      const defaultProfile = {
+        id: 'prof_default',
+        name: 'Resume - SDE Profile',
+        state: initialDraftState,
+        options: initialOptions || { ...currentOptions },
+        updatedAt: initialTimestamp
+      };
+
+      resumeProfiles = [defaultProfile];
+      activeProfileId = 'prof_default';
+      saveProfilesToStorage();
+    } else {
+      activeProfileId = savedActiveId && resumeProfiles.some(p => p.id === savedActiveId)
+        ? savedActiveId
+        : resumeProfiles[0].id;
+    }
+
+    // Load active profile into memory
+    const currentProf = resumeProfiles.find(p => p.id === activeProfileId) || resumeProfiles[0];
+    if (currentProf && currentProf.state) {
+      resumeState = currentProf.state;
+      if (currentProf.options) {
+        currentOptions = { ...currentOptions, ...currentProf.options };
+      }
+      lastSavedTimestamp = currentProf.updatedAt || Date.now();
+    }
+
+    if (!resumeState.sectionOrder) {
+      resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+    }
+    if (!resumeState.introduction) {
+      resumeState.introduction = { enabled: false, text: '' };
+    }
+    if (typeof normalizeSkills === 'function') {
+      resumeState.skills = normalizeSkills(resumeState.skills);
+    }
+
+    populateProfileDropdown();
+    return true;
+  } catch (err) {
+    console.error('Failed to initialize profiles:', err);
+    return false;
+  }
+}
+
+function populateProfileDropdown() {
+  const select = document.getElementById('profile-select');
+  if (!select) return;
+  select.innerHTML = '';
+  resumeProfiles.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    if (p.id === activeProfileId) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+}
+
+function handleProfileSelectChange(selectedId) {
+  if (selectedId && selectedId !== activeProfileId) {
+    switchProfile(selectedId);
+  }
+}
+window.handleProfileSelectChange = handleProfileSelectChange;
+
+function switchProfile(newProfileId) {
+  if (newProfileId === activeProfileId) return;
+
+  // Auto-save current active profile first synchronously
+  const currentIdx = resumeProfiles.findIndex(p => p.id === activeProfileId);
+  if (currentIdx !== -1) {
+    resumeProfiles[currentIdx].state = JSON.parse(JSON.stringify(resumeState));
+    resumeProfiles[currentIdx].options = JSON.parse(JSON.stringify(currentOptions));
+    resumeProfiles[currentIdx].updatedAt = Date.now();
+  }
+
+  const targetProf = resumeProfiles.find(p => p.id === newProfileId);
+  if (!targetProf) return;
+
+  activeProfileId = targetProf.id;
+  resumeState = JSON.parse(JSON.stringify(targetProf.state));
+  if (targetProf.options) {
+    currentOptions = { ...currentOptions, ...targetProf.options };
+  }
+  lastSavedTimestamp = targetProf.updatedAt || Date.now();
+
+  if (!resumeState.sectionOrder) {
+    resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+  }
+  if (!resumeState.introduction) {
+    resumeState.introduction = { enabled: false, text: '' };
+  }
+  if (typeof normalizeSkills === 'function') {
+    resumeState.skills = normalizeSkills(resumeState.skills);
+  }
+
+  saveProfilesToStorage();
+  populateProfileDropdown();
+  populateFormFromState();
+  updatePreviews(false);
+  renderProfilesModalList();
+
+  updateAutosaveStatus('saved', formatSavedTime(lastSavedTimestamp));
+  showToast(`Switched to: ${targetProf.name}`);
+}
+window.switchProfile = switchProfile;
+
+function openProfilesModal() {
+  const modal = document.getElementById('profiles-modal');
+  if (!modal) return;
+  renderProfilesModalList();
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('open'));
+}
+window.openProfilesModal = openProfilesModal;
+
+function closeProfilesModal() {
+  const modal = document.getElementById('profiles-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+window.closeProfilesModal = closeProfilesModal;
+
+function renderProfilesModalList() {
+  const container = document.getElementById('profiles-list-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  resumeProfiles.forEach((p) => {
+    const isActive = p.id === activeProfileId;
+    const item = document.createElement('div');
+    item.className = `profile-card-item ${isActive ? 'active' : ''}`;
+
+    const timeStr = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
+    const numProjects = p.state?.projects?.length || 0;
+    const numRoles = p.state?.experience?.length || 0;
+
+    item.innerHTML = `
+      <div class="profile-info">
+        <div class="profile-title-row">
+          <span class="profile-title-text">${escapeHtml(p.name)}</span>
+          ${isActive ? '<span class="profile-badge-active">Active</span>' : ''}
+        </div>
+        <span class="profile-meta-text">Updated: ${timeStr} &bull; ${numProjects} Projects &bull; ${numRoles} Roles</span>
+      </div>
+      <div class="profile-item-actions">
+        ${!isActive ? `<button type="button" class="btn btn-sm btn-emerald" onclick="switchProfile('${p.id}')">Switch</button>` : ''}
+        <button type="button" class="btn btn-sm btn-secondary" onclick="handleDuplicateProfile('${p.id}')" title="Clone profile">Duplicate</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="handleRenameProfile('${p.id}')" title="Rename profile">Rename</button>
+        <button type="button" class="btn btn-sm btn-danger" onclick="handleDeleteProfile('${p.id}')" ${resumeProfiles.length <= 1 ? 'disabled' : ''} title="${resumeProfiles.length <= 1 ? 'Cannot delete the only profile' : 'Delete profile'}">Delete</button>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+window.renderProfilesModalList = renderProfilesModalList;
+
+function handleCreateNewProfile(cloneCurrent = false) {
+  const input = document.getElementById('inp-new-profile-name');
+  const name = (input && input.value.trim()) ? input.value.trim() : `Resume Profile ${resumeProfiles.length + 1}`;
+
+  // Make sure current profile state is preserved in array
+  const currentIdx = resumeProfiles.findIndex(p => p.id === activeProfileId);
+  if (currentIdx !== -1) {
+    resumeProfiles[currentIdx].state = JSON.parse(JSON.stringify(resumeState));
+    resumeProfiles[currentIdx].options = JSON.parse(JSON.stringify(currentOptions));
+    resumeProfiles[currentIdx].updatedAt = Date.now();
+  }
+
+  const newId = 'prof_' + Date.now();
+  const newState = cloneCurrent
+    ? JSON.parse(JSON.stringify(resumeState))
+    : JSON.parse(JSON.stringify(BTECH_PRESETS.jake));
+
+  const newProfile = {
+    id: newId,
+    name: name,
+    state: newState,
+    options: cloneCurrent ? { ...currentOptions } : { fontSize: '11pt', paperSize: 'letterpaper', sectionSpacing: '-4pt', itemSpacing: '-2pt', showCertifications: true, showAchievements: true },
+    updatedAt: Date.now()
+  };
+
+  resumeProfiles.push(newProfile);
+  if (input) input.value = '';
+
+  saveProfilesToStorage();
+  switchProfile(newId);
+  showToast(`✓ Created new profile: ${name}`);
+}
+window.handleCreateNewProfile = handleCreateNewProfile;
+
+function handleDuplicateProfile(profileId) {
+  const source = resumeProfiles.find(p => p.id === profileId);
+  if (!source) return;
+
+  const newId = 'prof_' + Date.now();
+  const newProfile = {
+    id: newId,
+    name: `${source.name} (Copy)`,
+    state: JSON.parse(JSON.stringify(source.state)),
+    options: JSON.parse(JSON.stringify(source.options)),
+    updatedAt: Date.now()
+  };
+
+  resumeProfiles.push(newProfile);
+  saveProfilesToStorage();
+  renderProfilesModalList();
+  populateProfileDropdown();
+  showToast(`✓ Duplicated profile: ${source.name}`);
+}
+window.handleDuplicateProfile = handleDuplicateProfile;
+
+function handleRenameProfile(profileId) {
+  const target = resumeProfiles.find(p => p.id === profileId);
+  if (!target) return;
+
+  const newName = prompt('Enter new profile name:', target.name);
+  if (!newName || !newName.trim()) return;
+
+  target.name = newName.trim();
+  target.updatedAt = Date.now();
+
+  saveProfilesToStorage();
+  renderProfilesModalList();
+  populateProfileDropdown();
+  showToast(`✓ Renamed profile to "${target.name}"`);
+}
+window.handleRenameProfile = handleRenameProfile;
+
+function handleDeleteProfile(profileId) {
+  if (resumeProfiles.length <= 1) {
+    alert('You must keep at least one profile.');
+    return;
+  }
+
+  const target = resumeProfiles.find(p => p.id === profileId);
+  if (!target) return;
+
+  const confirmDelete = confirm(`Are you sure you want to delete profile "${target.name}"?\nThis cannot be undone.`);
+  if (!confirmDelete) return;
+
+  const wasActive = (profileId === activeProfileId);
+  resumeProfiles = resumeProfiles.filter(p => p.id !== profileId);
+
+  if (wasActive) {
+    activeProfileId = resumeProfiles[0].id;
+    resumeState = JSON.parse(JSON.stringify(resumeProfiles[0].state));
+    currentOptions = JSON.parse(JSON.stringify(resumeProfiles[0].options));
+    lastSavedTimestamp = resumeProfiles[0].updatedAt || Date.now();
+    populateFormFromState();
+    updatePreviews(false);
+  }
+
+  saveProfilesToStorage();
+  renderProfilesModalList();
+  populateProfileDropdown();
+  showToast(`Deleted profile: ${target.name}`);
+}
+window.handleDeleteProfile = handleDeleteProfile;
 
 /**
  * Initialize Application
  */
 function initApp() {
   isAutoSaveSuspended = true;
-  const restored = loadDraftFromStorage();
+  initProfiles();
   populateFormFromState();
   updatePreviews(false);
   setupEventListeners();
+  setupSplitterResizer();
+  setupDragAndDropReordering();
+  setupVisualClickToEdit();
   applyZoom(currentZoom);
   isAutoSaveSuspended = false;
 
-  if (!restored) {
-    updateAutosaveStatus('saved', 'Ready');
-  }
+  updateAutosaveStatus('saved', formatSavedTime(lastSavedTimestamp));
 }
 
 if (document.readyState === 'loading') {
@@ -228,6 +523,14 @@ function updateTestLink(elemId, url) {
  * Setup Event Listeners
  */
 function setupEventListeners() {
+  // Profile Selector
+  const profileSelect = document.getElementById('profile-select');
+  if (profileSelect) {
+    profileSelect.addEventListener('change', (e) => {
+      handleProfileSelectChange(e.target.value);
+    });
+  }
+
   // Preset Switcher
   document.getElementById('preset-select').addEventListener('change', (e) => {
     const selected = e.target.value;
@@ -483,36 +786,39 @@ function updatePreviews(shouldSave = true) {
 
 /**
  * Render the HTML Visual Resume (Exact Jake's Template Replica)
+ * Annotated with data-jump-target and data-jump-section for Two-Way Click-to-Edit Visual Sync
  */
 function renderVisualResume() {
   const { personal, education, experience, projects, skills, certifications, achievements } = resumeState;
 
   // 1. Header & Contacts
   let contactsHtml = [];
-  if (personal.phone) contactsHtml.push(`<span>${escapeHtml(personal.phone)}</span>`);
+  if (personal.phone) {
+    contactsHtml.push(`<span data-jump-target="inp-phone" title="Click to edit Phone">${escapeHtml(personal.phone)}</span>`);
+  }
   if (personal.email) {
-    contactsHtml.push(`<a href="mailto:${personal.email.trim()}" style="text-decoration: none;">${escapeHtml(personal.email.trim())}</a>`);
+    contactsHtml.push(`<a href="mailto:${personal.email.trim()}" data-jump-target="inp-email" title="Click to edit Email" style="text-decoration: none;">${escapeHtml(personal.email.trim())}</a>`);
   }
   if (personal.linkedin) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.linkedin, personal.linkedinDisplay, 'LinkedIn') : (personal.linkedinDisplay || 'LinkedIn');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.linkedin)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.linkedin)}" target="_blank" rel="noopener noreferrer" data-jump-target="inp-linkedin" title="Click to edit LinkedIn" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
   if (personal.github) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.github, personal.githubDisplay, 'GitHub') : (personal.githubDisplay || 'GitHub');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.github)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.github)}" target="_blank" rel="noopener noreferrer" data-jump-target="inp-github" title="Click to edit GitHub" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
   if (personal.leetcode) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.leetcode, personal.leetcodeDisplay, 'LeetCode') : (personal.leetcodeDisplay || 'LeetCode');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.leetcode)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.leetcode)}" target="_blank" rel="noopener noreferrer" data-jump-target="inp-leetcode" title="Click to edit Coding Profile" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
   if (personal.portfolio) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.portfolio, personal.portfolioDisplay, 'Portfolio') : (personal.portfolioDisplay || 'Portfolio');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.portfolio)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.portfolio)}" target="_blank" rel="noopener noreferrer" data-jump-target="inp-portfolio" title="Click to edit Portfolio" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
 
   let html = `
     <header class="res-header">
-      <div class="res-name">${escapeHtml(personal.fullName || 'Jake Ryan')}</div>
+      <div class="res-name" data-jump-target="inp-name" title="Click to edit Full Name">${escapeHtml(personal.fullName || 'Jake Ryan')}</div>
       <div class="res-contacts">
         ${contactsHtml.join(' <span class="res-sep">|</span> ')}
       </div>
@@ -553,8 +859,8 @@ function renderIntroductionVisual(intro) {
 
   return `
     <section class="res-section">
-      <div class="res-section-title">Introduction</div>
-      <div class="res-intro-text">${escapeHtml(text.trim())}</div>
+      <div class="res-section-title" data-jump-section="sec-intro" title="Click to jump to Introduction">Introduction</div>
+      <div class="res-intro-text" data-jump-target="inp-intro-text" title="Click to edit Introduction">${escapeHtml(text.trim())}</div>
     </section>
   `;
 }
@@ -564,20 +870,20 @@ function renderEducationVisual(education) {
   if (!education || education.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title">Education</div>
+      <div class="res-section-title" data-jump-section="sec-education" title="Click to jump to Education">Education</div>
   `;
-  education.forEach(edu => {
+  education.forEach((edu, idx) => {
     const gpaText = edu.gpa ? ` | CGPA/Percentage: ${escapeHtml(edu.gpa)}` : '';
-    const courseworkText = edu.coursework ? `<div class="res-subdetails"><strong>Relevant Coursework:</strong> ${escapeHtml(edu.coursework)}</div>` : '';
+    const courseworkText = edu.coursework ? `<div class="res-subdetails" data-jump-target="edu-${idx}-coursework" title="Click to edit Coursework"><strong>Relevant Coursework:</strong> ${escapeHtml(edu.coursework)}</div>` : '';
     html += `
-      <div class="res-subheading">
+      <div class="res-subheading" data-jump-target="edu-${idx}-institution" title="Click to edit Education entry #${idx + 1}">
         <div class="res-row-between">
-          <span class="res-bold">${escapeHtml(edu.institution)}</span>
-          <span class="res-location">${escapeHtml(edu.location)}</span>
+          <span class="res-bold" data-jump-target="edu-${idx}-institution">${escapeHtml(edu.institution)}</span>
+          <span class="res-location" data-jump-target="edu-${idx}-location">${escapeHtml(edu.location)}</span>
         </div>
         <div class="res-row-between">
-          <span class="res-italic">${escapeHtml(edu.degree)}${gpaText}</span>
-          <span class="res-dates">${escapeHtml(edu.dates)}</span>
+          <span class="res-italic" data-jump-target="edu-${idx}-degree">${escapeHtml(edu.degree)}${gpaText}</span>
+          <span class="res-dates" data-jump-target="edu-${idx}-dates">${escapeHtml(edu.dates)}</span>
         </div>
         ${courseworkText}
       </div>
@@ -592,21 +898,21 @@ function renderExperienceVisual(experience) {
   if (!experience || experience.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title">Experience</div>
+      <div class="res-section-title" data-jump-section="sec-experience" title="Click to jump to Experience">Experience</div>
   `;
-  experience.forEach(exp => {
+  experience.forEach((exp, idx) => {
     html += `
       <div class="res-subheading">
         <div class="res-row-between">
-          <span class="res-bold">${escapeHtml(exp.role)}</span>
-          <span class="res-dates">${escapeHtml(exp.dates)}</span>
+          <span class="res-bold" data-jump-target="exp-${idx}-role" title="Click to edit Job Title">${escapeHtml(exp.role)}</span>
+          <span class="res-dates" data-jump-target="exp-${idx}-dates" title="Click to edit Dates">${escapeHtml(exp.dates)}</span>
         </div>
         <div class="res-row-between">
-          <span class="res-italic">${escapeHtml(exp.company)}</span>
-          <span class="res-location">${escapeHtml(exp.location)}</span>
+          <span class="res-italic" data-jump-target="exp-${idx}-company" title="Click to edit Company">${escapeHtml(exp.company)}</span>
+          <span class="res-location" data-jump-target="exp-${idx}-location" title="Click to edit Location">${escapeHtml(exp.location)}</span>
         </div>
         <ul class="res-bullets">
-          ${exp.bullets.filter(b => b.trim()).map(b => `<li>${formatBulletHtml(b)}</li>`).join('')}
+          ${exp.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="exp-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -620,15 +926,15 @@ function renderProjectsVisual(projects) {
   if (!projects || projects.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title">Projects</div>
+      <div class="res-section-title" data-jump-section="sec-projects" title="Click to jump to Projects">Projects</div>
   `;
-  projects.forEach(proj => {
+  projects.forEach((proj, idx) => {
     let linkItems = [];
     if (proj.liveUrl) {
-      linkItems.push(`<a href="${normalizeUrl(proj.liveUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(proj.liveLabel || 'Live Demo')}</a>`);
+      linkItems.push(`<a href="${normalizeUrl(proj.liveUrl)}" target="_blank" rel="noopener noreferrer" data-jump-target="proj-${idx}-liveUrl">${escapeHtml(proj.liveLabel || 'Live Demo')}</a>`);
     }
     if (proj.githubUrl) {
-      linkItems.push(`<a href="${normalizeUrl(proj.githubUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(proj.githubLabel || 'GitHub')}</a>`);
+      linkItems.push(`<a href="${normalizeUrl(proj.githubUrl)}" target="_blank" rel="noopener noreferrer" data-jump-target="proj-${idx}-githubUrl">${escapeHtml(proj.githubLabel || 'GitHub')}</a>`);
     }
 
     const techPart = proj.techStack ? ` | <em>${escapeHtml(proj.techStack)}</em>` : '';
@@ -637,11 +943,11 @@ function renderProjectsVisual(projects) {
     html += `
       <div class="res-subheading">
         <div class="res-row-between">
-          <span><strong class="res-bold">${escapeHtml(proj.title)}</strong>${techPart}${linksPart}</span>
-          <span class="res-dates">${escapeHtml(proj.dates)}</span>
+          <span><strong class="res-bold" data-jump-target="proj-${idx}-title" title="Click to edit Project Title">${escapeHtml(proj.title)}</strong><span data-jump-target="proj-${idx}-techStack" title="Click to edit Technologies">${techPart}</span>${linksPart}</span>
+          <span class="res-dates" data-jump-target="proj-${idx}-dates" title="Click to edit Dates">${escapeHtml(proj.dates)}</span>
         </div>
         <ul class="res-bullets">
-          ${proj.bullets.filter(b => b.trim()).map(b => `<li>${formatBulletHtml(b)}</li>`).join('')}
+          ${proj.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="proj-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -659,11 +965,11 @@ function renderSkillsVisual(skills) {
 
   let html = `
     <section class="res-section">
-      <div class="res-section-title">Technical Skills</div>
+      <div class="res-section-title" data-jump-section="sec-skills" title="Click to jump to Skills">Technical Skills</div>
       <ul class="res-skills-list">
   `;
-  activeRows.forEach(item => {
-    html += `<li><strong>${escapeHtml(item.category.trim())}:</strong> ${escapeHtml(item.items.trim())}</li>`;
+  activeRows.forEach((item, idx) => {
+    html += `<li data-jump-target="skill-${idx}-items" title="Click to edit Skill Category"><strong>${escapeHtml(item.category.trim())}:</strong> ${escapeHtml(item.items.trim())}</li>`;
   });
   html += `</ul></section>`;
   return html;
@@ -674,10 +980,10 @@ function renderCertificationsVisual(certifications, showCertifications = true) {
   if (!showCertifications || !certifications || certifications.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title">Certifications</div>
+      <div class="res-section-title" data-jump-section="sec-certs" title="Click to jump to Certifications">Certifications</div>
       <ul class="res-bullets" style="padding-left: 1.15rem; margin-top: 3px; margin-bottom: 2px;">
   `;
-  certifications.forEach(cert => {
+  certifications.forEach((cert, idx) => {
     let name = (typeof cleanCertTitle === 'function' ? cleanCertTitle(cert.name) : (cert.name || '')).trim();
     let issuer = (typeof cleanCertTitle === 'function' ? cleanCertTitle(cert.issuer) : (cert.issuer || '')).trim();
 
@@ -708,14 +1014,14 @@ function renderCertificationsVisual(certifications, showCertifications = true) {
 
     let rightParts = [];
     if (cert.date) {
-      rightParts.push(`<span style="font-style: italic; color: #4b5563;">${escapeHtml(cert.date)}</span>`);
+      rightParts.push(`<span style="font-style: italic; color: #4b5563;" data-jump-target="cert-${idx}-date">${escapeHtml(cert.date)}</span>`);
     }
     if (cert.url) {
       rightParts.push(`<a href="${normalizeUrl(cert.url)}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 500;">Certificate</a>`);
     }
 
     html += `
-      <li style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+      <li data-jump-target="cert-${idx}-name" title="Click to edit Certification #${idx + 1}" style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
         <div>${titleHtml}</div>
         ${rightParts.length > 0 ? `<div style="text-align: right; white-space: nowrap; margin-left: 14px;">${rightParts.join('&nbsp;&nbsp;')}</div>` : ''}
       </li>
@@ -730,16 +1036,16 @@ function renderAchievementsVisual(achievements, showAchievements = true) {
   if (!showAchievements || !achievements || achievements.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title">Honors & Achievements</div>
+      <div class="res-section-title" data-jump-section="sec-honors" title="Click to jump to Honors">Honors & Achievements</div>
       <ul class="res-bullets">
   `;
-  achievements.forEach(ach => {
+  achievements.forEach((ach, idx) => {
     let line = `<strong>${escapeHtml(ach.title)}</strong>`;
     if (ach.description) line += `: ${formatBulletHtml(ach.description)}`;
     if (ach.url) {
       line += ` [<a href="${normalizeUrl(ach.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ach.linkLabel || 'Link')}</a>]`;
     }
-    html += `<li>${line}</li>`;
+    html += `<li data-jump-target="ach-${idx}-title" title="Click to edit Honor #${idx + 1}">${line}</li>`;
   });
   html += `</ul></section>`;
   return html;
@@ -1265,6 +1571,358 @@ function formatBulletHtml(text) {
 }
 
 /* ==========================================================================
+   Draggable Splitter Pane Setup
+   ========================================================================== */
+function setupSplitterResizer() {
+  const splitter = document.getElementById('drag-splitter');
+  const container = document.getElementById('app-container');
+  const formPane = document.getElementById('form-pane');
+  const previewPane = document.getElementById('preview-pane');
+
+  if (!splitter || !container || !formPane || !previewPane) return;
+
+  let isDragging = false;
+
+  // Restore saved ratio if available
+  const savedRatio = localStorage.getItem(SPLIT_STORAGE_KEY);
+  if (savedRatio && container.classList.contains('view-split') && window.innerWidth > 900) {
+    const r = parseFloat(savedRatio);
+    if (!isNaN(r) && r >= 22 && r <= 78) {
+      formPane.style.width = `${r}%`;
+      previewPane.style.width = `${100 - r}%`;
+    }
+  }
+
+  const startDrag = (e) => {
+    if (!container.classList.contains('view-split') || window.innerWidth <= 900) return;
+    isDragging = true;
+    splitter.classList.add('is-active');
+    document.body.classList.add('is-resizing');
+    e.preventDefault();
+  };
+
+  const onDrag = (e) => {
+    if (!isDragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const rect = container.getBoundingClientRect();
+    const offsetX = clientX - rect.left;
+    let percent = (offsetX / rect.width) * 100;
+
+    // Constrain between 22% and 78%
+    percent = Math.max(22, Math.min(78, percent));
+
+    formPane.style.width = `${percent.toFixed(2)}%`;
+    previewPane.style.width = `${(100 - percent).toFixed(2)}%`;
+  };
+
+  const stopDrag = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    splitter.classList.remove('is-active');
+    document.body.classList.remove('is-resizing');
+
+    const rect = container.getBoundingClientRect();
+    const formWidth = formPane.getBoundingClientRect().width;
+    const currentPercent = (formWidth / rect.width) * 100;
+
+    try {
+      localStorage.setItem(SPLIT_STORAGE_KEY, currentPercent.toFixed(1));
+    } catch (e) {
+      console.warn(e);
+    }
+
+    checkPageHeight();
+  };
+
+  splitter.addEventListener('mousedown', startDrag);
+  window.addEventListener('mousemove', onDrag);
+  window.addEventListener('mouseup', stopDrag);
+
+  splitter.addEventListener('touchstart', startDrag, { passive: false });
+  window.addEventListener('touchmove', onDrag, { passive: true });
+  window.addEventListener('touchend', stopDrag);
+
+  // Double-click to reset 50/50
+  splitter.addEventListener('dblclick', () => {
+    formPane.style.width = '48%';
+    previewPane.style.width = '52%';
+    try {
+      localStorage.removeItem(SPLIT_STORAGE_KEY);
+    } catch (e) {
+      console.warn(e);
+    }
+    showToast('Reset split panes to 50/50');
+    checkPageHeight();
+  });
+}
+
+/* ==========================================================================
+   Two-Way Click-to-Edit Visual Sync
+   ========================================================================== */
+function setupVisualClickToEdit() {
+  const preview = document.getElementById('visual-resume');
+  if (!preview) return;
+
+  preview.addEventListener('click', (e) => {
+    // If user clicked with Ctrl/Cmd or middle-click, allow default link opening
+    if (e.ctrlKey || e.metaKey || e.button === 1) {
+      return;
+    }
+
+    const targetEl = e.target.closest('[data-jump-target]');
+    const sectionEl = e.target.closest('[data-jump-section]');
+
+    if (targetEl) {
+      e.preventDefault();
+      const targetId = targetEl.getAttribute('data-jump-target');
+      jumpToFormInput(targetId);
+    } else if (sectionEl) {
+      e.preventDefault();
+      const secId = sectionEl.getAttribute('data-jump-section');
+      scrollToSection(secId);
+    }
+  });
+}
+
+function jumpToFormInput(inputId) {
+  if (!inputId) return;
+
+  // If in Preview Only mode, switch to Split so editor is visible!
+  const container = document.getElementById('app-container');
+  if (container && container.classList.contains('view-preview-only')) {
+    const btnSplit = document.getElementById('btn-view-split');
+    if (btnSplit) btnSplit.click();
+  }
+
+  const input = document.getElementById(inputId);
+  if (!input) {
+    console.warn('Form input not found for jump target:', inputId);
+    return;
+  }
+
+  // Ensure parent section card is expanded
+  const card = input.closest('.section-card');
+  if (card) {
+    card.classList.remove('collapsed');
+  }
+
+  // Smooth scroll
+  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Focus and pulse highlight
+  setTimeout(() => {
+    input.focus();
+    if (typeof input.select === 'function') {
+      input.select();
+    }
+    input.classList.remove('jump-highlight');
+    void input.offsetWidth; // Force reflow
+    input.classList.add('jump-highlight');
+
+    setTimeout(() => {
+      input.classList.remove('jump-highlight');
+    }, 1800);
+  }, 120);
+}
+window.jumpToFormInput = jumpToFormInput;
+
+/* ==========================================================================
+   Drag-and-Drop Reordering Engine
+   ========================================================================== */
+
+function setupDragAndDropReordering() {
+  setupSectionDragAndDrop();
+}
+
+function setupSectionDragAndDrop() {
+  const container = document.getElementById('reorderable-sections-container');
+  if (!container) return;
+
+  const cards = container.querySelectorAll('.section-card');
+  cards.forEach((card) => {
+    const secKey = card.getAttribute('data-section-key');
+    const handle = card.querySelector('.section-drag-handle');
+    if (!handle || !secKey) return;
+    if (handle.dataset.dragBound === 'true') return;
+    handle.dataset.dragBound = 'true';
+
+    handle.setAttribute('draggable', 'true');
+
+    handle.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'section', secKey }));
+      e.dataTransfer.effectAllowed = 'move';
+      card.classList.add('is-dragging');
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('is-dragging');
+      container.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+    });
+
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const rect = card.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      card.classList.remove('drag-over-top', 'drag-over-bottom');
+      if (e.clientY < midY) {
+        card.classList.add('drag-over-top');
+      } else {
+        card.classList.add('drag-over-bottom');
+      }
+    });
+
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      card.classList.remove('drag-over-top', 'drag-over-bottom');
+      try {
+        const raw = e.dataTransfer.getData('text/plain');
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data.type === 'section' && data.secKey && data.secKey !== secKey) {
+          const order = resumeState.sectionOrder || ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+          const fromIdx = order.indexOf(data.secKey);
+          let toIdx = order.indexOf(secKey);
+
+          if (fromIdx !== -1 && toIdx !== -1) {
+            const [moved] = order.splice(fromIdx, 1);
+            order.splice(toIdx, 0, moved);
+            resumeState.sectionOrder = order;
+
+            // Clear preset chips
+            document.querySelectorAll('.order-chip-btn').forEach(btn => btn.classList.remove('active'));
+
+            reorderFormSectionCards();
+            updatePreviews();
+            scheduleAutoSave();
+            showToast(`Reordered sections`);
+          }
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+    });
+  });
+}
+
+function attachItemDragEvents(el, listKey, idx, renderFn) {
+  const handle = el.querySelector('.item-drag-handle');
+  if (!handle) return;
+
+  handle.setAttribute('draggable', 'true');
+
+  handle.addEventListener('dragstart', (e) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'item', listKey, fromIdx: idx }));
+    e.dataTransfer.effectAllowed = 'move';
+    el.classList.add('is-dragging');
+  });
+
+  el.addEventListener('dragend', () => {
+    el.classList.remove('is-dragging');
+    document.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  });
+
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = el.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    el.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (e.clientY < midY) {
+      el.classList.add('drag-over-top');
+    } else {
+      el.classList.add('drag-over-bottom');
+    }
+  });
+
+  el.addEventListener('dragleave', (e) => {
+    el.classList.remove('drag-over-top', 'drag-over-bottom');
+  });
+
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.remove('drag-over-top', 'drag-over-bottom');
+    try {
+      const raw = e.dataTransfer.getData('text/plain');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data.type === 'item' && data.listKey === listKey && data.fromIdx !== idx) {
+        const [movedItem] = resumeState[listKey].splice(data.fromIdx, 1);
+        resumeState[listKey].splice(idx, 0, movedItem);
+        renderFn();
+        updatePreviews();
+        scheduleAutoSave();
+        showToast(`Reordered ${listKey}`);
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  });
+}
+
+function attachBulletDragEvents(bulletEl, listKey, itemIdx, bulletIdx, renderFn) {
+  const handle = bulletEl.querySelector('.bullet-drag-handle');
+  if (!handle) return;
+
+  handle.setAttribute('draggable', 'true');
+
+  handle.addEventListener('dragstart', (e) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'bullet', listKey, itemIdx, fromBulletIdx: bulletIdx }));
+    e.dataTransfer.effectAllowed = 'move';
+    bulletEl.classList.add('is-dragging');
+  });
+
+  bulletEl.addEventListener('dragend', () => {
+    bulletEl.classList.remove('is-dragging');
+    document.querySelectorAll('.bullet-item.drag-over-top, .bullet-item.drag-over-bottom').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  });
+
+  bulletEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = bulletEl.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    bulletEl.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (e.clientY < midY) {
+      bulletEl.classList.add('drag-over-top');
+    } else {
+      bulletEl.classList.add('drag-over-bottom');
+    }
+  });
+
+  bulletEl.addEventListener('dragleave', () => {
+    bulletEl.classList.remove('drag-over-top', 'drag-over-bottom');
+  });
+
+  bulletEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bulletEl.classList.remove('drag-over-top', 'drag-over-bottom');
+    try {
+      const raw = e.dataTransfer.getData('text/plain');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data.type === 'bullet' && data.listKey === listKey && data.itemIdx === itemIdx && data.fromBulletIdx !== bulletIdx) {
+        const [movedBullet] = resumeState[listKey][itemIdx].bullets.splice(data.fromBulletIdx, 1);
+        resumeState[listKey][itemIdx].bullets.splice(bulletIdx, 0, movedBullet);
+        renderFn();
+        updatePreviews();
+        scheduleAutoSave();
+        showToast(`Reordered bullet point`);
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  });
+}
+
+/* ==========================================================================
    Dynamic Section Renderers (with Reordering & Deletion)
    ========================================================================== */
 
@@ -1275,9 +1933,13 @@ function renderEducationList() {
   resumeState.education.forEach((edu, idx) => {
     const item = document.createElement('div');
     item.className = 'repeatable-item';
+    item.dataset.index = idx;
     item.innerHTML = `
       <div class="repeatable-item-header">
-        <span class="repeatable-item-title">School / College #${idx + 1}</span>
+        <span class="repeatable-item-title">
+          <span class="item-drag-handle" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>
+          School / College #${idx + 1}
+        </span>
         <div class="reorder-group">
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('education', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('education', ${idx}, 1)" ${idx === resumeState.education.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
@@ -1287,35 +1949,36 @@ function renderEducationList() {
       <div class="grid-2">
         <div class="form-group">
           <label>College / University Name</label>
-          <input type="text" class="form-control" value="${escapeHtml(edu.institution)}" oninput="updateEduField(${idx}, 'institution', this.value)">
+          <input type="text" id="edu-${idx}-institution" class="form-control" value="${escapeHtml(edu.institution)}" oninput="updateEduField(${idx}, 'institution', this.value)">
         </div>
         <div class="form-group">
           <label>Location (e.g. Georgetown, TX)</label>
-          <input type="text" class="form-control" value="${escapeHtml(edu.location)}" oninput="updateEduField(${idx}, 'location', this.value)">
+          <input type="text" id="edu-${idx}-location" class="form-control" value="${escapeHtml(edu.location)}" oninput="updateEduField(${idx}, 'location', this.value)">
         </div>
       </div>
       <div class="grid-2">
         <div class="form-group">
           <label>Degree / Major</label>
-          <input type="text" class="form-control" value="${escapeHtml(edu.degree)}" oninput="updateEduField(${idx}, 'degree', this.value)">
+          <input type="text" id="edu-${idx}-degree" class="form-control" value="${escapeHtml(edu.degree)}" oninput="updateEduField(${idx}, 'degree', this.value)">
         </div>
         <div class="form-group">
           <label>Dates (e.g. Aug. 2018 -- May 2021)</label>
-          <input type="text" class="form-control" value="${escapeHtml(edu.dates)}" oninput="updateEduField(${idx}, 'dates', this.value)">
+          <input type="text" id="edu-${idx}-dates" class="form-control" value="${escapeHtml(edu.dates)}" oninput="updateEduField(${idx}, 'dates', this.value)">
         </div>
       </div>
       <div class="grid-2">
         <div class="form-group">
           <label>CGPA / Percentage (Optional)</label>
-          <input type="text" class="form-control" value="${escapeHtml(edu.gpa || '')}" placeholder="e.g. 9.2 / 10.0" oninput="updateEduField(${idx}, 'gpa', this.value)">
+          <input type="text" id="edu-${idx}-gpa" class="form-control" value="${escapeHtml(edu.gpa || '')}" placeholder="e.g. 9.2 / 10.0" oninput="updateEduField(${idx}, 'gpa', this.value)">
         </div>
         <div class="form-group">
           <label>Relevant Coursework (Optional)</label>
-          <input type="text" class="form-control" value="${escapeHtml(edu.coursework || '')}" oninput="updateEduField(${idx}, 'coursework', this.value)">
+          <input type="text" id="edu-${idx}-coursework" class="form-control" value="${escapeHtml(edu.coursework || '')}" oninput="updateEduField(${idx}, 'coursework', this.value)">
         </div>
       </div>
     `;
     container.appendChild(item);
+    attachItemDragEvents(item, 'education', idx, renderEducationList);
   });
 }
 
@@ -1350,18 +2013,14 @@ function renderExperienceList() {
   resumeState.experience.forEach((exp, idx) => {
     const item = document.createElement('div');
     item.className = 'repeatable-item';
-    
-    let bulletsHtml = exp.bullets.map((bullet, bIdx) => `
-      <div class="bullet-item">
-        <span class="bullet-indicator">&bull;</span>
-        <input type="text" class="form-control" value="${escapeHtml(bullet)}" placeholder="Action verb + task + quantifiable result" oninput="updateExpBullet(${idx}, ${bIdx}, this.value)">
-        <button class="btn btn-sm btn-danger" onclick="removeExpBullet(${idx}, ${bIdx})">&times;</button>
-      </div>
-    `).join('');
+    item.dataset.index = idx;
 
     item.innerHTML = `
       <div class="repeatable-item-header">
-        <span class="repeatable-item-title">Experience #${idx + 1}</span>
+        <span class="repeatable-item-title">
+          <span class="item-drag-handle" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>
+          Experience #${idx + 1}
+        </span>
         <div class="reorder-group">
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('experience', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('experience', ${idx}, 1)" ${idx === resumeState.experience.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
@@ -1371,29 +2030,46 @@ function renderExperienceList() {
       <div class="grid-2">
         <div class="form-group">
           <label>Job Title / Role</label>
-          <input type="text" class="form-control" value="${escapeHtml(exp.role)}" oninput="updateExpField(${idx}, 'role', this.value)">
+          <input type="text" id="exp-${idx}-role" class="form-control" value="${escapeHtml(exp.role)}" oninput="updateExpField(${idx}, 'role', this.value)">
         </div>
         <div class="form-group">
           <label>Dates (e.g. June 2020 -- Present)</label>
-          <input type="text" class="form-control" value="${escapeHtml(exp.dates)}" oninput="updateExpField(${idx}, 'dates', this.value)">
+          <input type="text" id="exp-${idx}-dates" class="form-control" value="${escapeHtml(exp.dates)}" oninput="updateExpField(${idx}, 'dates', this.value)">
         </div>
       </div>
       <div class="grid-2">
         <div class="form-group">
           <label>Company / Organization Name</label>
-          <input type="text" class="form-control" value="${escapeHtml(exp.company)}" oninput="updateExpField(${idx}, 'company', this.value)">
+          <input type="text" id="exp-${idx}-company" class="form-control" value="${escapeHtml(exp.company)}" oninput="updateExpField(${idx}, 'company', this.value)">
         </div>
         <div class="form-group">
           <label>Location (e.g. College Station, TX)</label>
-          <input type="text" class="form-control" value="${escapeHtml(exp.location)}" oninput="updateExpField(${idx}, 'location', this.value)">
+          <input type="text" id="exp-${idx}-location" class="form-control" value="${escapeHtml(exp.location)}" oninput="updateExpField(${idx}, 'location', this.value)">
         </div>
       </div>
       <div class="form-group">
         <label>Bullet Points <button class="btn btn-sm btn-secondary" onclick="addExpBullet(${idx})">+ Add Bullet</button></label>
-        <div class="bullet-list">${bulletsHtml}</div>
+        <div class="bullet-list" id="exp-bullets-${idx}"></div>
       </div>
     `;
     container.appendChild(item);
+
+    const bulletsContainer = item.querySelector(`#exp-bullets-${idx}`);
+    exp.bullets.forEach((bullet, bIdx) => {
+      const bItem = document.createElement('div');
+      bItem.className = 'bullet-item';
+      bItem.dataset.bulletIdx = bIdx;
+      bItem.innerHTML = `
+        <span class="bullet-drag-handle" draggable="true" title="Drag to reorder bullet" onclick="event.stopPropagation()">⋮⋮</span>
+        <span class="bullet-indicator">&bull;</span>
+        <input type="text" id="exp-${idx}-bullet-${bIdx}" class="form-control" value="${escapeHtml(bullet)}" placeholder="Action verb + task + quantifiable result" oninput="updateExpBullet(${idx}, ${bIdx}, this.value)">
+        <button class="btn btn-sm btn-danger" onclick="removeExpBullet(${idx}, ${bIdx})">&times;</button>
+      `;
+      bulletsContainer.appendChild(bItem);
+      attachBulletDragEvents(bItem, 'experience', idx, bIdx, renderExperienceList);
+    });
+
+    attachItemDragEvents(item, 'experience', idx, renderExperienceList);
   });
 }
 
@@ -1444,18 +2120,14 @@ function renderProjectsList() {
   resumeState.projects.forEach((proj, idx) => {
     const item = document.createElement('div');
     item.className = 'repeatable-item';
-
-    let bulletsHtml = proj.bullets.map((bullet, bIdx) => `
-      <div class="bullet-item">
-        <span class="bullet-indicator">&bull;</span>
-        <input type="text" class="form-control" value="${escapeHtml(bullet)}" placeholder="Developed X using Y for Z..." oninput="updateProjBullet(${idx}, ${bIdx}, this.value)">
-        <button class="btn btn-sm btn-danger" onclick="removeProjBullet(${idx}, ${bIdx})">&times;</button>
-      </div>
-    `).join('');
+    item.dataset.index = idx;
 
     item.innerHTML = `
       <div class="repeatable-item-header">
-        <span class="repeatable-item-title">Project #${idx + 1}</span>
+        <span class="repeatable-item-title">
+          <span class="item-drag-handle" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>
+          Project #${idx + 1}
+        </span>
         <div class="reorder-group">
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('projects', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('projects', ${idx}, 1)" ${idx === resumeState.projects.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
@@ -1465,22 +2137,22 @@ function renderProjectsList() {
       <div class="grid-2">
         <div class="form-group">
           <label>Project Title</label>
-          <input type="text" class="form-control" value="${escapeHtml(proj.title)}" oninput="updateProjField(${idx}, 'title', this.value)">
+          <input type="text" id="proj-${idx}-title" class="form-control" value="${escapeHtml(proj.title)}" oninput="updateProjField(${idx}, 'title', this.value)">
         </div>
         <div class="form-group">
           <label>Technologies Used</label>
-          <input type="text" class="form-control" value="${escapeHtml(proj.techStack)}" placeholder="e.g. Python, Flask, React, PostgreSQL, Docker" oninput="updateProjField(${idx}, 'techStack', this.value)">
+          <input type="text" id="proj-${idx}-techStack" class="form-control" value="${escapeHtml(proj.techStack)}" placeholder="e.g. Python, Flask, React, PostgreSQL, Docker" oninput="updateProjField(${idx}, 'techStack', this.value)">
         </div>
       </div>
       <div class="grid-2">
         <div class="form-group">
           <label>Duration / Dates</label>
-          <input type="text" class="form-control" value="${escapeHtml(proj.dates)}" placeholder="e.g. June 2020 -- Present" oninput="updateProjField(${idx}, 'dates', this.value)">
+          <input type="text" id="proj-${idx}-dates" class="form-control" value="${escapeHtml(proj.dates)}" placeholder="e.g. June 2020 -- Present" oninput="updateProjField(${idx}, 'dates', this.value)">
         </div>
         <div class="form-group">
           <label>GitHub Repository URL (Optional)</label>
           <div class="input-with-action">
-            <input type="url" class="form-control" value="${escapeHtml(proj.githubUrl || '')}" placeholder="https://github.com/..." oninput="updateProjField(${idx}, 'githubUrl', this.value)">
+            <input type="url" id="proj-${idx}-githubUrl" class="form-control" value="${escapeHtml(proj.githubUrl || '')}" placeholder="https://github.com/..." oninput="updateProjField(${idx}, 'githubUrl', this.value)">
             ${proj.githubUrl ? `<a href="${normalizeUrl(proj.githubUrl)}" target="_blank" class="test-link-btn">Test ↗</a>` : ''}
           </div>
         </div>
@@ -1489,21 +2161,38 @@ function renderProjectsList() {
         <div class="form-group">
           <label>Live Demo URL (Optional)</label>
           <div class="input-with-action">
-            <input type="url" class="form-control" value="${escapeHtml(proj.liveUrl || '')}" placeholder="https://..." oninput="updateProjField(${idx}, 'liveUrl', this.value)">
+            <input type="url" id="proj-${idx}-liveUrl" class="form-control" value="${escapeHtml(proj.liveUrl || '')}" placeholder="https://..." oninput="updateProjField(${idx}, 'liveUrl', this.value)">
             ${proj.liveUrl ? `<a href="${normalizeUrl(proj.liveUrl)}" target="_blank" class="test-link-btn">Test ↗</a>` : ''}
           </div>
         </div>
         <div class="form-group">
           <label>Live Demo Link Label</label>
-          <input type="text" class="form-control" value="${escapeHtml(proj.liveLabel || 'Live Demo')}" oninput="updateProjField(${idx}, 'liveLabel', this.value)">
+          <input type="text" id="proj-${idx}-liveLabel" class="form-control" value="${escapeHtml(proj.liveLabel || 'Live Demo')}" oninput="updateProjField(${idx}, 'liveLabel', this.value)">
         </div>
       </div>
       <div class="form-group">
         <label>Bullet Points <button class="btn btn-sm btn-secondary" onclick="addProjBullet(${idx})">+ Add Bullet</button></label>
-        <div class="bullet-list">${bulletsHtml}</div>
+        <div class="bullet-list" id="proj-bullets-${idx}"></div>
       </div>
     `;
     container.appendChild(item);
+
+    const bulletsContainer = item.querySelector(`#proj-bullets-${idx}`);
+    proj.bullets.forEach((bullet, bIdx) => {
+      const bItem = document.createElement('div');
+      bItem.className = 'bullet-item';
+      bItem.dataset.bulletIdx = bIdx;
+      bItem.innerHTML = `
+        <span class="bullet-drag-handle" draggable="true" title="Drag to reorder bullet" onclick="event.stopPropagation()">⋮⋮</span>
+        <span class="bullet-indicator">&bull;</span>
+        <input type="text" id="proj-${idx}-bullet-${bIdx}" class="form-control" value="${escapeHtml(bullet)}" placeholder="Developed X using Y for Z..." oninput="updateProjBullet(${idx}, ${bIdx}, this.value)">
+        <button class="btn btn-sm btn-danger" onclick="removeProjBullet(${idx}, ${bIdx})">&times;</button>
+      `;
+      bulletsContainer.appendChild(bItem);
+      attachBulletDragEvents(bItem, 'projects', idx, bIdx, renderProjectsList);
+    });
+
+    attachItemDragEvents(item, 'projects', idx, renderProjectsList);
   });
 }
 
@@ -1558,9 +2247,13 @@ function renderCertificationsList() {
   resumeState.certifications.forEach((cert, idx) => {
     const item = document.createElement('div');
     item.className = 'repeatable-item';
+    item.dataset.index = idx;
     item.innerHTML = `
       <div class="repeatable-item-header">
-        <span class="repeatable-item-title">Certification #${idx + 1}</span>
+        <span class="repeatable-item-title">
+          <span class="item-drag-handle" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>
+          Certification #${idx + 1}
+        </span>
         <div class="reorder-group">
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('certifications', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('certifications', ${idx}, 1)" ${idx === resumeState.certifications.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
@@ -1570,32 +2263,33 @@ function renderCertificationsList() {
       <div class="grid-2">
         <div class="form-group">
           <label>Certificate Name</label>
-          <input type="text" class="form-control" value="${escapeHtml(cert.name)}" oninput="updateCertField(${idx}, 'name', this.value)">
+          <input type="text" id="cert-${idx}-name" class="form-control" value="${escapeHtml(cert.name)}" oninput="updateCertField(${idx}, 'name', this.value)">
         </div>
         <div class="form-group">
           <label>Issuing Organization</label>
-          <input type="text" class="form-control" value="${escapeHtml(cert.issuer)}" oninput="updateCertField(${idx}, 'issuer', this.value)">
+          <input type="text" id="cert-${idx}-issuer" class="form-control" value="${escapeHtml(cert.issuer)}" oninput="updateCertField(${idx}, 'issuer', this.value)">
         </div>
       </div>
       <div class="grid-2">
         <div class="form-group">
           <label>Issue Date</label>
-          <input type="text" class="form-control" value="${escapeHtml(cert.date)}" oninput="updateCertField(${idx}, 'date', this.value)">
+          <input type="text" id="cert-${idx}-date" class="form-control" value="${escapeHtml(cert.date)}" oninput="updateCertField(${idx}, 'date', this.value)">
         </div>
         <div class="form-group">
           <label>Credential ID (Optional)</label>
-          <input type="text" class="form-control" value="${escapeHtml(cert.credentialId || '')}" oninput="updateCertField(${idx}, 'credentialId', this.value)">
+          <input type="text" id="cert-${idx}-credentialId" class="form-control" value="${escapeHtml(cert.credentialId || '')}" oninput="updateCertField(${idx}, 'credentialId', this.value)">
         </div>
       </div>
       <div class="form-group">
         <label>Verification URL (Clickable)</label>
         <div class="input-with-action">
-          <input type="url" class="form-control" value="${escapeHtml(cert.url || '')}" placeholder="https://..." oninput="updateCertField(${idx}, 'url', this.value)">
+          <input type="url" id="cert-${idx}-url" class="form-control" value="${escapeHtml(cert.url || '')}" placeholder="https://..." oninput="updateCertField(${idx}, 'url', this.value)">
           ${cert.url ? `<a href="${normalizeUrl(cert.url)}" target="_blank" class="test-link-btn">Verify ↗</a>` : ''}
         </div>
       </div>
     `;
     container.appendChild(item);
+    attachItemDragEvents(item, 'certifications', idx, renderCertificationsList);
   });
 }
 
@@ -1631,9 +2325,13 @@ function renderAchievementsList() {
   resumeState.achievements.forEach((ach, idx) => {
     const item = document.createElement('div');
     item.className = 'repeatable-item';
+    item.dataset.index = idx;
     item.innerHTML = `
       <div class="repeatable-item-header">
-        <span class="repeatable-item-title">Achievement #${idx + 1}</span>
+        <span class="repeatable-item-title">
+          <span class="item-drag-handle" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>
+          Achievement #${idx + 1}
+        </span>
         <div class="reorder-group">
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('achievements', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
           <button class="btn btn-sm btn-secondary btn-icon" onclick="moveItem('achievements', ${idx}, 1)" ${idx === resumeState.achievements.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
@@ -1643,22 +2341,23 @@ function renderAchievementsList() {
       <div class="grid-2">
         <div class="form-group">
           <label>Title</label>
-          <input type="text" class="form-control" value="${escapeHtml(ach.title)}" oninput="updateAchField(${idx}, 'title', this.value)">
+          <input type="text" id="ach-${idx}-title" class="form-control" value="${escapeHtml(ach.title)}" oninput="updateAchField(${idx}, 'title', this.value)">
         </div>
         <div class="form-group">
           <label>Proof URL (Optional)</label>
           <div class="input-with-action">
-            <input type="url" class="form-control" value="${escapeHtml(ach.url || '')}" oninput="updateAchField(${idx}, 'url', this.value)">
+            <input type="url" id="ach-${idx}-url" class="form-control" value="${escapeHtml(ach.url || '')}" oninput="updateAchField(${idx}, 'url', this.value)">
             ${ach.url ? `<a href="${normalizeUrl(ach.url)}" target="_blank" class="test-link-btn">Open ↗</a>` : ''}
           </div>
         </div>
       </div>
       <div class="form-group">
         <label>Description</label>
-        <input type="text" class="form-control" value="${escapeHtml(ach.description || '')}" oninput="updateAchField(${idx}, 'description', this.value)">
+        <input type="text" id="ach-${idx}-description" class="form-control" value="${escapeHtml(ach.description || '')}" oninput="updateAchField(${idx}, 'description', this.value)">
       </div>
     `;
     container.appendChild(item);
+    attachItemDragEvents(item, 'achievements', idx, renderAchievementsList);
   });
 }
 
@@ -1710,9 +2409,11 @@ function renderSkillsList() {
   resumeState.skills.forEach((skill, idx) => {
     const item = document.createElement('div');
     item.className = 'repeatable-item skill-card-item';
+    item.dataset.index = idx;
     item.innerHTML = `
       <div class="repeatable-item-header">
         <span class="repeatable-item-title">
+          <span class="item-drag-handle" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>
           <span class="sub-order-pill">${idx + 1}</span>
           <strong>${escapeHtml(skill.category || 'Untitled Category')}</strong>
         </span>
@@ -1725,15 +2426,16 @@ function renderSkillsList() {
       <div class="grid-2">
         <div class="form-group">
           <label>Category Title</label>
-          <input type="text" class="form-control" value="${escapeHtml(skill.category || '')}" placeholder="e.g. Languages, Cloud & DevOps" oninput="updateSkillField(${idx}, 'category', this.value)">
+          <input type="text" id="skill-${idx}-category" class="form-control" value="${escapeHtml(skill.category || '')}" placeholder="e.g. Languages, Cloud & DevOps" oninput="updateSkillField(${idx}, 'category', this.value)">
         </div>
         <div class="form-group">
           <label>Skills &amp; Technologies (Sub-section)</label>
-          <input type="text" class="form-control" value="${escapeHtml(skill.items || '')}" placeholder="e.g. Python, Java, C++, Docker, AWS" oninput="updateSkillField(${idx}, 'items', this.value)">
+          <input type="text" id="skill-${idx}-items" class="form-control" value="${escapeHtml(skill.items || '')}" placeholder="e.g. Python, Java, C++, Docker, AWS" oninput="updateSkillField(${idx}, 'items', this.value)">
         </div>
       </div>
     `;
     container.appendChild(item);
+    attachItemDragEvents(item, 'skills', idx, renderSkillsList);
   });
 }
 
@@ -1870,6 +2572,7 @@ function reorderFormSectionCards() {
   });
 
   updateQuickNavChips(order);
+  setupSectionDragAndDrop();
 }
 
 function updateQuickNavChips(order) {
@@ -2266,11 +2969,14 @@ function applyExtractedResume(mergeMode = false) {
 function exportResumeBackupJson() {
   const payload = {
     app: 'Jake Resume LaTeX Builder',
-    version: '2.5',
+    version: '3.3',
     format: 'jake-resume-backup',
     exportedAt: new Date().toISOString(),
+    activeProfileId: activeProfileId,
+    profileName: getActiveProfileName(),
     state: resumeState,
-    options: currentOptions
+    options: currentOptions,
+    profiles: resumeProfiles
   };
 
   const jsonStr = JSON.stringify(payload, null, 2);
@@ -2329,6 +3035,15 @@ function resetToDefaultDraft() {
 
   const presetSelect = document.getElementById('preset-select');
   if (presetSelect) presetSelect.value = 'jake';
+
+  // Synchronize with active profile
+  const profIdx = resumeProfiles.findIndex(p => p.id === activeProfileId);
+  if (profIdx !== -1) {
+    resumeProfiles[profIdx].state = JSON.parse(JSON.stringify(resumeState));
+    resumeProfiles[profIdx].options = JSON.parse(JSON.stringify(currentOptions));
+    resumeProfiles[profIdx].updatedAt = Date.now();
+  }
+  saveProfilesToStorage();
 
   populateFormFromState();
   updatePreviews(false);
@@ -2407,6 +3122,21 @@ window.closeTrimLinesModal = closeTrimLinesModal;
 window.openTrimModalFromBanner = openTrimModalFromBanner;
 window.openTrimModalFromDownload = openTrimModalFromDownload;
 window.generateTrimRecommendations = generateTrimRecommendations;
+
+// Multi-Resume Profiles & Power Editor UX Exports
+window.handleProfileSelectChange = handleProfileSelectChange;
+window.switchProfile = switchProfile;
+window.openProfilesModal = openProfilesModal;
+window.closeProfilesModal = closeProfilesModal;
+window.renderProfilesModalList = renderProfilesModalList;
+window.handleCreateNewProfile = handleCreateNewProfile;
+window.handleDuplicateProfile = handleDuplicateProfile;
+window.handleRenameProfile = handleRenameProfile;
+window.handleDeleteProfile = handleDeleteProfile;
+window.jumpToFormInput = jumpToFormInput;
+window.setupSectionDragAndDrop = setupSectionDragAndDrop;
+window.setupDragAndDropReordering = setupDragAndDropReordering;
+window.setupSplitterResizer = setupSplitterResizer;
 
 
 

@@ -8,7 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=3.2">
+  <link rel="stylesheet" href="style.css?v=3.3.1">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
@@ -21,7 +21,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v3.2</span></h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v3.3</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -40,6 +40,18 @@
         <button id="btn-view-preview" class="view-btn" title="Resume Preview Full Screen">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Resume Only
+        </button>
+      </div>
+
+      <!-- Multi-Resume Profile Selector -->
+      <div class="profile-selector-group">
+        <label for="profile-select">Profile:</label>
+        <select id="profile-select" class="profile-select" title="Switch active resume profile" onchange="handleProfileSelectChange(this.value)">
+          <!-- Populated dynamically by app.js -->
+        </select>
+        <button id="btn-manage-profiles" class="btn-profile-manage" onclick="openProfilesModal()" title="Manage Resume Profiles (Create, Duplicate, Rename, Delete)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Profiles
         </button>
       </div>
 
@@ -216,9 +228,10 @@
       <div id="reorderable-sections-container">
 
         <!-- 1. Introduction / Professional Summary (Optional) -->
-        <div id="sec-intro" class="section-card">
+        <div id="sec-intro" class="section-card" data-section-key="introduction">
           <div class="section-header">
             <div class="section-title">
+              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
               <span class="section-order-badge">1</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               Introduction / Summary (Optional)
@@ -260,9 +273,10 @@
         </div>
 
         <!-- 2. Education -->
-        <div id="sec-education" class="section-card">
+        <div id="sec-education" class="section-card" data-section-key="education">
           <div class="section-header">
             <div class="section-title">
+              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
               <span class="section-order-badge">1</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
               Education
@@ -282,9 +296,10 @@
         </div>
 
         <!-- 3. Work Experience / Internships -->
-        <div id="sec-experience" class="section-card">
+        <div id="sec-experience" class="section-card" data-section-key="experience">
           <div class="section-header">
             <div class="section-title">
+              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
               <span class="section-order-badge">2</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
               Experience &amp; Internships
@@ -313,9 +328,10 @@
         </div>
 
         <!-- 4. Projects -->
-        <div id="sec-projects" class="section-card">
+        <div id="sec-projects" class="section-card" data-section-key="projects">
           <div class="section-header">
             <div class="section-title">
+              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
               <span class="section-order-badge">3</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
               Technical &amp; Academic Projects
@@ -335,9 +351,10 @@
         </div>
 
         <!-- 5. Technical Skills -->
-        <div id="sec-skills" class="section-card">
+        <div id="sec-skills" class="section-card" data-section-key="skills">
           <div class="section-header">
             <div class="section-title">
+              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
               <span class="section-order-badge">4</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               Technical Skills
@@ -373,9 +390,10 @@
         </div>
 
         <!-- 6. Certifications (with Clickable Links) -->
-        <div id="sec-certs" class="section-card collapsed">
+        <div id="sec-certs" class="section-card collapsed" data-section-key="certifications">
           <div class="section-header">
             <div class="section-title">
+              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
               <span class="section-order-badge">5</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
               Certifications (Optional)
@@ -395,9 +413,10 @@
         </div>
 
         <!-- 7. Honors & Achievements -->
-        <div id="sec-honors" class="section-card collapsed">
+        <div id="sec-honors" class="section-card collapsed" data-section-key="achievements">
           <div class="section-header">
             <div class="section-title">
+              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
               <span class="section-order-badge">6</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 6 14.5 10.5 19.5 11.2 16 14.5 17 19.5 12 17 7 19.5 8 14.5 4.5 11.2 9.5 10.5 12 6"></polygon></svg>
               Honors &amp; Achievements (Optional)
@@ -420,6 +439,11 @@
 
       <div style="height: 40px;"></div>
     </aside>
+
+    <!-- DRAGGABLE SPLITTER DIVIDER -->
+    <div id="drag-splitter" class="drag-splitter" role="separator" aria-orientation="vertical" title="Drag to resize panels (Double-click to reset 50/50)">
+      <div class="drag-splitter-handle"></div>
+    </div>
 
     <!-- RIGHT PANE: Dual Preview -->
     <section id="preview-pane" class="preview-pane">
@@ -625,16 +649,52 @@
     </div>
   </div>
 
+  <!-- Resume Profiles Manager Modal -->
+  <div id="profiles-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
+    <div class="modal-dialog" style="max-width: 600px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          <span>Multi-Resume Profile Manager</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeProfilesModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem;">
+        <p class="modal-subtitle" style="margin-bottom: 1rem;">
+          Manage multiple tailored resumes for different roles (e.g. SDE Backend, AI/ML, DevOps, Research). All profiles are stored privately and safely in your browser.
+        </p>
+
+        <!-- New Profile Quick Bar -->
+        <div class="profile-create-bar">
+          <input type="text" id="inp-new-profile-name" class="form-control" placeholder="New Profile Name (e.g. Resume - FinTech SDE)">
+          <div class="profile-create-actions">
+            <button type="button" class="btn btn-primary" onclick="handleCreateNewProfile(false)">
+              + New Blank
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="handleCreateNewProfile(true)" title="Clone current active resume into new profile">
+              📑 Clone Current
+            </button>
+          </div>
+        </div>
+
+        <!-- Profiles List Container -->
+        <div id="profiles-list-container" class="profiles-list-container">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-notice" class="toast-notice">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-emerald);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v3.2) -->
+  <!-- Scripts (Cache-Busted v3.3.1) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=3.2"></script>
-  <script src="parser.js?v=3.2"></script>
-  <script src="app.js?v=3.2"></script>
+  <script src="template.js?v=3.3.1"></script>
+  <script src="parser.js?v=3.3.1"></script>
+  <script src="app.js?v=3.3.1"></script>
 </body>
 </html>
