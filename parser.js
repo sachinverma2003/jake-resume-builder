@@ -451,49 +451,60 @@
   function parseExperience(lines) {
     if (!lines || lines.length === 0) return [];
     const experience = [];
-    const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b/i;
+    const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b|\b(?:19|20)\d{2}\b/i;
 
     let currentExp = null;
 
-    lines.forEach(line => {
-      const isBullet = /^[•\-*+]\s+/.test(line);
-      const cleanLine = line.replace(/^[•\-*+]\s+/, '').trim();
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line || line.trim().length === 0) continue;
+
+      const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
+      const cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
       const dateMatch = line.match(dateRegex);
 
-      if (!isBullet && dateMatch) {
-        // New experience heading line with dates
+      const nextLine = (i + 1 < lines.length) ? lines[i + 1] : '';
+      const nextIsBullet = /^[•\-*+]\s+/.test(nextLine) || /^(\d+\.|\([a-z]\))\s+/.test(nextLine);
+
+      const hasSeparators = line.includes('—') || line.includes('–') || line.includes('|');
+      const isLikelyHeading = !isBullet && (
+        dateMatch ||
+        currentExp === null ||
+        nextIsBullet ||
+        hasSeparators
+      );
+
+      if (isLikelyHeading && (currentExp === null || currentExp.bullets.length > 0 || dateMatch)) {
         if (currentExp) experience.push(currentExp);
 
-        const dates = dateMatch[0].trim();
-        let titleLine = line.replace(dateMatch[0], '').replace(/[|,\-–\s]+$/, '').trim();
+        const dates = dateMatch ? dateMatch[0].trim() : '';
+        let titleLine = dateMatch ? line.replace(dateMatch[0], '') : line;
+        titleLine = titleLine.replace(/[|,\-–—\s]+$/, '').replace(/^[|,\-–—\s]+/, '').trim();
 
         let role = titleLine;
         let company = '';
         let location = '';
 
-        const splitParts = titleLine.split(/[|,\-–]/).map(p => p.trim()).filter(Boolean);
+        const splitParts = titleLine.split(/\s+[—–|-]+\s+/).map(p => p.trim()).filter(Boolean);
         if (splitParts.length >= 2) {
-          role = splitParts[0];
-          company = splitParts[1];
+          company = splitParts[0];
+          role = splitParts[1];
           if (splitParts.length >= 3) location = splitParts[2];
         }
 
         currentExp = {
-          role: role || 'Software Engineer Intern',
+          role: role || 'Software Development Intern',
           company: company || 'Company / Organization',
           location: location || '',
           dates: dates,
           bullets: []
         };
       } else if (currentExp) {
-        if (isBullet) {
-          currentExp.bullets.push(cleanLine);
-        } else if (cleanLine.length > 20) {
-          // Wrap into bullet if substantial text
+        if (isBullet || cleanLine.length > 15) {
           currentExp.bullets.push(cleanLine);
         }
       }
-    });
+    }
 
     if (currentExp) experience.push(currentExp);
     return experience;
@@ -501,62 +512,127 @@
 
   /**
    * 4. Parse Projects
+   * Robustly extracts project titles with or without dates, parentheses, pipes, or inline tech lists.
+   * Also identifies inline tech bullets (e.g. "Tech: React, Node...") and assigns them to techStack.
    */
   function parseProjects(lines) {
     if (!lines || lines.length === 0) return [];
     const projects = [];
     const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b|\b(?:19|20)\d{2}\b/i;
+    const techSplitRegex = /^(.*?)(?:\s*\|\s*|\s*[-–—]\s*|\s{2,}|\s+(?=(?:React|Node|Express|Mongo|Postgre|Python|Java|C\+\+|Next|Vue|Angular|SQL|AWS|Docker|Flutter|TypeScript|JavaScript|HTML|Tailwind|FastAPI|Django|Flask|Firebase|Spring|Git|Redis|GraphQL)\b))(.*)$/i;
 
     let currentProj = null;
 
-    lines.forEach(line => {
-      const isBullet = /^[•\-*+]\s+/.test(line);
-      const cleanLine = line.replace(/^[•\-*+]\s+/, '').trim();
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line || line.trim().length === 0) continue;
 
-      // Heading indicator: contains tech stack in parentheses or pipes, or has date and no bullet
+      const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
+      const cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
+
+      // Check if this bullet line specifies "Tech: ..." or "Technologies: ..."
+      const techBulletMatch = cleanLine.match(/^(?:tech(?:nologies)?|tools|tech\s+stack|stack|built\s+with)\s*[:\-–—]\s*(.+)$/i);
+      if (techBulletMatch && currentProj) {
+        if (!currentProj.techStack || currentProj.techStack.length < 3) {
+          currentProj.techStack = techBulletMatch[1].trim();
+        }
+        continue;
+      }
+
+      // Determine if this non-bullet line represents a project title / heading
+      const nextLine = (i + 1 < lines.length) ? lines[i + 1] : '';
+      const nextIsBullet = /^[•\-*+]\s+/.test(nextLine) || /^(\d+\.|\([a-z]\))\s+/.test(nextLine);
+
       const techInParen = line.match(/\(([^)]+)\)/);
       const hasDate = dateRegex.test(line);
+      const hasSeparators = line.includes('|') || line.includes(' — ') || line.includes(' – ');
 
-      if (!isBullet && (techInParen || hasDate || line.includes('|'))) {
+      const isLikelyProjectTitle = !isBullet && (
+        currentProj === null || // First non-bullet item in Projects is always a project
+        nextIsBullet ||        // Followed immediately by a bullet point
+        techInParen ||         // Contains tech in parentheses
+        hasDate ||             // Has date
+        hasSeparators ||       // Has pipe or dash separator
+        (currentProj.bullets.length > 0 && line.length <= 90 && !/^[a-z,;]/.test(line))
+      );
+
+      if (isLikelyProjectTitle) {
         if (currentProj) projects.push(currentProj);
 
         let title = line;
         let techStack = '';
         let dates = '';
+        let liveUrl = '';
+        let githubUrl = '';
 
-        if (hasDate) {
-          const dMatch = line.match(dateRegex);
-          dates = dMatch[0].trim();
-          title = title.replace(dMatch[0], '');
+        // Extract GitHub / Live URL if embedded in title line
+        const gitMatch = title.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s)\]]+/i);
+        if (gitMatch) {
+          githubUrl = gitMatch[0].startsWith('http') ? gitMatch[0] : `https://${gitMatch[0]}`;
+          title = title.replace(gitMatch[0], '');
         }
 
+        const urlMatch = title.match(/https?:\/\/[^\s)\]]+/i);
+        if (urlMatch && !urlMatch[0].includes('github.com')) {
+          liveUrl = urlMatch[0];
+          title = title.replace(urlMatch[0], '');
+        }
+
+        // Extract dates
+        if (hasDate) {
+          const dMatch = title.match(dateRegex);
+          if (dMatch) {
+            dates = dMatch[0].trim();
+            title = title.replace(dMatch[0], '');
+          }
+        }
+
+        // Extract tech stack
         if (techInParen) {
           techStack = techInParen[1].trim();
           title = title.replace(techInParen[0], '');
         } else if (title.includes('|')) {
-          const parts = title.split('|').map(p => p.trim());
-          title = parts[0];
+          const parts = title.split('|').map(p => p.trim()).filter(Boolean);
+          title = parts[0] || '';
           techStack = parts.slice(1).join(', ');
+        } else if (title.includes(' — ') || title.includes(' – ')) {
+          const parts = title.split(/\s+[—–]\s+/).map(p => p.trim()).filter(Boolean);
+          title = parts[0] || '';
+          if (parts.length > 1) {
+            techStack = parts.slice(1).join(', ');
+          }
+        } else {
+          // Check for trailing tech list (e.g. "URL Shortener Node.js, Express.js, MongoDB")
+          const splitMatch = title.match(techSplitRegex);
+          if (splitMatch && splitMatch[1].trim().length >= 3 && splitMatch[2].trim().length >= 3) {
+            title = splitMatch[1].trim();
+            techStack = splitMatch[2].trim();
+          }
         }
 
-        title = title.replace(/[|,\-–\s]+$/, '').trim();
+        title = title.replace(/[|,\-–—\s]+$/, '').replace(/^[|,\-–—\s]+/, '').trim();
 
         currentProj = {
-          title: title || 'Project Name',
+          title: title || 'Project Title',
           techStack: techStack || '',
           dates: dates || '',
-          liveUrl: '',
-          liveLabel: '',
-          githubUrl: '',
-          githubLabel: '',
+          liveUrl: liveUrl || '',
+          liveLabel: liveUrl ? 'Live Demo' : '',
+          githubUrl: githubUrl || '',
+          githubLabel: githubUrl ? 'GitHub' : '',
           bullets: []
         };
       } else if (currentProj) {
-        if (isBullet || cleanLine.length > 20) {
+        if (isBullet || cleanLine.length > 15) {
+          const gitMatch = cleanLine.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s)\]]+/i);
+          if (gitMatch && !currentProj.githubUrl) {
+            currentProj.githubUrl = gitMatch[0].startsWith('http') ? gitMatch[0] : `https://${gitMatch[0]}`;
+            currentProj.githubLabel = 'GitHub';
+          }
           currentProj.bullets.push(cleanLine);
         }
       }
-    });
+    }
 
     if (currentProj) projects.push(currentProj);
     return projects;
@@ -662,10 +738,10 @@
         const parts = clean.split(':');
         title = parts[0].trim();
         description = parts.slice(1).join(':').trim();
-      } else if (clean.includes(' - ')) {
-        const parts = clean.split(' - ');
+      } else if (clean.includes(' — ') || clean.includes(' – ') || clean.includes(' - ')) {
+        const parts = clean.split(/\s+[—–-]+\s+/);
         title = parts[0].trim();
-        description = parts.slice(1).join(' - ').trim();
+        description = parts.slice(1).join(' — ').trim();
       }
 
       achievements.push({
