@@ -45,14 +45,110 @@ const pageCounterBadge = document.getElementById('page-counter-badge');
 const toastNotice = document.getElementById('toast-notice');
 const toastMessage = document.getElementById('toast-message');
 
+/* ==========================================================================
+   Continuous Local Auto-Save & Draft Recovery System
+   ========================================================================== */
+const STORAGE_KEY = 'jake_resume_draft_v1';
+let isAutoSaveSuspended = false;
+let autoSaveTimer = null;
+let lastSavedTimestamp = null;
+
+function formatSavedTime(timestamp) {
+  if (!timestamp) return 'Saved';
+  const date = new Date(timestamp);
+  return `Saved ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+function updateAutosaveStatus(status, text) {
+  const dot = document.querySelector('.autosave-dot');
+  const label = document.getElementById('autosave-label');
+  const indicator = document.getElementById('autosave-status');
+
+  if (dot) {
+    dot.className = `autosave-dot ${status}`;
+  }
+  if (label && text) {
+    label.textContent = text;
+  }
+  if (indicator && lastSavedTimestamp) {
+    indicator.title = `Last auto-saved: ${new Date(lastSavedTimestamp).toLocaleString()}. You can safely close or refresh this tab anytime.`;
+  }
+}
+
+function scheduleAutoSave() {
+  if (isAutoSaveSuspended) return;
+
+  updateAutosaveStatus('saving', 'Saving...');
+  clearTimeout(autoSaveTimer);
+
+  autoSaveTimer = setTimeout(() => {
+    try {
+      lastSavedTimestamp = Date.now();
+      const payload = {
+        state: resumeState,
+        options: currentOptions,
+        updatedAt: lastSavedTimestamp
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      updateAutosaveStatus('saved', formatSavedTime(lastSavedTimestamp));
+    } catch (err) {
+      console.error('Failed to auto-save draft to localStorage:', err);
+      updateAutosaveStatus('error', 'Save error');
+    }
+  }, 400);
+}
+
+function loadDraftFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.state && parsed.state.personal) {
+      resumeState = parsed.state;
+      if (parsed.options) {
+        currentOptions = { ...currentOptions, ...parsed.options };
+      }
+      lastSavedTimestamp = parsed.updatedAt || Date.now();
+
+      if (!resumeState.sectionOrder) {
+        resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+      }
+      if (!resumeState.introduction) {
+        resumeState.introduction = { enabled: false, text: '' };
+      }
+      if (typeof normalizeSkills === 'function') {
+        resumeState.skills = normalizeSkills(resumeState.skills);
+      }
+
+      updateAutosaveStatus('saved', formatSavedTime(lastSavedTimestamp));
+
+      setTimeout(() => {
+        showToast('✓ Restored your in-progress resume draft');
+      }, 400);
+
+      return true;
+    }
+  } catch (err) {
+    console.warn('Could not restore draft from localStorage:', err);
+  }
+  return false;
+}
+
 /**
  * Initialize Application
  */
 function initApp() {
+  isAutoSaveSuspended = true;
+  const restored = loadDraftFromStorage();
   populateFormFromState();
-  updatePreviews();
+  updatePreviews(false);
   setupEventListeners();
   applyZoom(currentZoom);
+  isAutoSaveSuspended = false;
+
+  if (!restored) {
+    updateAutosaveStatus('saved', 'Ready');
+  }
 }
 
 if (document.readyState === 'loading') {
@@ -118,6 +214,14 @@ function setupEventListeners() {
   document.getElementById('preset-select').addEventListener('change', (e) => {
     const selected = e.target.value;
     if (BTECH_PRESETS[selected]) {
+      const hasCustomEdits = resumeState.personal.fullName && resumeState.personal.fullName !== 'Jake Ryan';
+      if (hasCustomEdits) {
+        const confirmSwitch = confirm(`Load the ${e.target.options[e.target.selectedIndex].text} preset?\n\nThis will replace your current edits. (Tip: You can click "Backup" first to save a copy).`);
+        if (!confirmSwitch) {
+          e.target.value = 'jake';
+          return;
+        }
+      }
       resumeState = JSON.parse(JSON.stringify(BTECH_PRESETS[selected]));
       if (!resumeState.sectionOrder) {
         resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
@@ -358,10 +462,13 @@ function applyZoom(zoom) {
 /**
  * Update Both Previews (HTML Visual Canvas + LaTeX Code View)
  */
-function updatePreviews() {
+function updatePreviews(shouldSave = true) {
   renderVisualResume();
   renderLatexView();
   checkPageHeight();
+  if (shouldSave !== false) {
+    scheduleAutoSave();
+  }
 }
 
 /**
@@ -1652,7 +1759,16 @@ async function processResumeFile(file) {
   try {
     let parsedResult = null;
 
-    if (filename.endsWith('.pdf')) {
+    if (filename.endsWith('.json')) {
+      setParseLoading(true, 'Reading resume backup file...');
+      const jsonContent = await file.text();
+      const backupData = JSON.parse(jsonContent);
+      const stateToLoad = backupData.state || backupData;
+      if (!stateToLoad || typeof stateToLoad !== 'object' || !stateToLoad.personal) {
+        throw new Error('Invalid resume backup file. Missing personal info or resume structure.');
+      }
+      parsedResult = stateToLoad;
+    } else if (filename.endsWith('.pdf')) {
       if (typeof ResumeParser === 'undefined' || !ResumeParser.extractTextFromPdf) {
         throw new Error('PDF extraction engine not loaded. Please ensure you are connected or refresh the page.');
       }
@@ -1783,6 +1899,85 @@ function applyExtractedResume(mergeMode = false) {
   showToast('✓ Resume imported and loaded into editor!');
 }
 
+/* ==========================================================================
+   Draft Backup Export & Reset
+   ========================================================================== */
+
+function exportResumeBackupJson() {
+  const payload = {
+    app: 'Jake Resume LaTeX Builder',
+    version: '2.5',
+    format: 'jake-resume-backup',
+    exportedAt: new Date().toISOString(),
+    state: resumeState,
+    options: currentOptions
+  };
+
+  const jsonStr = JSON.stringify(payload, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const cleanName = (resumeState.personal?.fullName || 'resume')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const filename = `${cleanName || 'resume'}-backup.json`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`✓ Downloaded ${filename}`);
+}
+
+function resetToDefaultDraft() {
+  const confirmed = confirm(
+    'Are you sure you want to reset?\n\nThis will clear your auto-saved draft and restore the original Jake Gutierrez template. (Tip: Click "Backup" first if you want to keep a copy of your work).'
+  );
+  if (!confirmed) return;
+
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {
+    console.warn(e);
+  }
+
+  isAutoSaveSuspended = true;
+  resumeState = JSON.parse(JSON.stringify(BTECH_PRESETS.jake));
+  if (!resumeState.sectionOrder) {
+    resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+  }
+  if (!resumeState.introduction) {
+    resumeState.introduction = { enabled: false, text: '' };
+  }
+  if (typeof normalizeSkills === 'function') {
+    resumeState.skills = normalizeSkills(resumeState.skills);
+  }
+
+  currentOptions = {
+    fontSize: '11pt',
+    paperSize: 'letterpaper',
+    sectionSpacing: '-4pt',
+    itemSpacing: '-2pt',
+    showCertifications: true,
+    showAchievements: true
+  };
+
+  const presetSelect = document.getElementById('preset-select');
+  if (presetSelect) presetSelect.value = 'jake';
+
+  populateFormFromState();
+  updatePreviews(false);
+  isAutoSaveSuspended = false;
+
+  updateAutosaveStatus('saved', 'Default Loaded');
+  showToast('✓ Restored default Jake Gutierrez template');
+}
+
 // Explicit Global Window Bindings for Inline HTML Event Handlers
 window.initApp = initApp;
 window.scrollToSection = scrollToSection;
@@ -1803,9 +1998,12 @@ window.insertActionVerb = insertActionVerb;
 window.addProject = addProject;
 window.removeProject = removeProject;
 window.updateProjField = updateProjField;
-window.addBullet = addBullet;
-window.removeBullet = removeBullet;
-window.updateBullet = updateBullet;
+window.addExpBullet = addExpBullet;
+window.removeExpBullet = removeExpBullet;
+window.updateExpBullet = updateExpBullet;
+window.addProjBullet = addProjBullet;
+window.removeProjBullet = removeProjBullet;
+window.updateProjBullet = updateProjBullet;
 window.renderSkillsList = renderSkillsList;
 window.updateSkillField = updateSkillField;
 window.addSkillCategory = addSkillCategory;
@@ -1833,5 +2031,12 @@ window.handleFileSelected = handleFileSelected;
 window.handlePasteExtraction = handlePasteExtraction;
 window.applyExtractedResume = applyExtractedResume;
 window.resetUploadModal = resetUploadModal;
+window.exportResumeBackupJson = exportResumeBackupJson;
+window.resetToDefaultDraft = resetToDefaultDraft;
+window.getResumeState = () => resumeState;
+window.setResumeState = (st) => { resumeState = st; };
+window.scheduleAutoSave = scheduleAutoSave;
+window.loadDraftFromStorage = loadDraftFromStorage;
+
 
 

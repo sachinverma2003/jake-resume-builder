@@ -8,7 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css?v=2.5">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
@@ -21,7 +21,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v2.4</span></h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v2.5</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -54,11 +54,24 @@
         </select>
       </div>
 
+      <!-- Auto-Save Status Badge -->
+      <div id="autosave-status" class="autosave-indicator" title="Your edits are continuously auto-saved to your browser. You can close this tab and return anytime.">
+        <span class="autosave-dot"></span>
+        <span id="autosave-label">Saved</span>
+      </div>
+
       <!-- Action Buttons -->
       <div class="action-buttons">
-        <button id="btn-upload-resume" class="btn btn-upload" onclick="openUploadModal()" title="Upload existing resume (PDF, .tex, or Text) to auto-fill">
+        <button id="btn-upload-resume" class="btn btn-upload" onclick="openUploadModal()" title="Upload existing resume (PDF, .tex, .txt, or .json) to auto-fill">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
           Upload Resume
+        </button>
+        <button id="btn-export-backup" class="btn btn-secondary btn-backup" onclick="exportResumeBackupJson()" title="Download a JSON backup of your resume to restore anytime on any device">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          Backup
+        </button>
+        <button id="btn-reset-draft" class="btn btn-ghost" onclick="resetToDefaultDraft()" title="Reset all changes and reload default template">
+          ↺ Reset
         </button>
         <button id="btn-copy-latex" class="btn btn-secondary" title="Copy clean LaTeX code">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -467,25 +480,25 @@
 
       <div class="modal-body">
         <p class="modal-subtitle">
-          Upload your existing resume (PDF, LaTeX <code>.tex</code>, or text) to automatically extract your details and populate the Jake Gutierrez template. <em>(100% private, processed locally on your device).</em>
+          Upload your existing resume (PDF, LaTeX <code>.tex</code>, <code>.txt</code>, or <code>.json</code> backup) to automatically extract your details and populate the Jake Gutierrez template. <em>(100% private, processed locally on your device).</em>
         </p>
 
         <!-- Tabs: Upload File vs Paste Text -->
         <div class="modal-tabs">
-          <button type="button" id="tab-btn-file" class="modal-tab-btn active" onclick="switchUploadTab('file')">📁 Upload Document (PDF / .tex / .txt)</button>
+          <button type="button" id="tab-btn-file" class="modal-tab-btn active" onclick="switchUploadTab('file')">📁 Upload Document (PDF / .tex / .txt / .json)</button>
           <button type="button" id="tab-btn-paste" class="modal-tab-btn" onclick="switchUploadTab('paste')">📋 Paste Resume Text</button>
         </div>
 
         <!-- Tab 1: File Dropzone -->
         <div id="tab-content-file" class="modal-tab-content active">
           <div id="dropzone" class="dropzone-area" onclick="triggerFileInput()">
-            <input type="file" id="resume-file-input" accept=".pdf,.tex,.txt" style="display: none;" onchange="handleFileSelected(event)">
+            <input type="file" id="resume-file-input" accept=".pdf,.tex,.txt,.json" style="display: none;" onchange="handleFileSelected(event)">
             <div class="dropzone-icon">
               <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
             </div>
             <div class="dropzone-text">
               <strong>Click to browse or Drag &amp; Drop your resume file here</strong>
-              <span>Supports <strong>.PDF</strong>, LaTeX <strong>.TEX</strong>, or <strong>.TXT</strong> files</span>
+              <span>Supports <strong>.PDF</strong>, LaTeX <strong>.TEX</strong>, <strong>.TXT</strong>, or <strong>.JSON Backup</strong> files</span>
             </div>
           </div>
         </div>
@@ -537,10 +550,10 @@
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v2.4) -->
+  <!-- Scripts (Cache-Busted v2.5) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=2.4"></script>
-  <script src="parser.js?v=2.4"></script>
-  <script src="app.js?v=2.4"></script>
+  <script src="template.js?v=2.5"></script>
+  <script src="parser.js?v=2.5"></script>
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
