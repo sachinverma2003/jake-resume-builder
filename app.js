@@ -596,7 +596,7 @@ function renderExperienceVisual(experience) {
           <span class="res-location">${escapeHtml(exp.location)}</span>
         </div>
         <ul class="res-bullets">
-          ${exp.bullets.filter(b => b.trim()).map(b => `<li>${escapeHtml(b)}</li>`).join('')}
+          ${exp.bullets.filter(b => b.trim()).map(b => `<li>${formatBulletHtml(b)}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -631,7 +631,7 @@ function renderProjectsVisual(projects) {
           <span class="res-dates">${escapeHtml(proj.dates)}</span>
         </div>
         <ul class="res-bullets">
-          ${proj.bullets.filter(b => b.trim()).map(b => `<li>${escapeHtml(b)}</li>`).join('')}
+          ${proj.bullets.filter(b => b.trim()).map(b => `<li>${formatBulletHtml(b)}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -694,7 +694,7 @@ function renderAchievementsVisual(achievements, showAchievements = true) {
   `;
   achievements.forEach(ach => {
     let line = `<strong>${escapeHtml(ach.title)}</strong>`;
-    if (ach.description) line += `: ${escapeHtml(ach.description)}`;
+    if (ach.description) line += `: ${formatBulletHtml(ach.description)}`;
     if (ach.url) {
       line += ` [<a href="${normalizeUrl(ach.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ach.linkLabel || 'Link')}</a>]`;
     }
@@ -916,6 +916,22 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/**
+ * Format bullet text for HTML preview:
+ * Safely escapes HTML while converting markdown bold (**...**) to <strong>...</strong>
+ */
+function formatBulletHtml(text) {
+  if (!text) return '';
+  const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+  return parts.map(part => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      const inner = part.slice(2, -2);
+      return `<strong>${escapeHtml(inner)}</strong>`;
+    }
+    return escapeHtml(part);
+  }).join('');
 }
 
 /* ==========================================================================
@@ -2037,6 +2053,7 @@ window.getResumeState = () => resumeState;
 window.setResumeState = (st) => { resumeState = st; };
 window.scheduleAutoSave = scheduleAutoSave;
 window.loadDraftFromStorage = loadDraftFromStorage;
+window.formatBulletHtml = formatBulletHtml;
 
 
 

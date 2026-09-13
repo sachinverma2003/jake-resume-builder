@@ -446,10 +446,98 @@
   }
 
   /**
+   * Helper: Check if a line is a continuation of an active bullet point
+   * (e.g. wrapped lines from PDF extraction or pasted plain text)
+   */
+  function isBulletContinuation(line, currentBullet, nextLine) {
+    if (!line || !currentBullet) return false;
+
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+
+    // If this line itself is clearly a bullet, it's NOT a continuation
+    if (/^[•\-*+]\s+/.test(trimmed) || /^(\d+\.|\([a-z]\))\s+/.test(trimmed)) {
+      return false;
+    }
+
+    // 1. Starts with lowercase letter -> definitely continuation
+    if (/^[a-z]/.test(trimmed)) return true;
+
+    // 2. Starts with continuation punctuation (comma, dash, em-dash, parenthesis, etc.)
+    if (/^[,\-–—)\]};]/.test(trimmed)) return true;
+
+    // 3. Starts with common conjunctions or prepositions (e.g. "and", "or", "with", "using", etc.)
+    if (/^(?:and|or|but|so|with|using|in|for|to|at|by|from|as|that|which|where|when|while|into|over|under|including|such\s+as)\b/i.test(trimmed)) {
+      return true;
+    }
+
+    // 4. Check if currentBullet ended mid-sentence (e.g. ends with a conjunction, preposition, comma, or hyphen)
+    const prevEndsWithBreak = /(?:,\s*|\band\s*|\bor\s*|\bwith\s*|\busing\s*|\bfor\s*|\bto\s*|\bin\s*|\bof\s*|\bat\s*|\bby\s*|-\s*)$/i.test(currentBullet.trim());
+    if (prevEndsWithBreak) {
+      return true;
+    }
+
+    // 5. If this line ends with a period, but does NOT look like a title or heading:
+    // A heading typically does NOT end with a period, whereas a sentence fragment wrapping to a period DOES.
+    const hasDate = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\b/i.test(trimmed);
+    const hasPipe = trimmed.includes('|');
+    const endsWithPeriod = trimmed.endsWith('.');
+
+    if (endsWithPeriod && !hasPipe && !hasDate) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Helper: Seamlessly stitch multi-line wrapped bullet points
+   * Works across PDF extractions, plain text imports, and pasted resumes
+   */
+  function stitchSectionBullets(lines) {
+    if (!lines || lines.length === 0) return [];
+    const stitched = [];
+    let currentBullet = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
+      const nextLine = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
+
+      if (isBullet) {
+        if (currentBullet) stitched.push(currentBullet);
+        currentBullet = line;
+      } else if (currentBullet) {
+        if (isBulletContinuation(line, currentBullet, nextLine)) {
+          if (currentBullet.endsWith('-') && !currentBullet.endsWith(' -')) {
+            currentBullet = currentBullet.slice(0, -1) + line;
+          } else if (line.startsWith('—') || line.startsWith('–')) {
+            currentBullet += ' ' + line;
+          } else {
+            currentBullet += ' ' + line;
+          }
+        } else {
+          stitched.push(currentBullet);
+          currentBullet = null;
+          stitched.push(line);
+        }
+      } else {
+        stitched.push(line);
+      }
+    }
+
+    if (currentBullet) stitched.push(currentBullet);
+    return stitched;
+  }
+
+  /**
    * 3. Parse Work Experience
    */
-  function parseExperience(lines) {
-    if (!lines || lines.length === 0) return [];
+  function parseExperience(rawLines) {
+    if (!rawLines || rawLines.length === 0) return [];
+    const lines = stitchSectionBullets(rawLines);
     const experience = [];
     const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b|\b(?:19|20)\d{2}\b/i;
 
@@ -463,15 +551,12 @@
       const cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
       const dateMatch = line.match(dateRegex);
 
-      const nextLine = (i + 1 < lines.length) ? lines[i + 1] : '';
-      const nextIsBullet = /^[•\-*+]\s+/.test(nextLine) || /^(\d+\.|\([a-z]\))\s+/.test(nextLine);
-
       const hasSeparators = line.includes('—') || line.includes('–') || line.includes('|');
       const isLikelyHeading = !isBullet && (
-        dateMatch ||
         currentExp === null ||
-        nextIsBullet ||
-        hasSeparators
+        dateMatch ||
+        hasSeparators ||
+        (currentExp.bullets.length > 0 && !line.endsWith('.'))
       );
 
       if (isLikelyHeading && (currentExp === null || currentExp.bullets.length > 0 || dateMatch)) {
@@ -513,10 +598,11 @@
   /**
    * 4. Parse Projects
    * Robustly extracts project titles with or without dates, parentheses, pipes, or inline tech lists.
-   * Also identifies inline tech bullets (e.g. "Tech: React, Node...") and assigns them to techStack.
+   * Auto-stitches wrapped bullet lines and formats Tech: bullet points cleanly with bold.
    */
-  function parseProjects(lines) {
-    if (!lines || lines.length === 0) return [];
+  function parseProjects(rawLines) {
+    if (!rawLines || rawLines.length === 0) return [];
+    const lines = stitchSectionBullets(rawLines);
     const projects = [];
     const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b|\b(?:19|20)\d{2}\b/i;
     const techSplitRegex = /^(.*?)(?:\s*\|\s*|\s*[-–—]\s*|\s{2,}|\s+(?=(?:React|Node|Express|Mongo|Postgre|Python|Java|C\+\+|Next|Vue|Angular|SQL|AWS|Docker|Flutter|TypeScript|JavaScript|HTML|Tailwind|FastAPI|Django|Flask|Firebase|Spring|Git|Redis|GraphQL)\b))(.*)$/i;
@@ -528,32 +614,50 @@
       if (!line || line.trim().length === 0) continue;
 
       const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
-      const cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
+      let cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
 
       // Check if this bullet line specifies "Tech: ..." or "Technologies: ..."
-      const techBulletMatch = cleanLine.match(/^(?:tech(?:nologies)?|tools|tech\s+stack|stack|built\s+with)\s*[:\-–—]\s*(.+)$/i);
+      // Format with markdown bold (**Tech:** ...) and preserve as a clean bullet
+      const techBulletMatch = cleanLine.match(/^(tech(?:nologies)?|tools|tech\s+stack|stack|built\s+with)\s*[:\-–—]\s*(.+)$/i);
       if (techBulletMatch && currentProj) {
-        if (!currentProj.techStack || currentProj.techStack.length < 3) {
-          currentProj.techStack = techBulletMatch[1].trim();
+        const label = techBulletMatch[1].charAt(0).toUpperCase() + techBulletMatch[1].slice(1).toLowerCase();
+        cleanLine = `**${label}:** ${techBulletMatch[2].trim()}`;
+      }
+
+      // If this line is just a URL for the current project
+      const isJustUrl = /^(?:https?:\/\/|www\.|github\.com\/)[^\s]+$/i.test(line.trim());
+      if (isJustUrl && currentProj && (!currentProj.liveUrl || !currentProj.githubUrl)) {
+        if (line.includes('github.com')) {
+          currentProj.githubUrl = line.trim();
+          currentProj.githubLabel = 'GitHub';
+        } else {
+          currentProj.liveUrl = line.trim();
+          currentProj.liveLabel = 'Live Demo';
         }
         continue;
       }
 
-      // Determine if this non-bullet line represents a project title / heading
-      const nextLine = (i + 1 < lines.length) ? lines[i + 1] : '';
-      const nextIsBullet = /^[•\-*+]\s+/.test(nextLine) || /^(\d+\.|\([a-z]\))\s+/.test(nextLine);
+      const hasDate = dateRegex.test(line);
+
+      // If this line is just a date line right after project title (before any bullets)
+      if (currentProj && currentProj.bullets.length === 0 && !currentProj.dates && hasDate) {
+        const pureText = line.replace(dateRegex, '').replace(/[|,\-–—\s]+$/, '').trim();
+        if (!pureText || pureText.length < 3) {
+          currentProj.dates = line.match(dateRegex)[0].trim();
+          continue;
+        }
+      }
 
       const techInParen = line.match(/\(([^)]+)\)/);
-      const hasDate = dateRegex.test(line);
       const hasSeparators = line.includes('|') || line.includes(' — ') || line.includes(' – ');
 
+      // Since lines are pre-stitched, non-bullet lines that are headings start a project
       const isLikelyProjectTitle = !isBullet && (
         currentProj === null || // First non-bullet item in Projects is always a project
-        nextIsBullet ||        // Followed immediately by a bullet point
         techInParen ||         // Contains tech in parentheses
         hasDate ||             // Has date
         hasSeparators ||       // Has pipe or dash separator
-        (currentProj.bullets.length > 0 && line.length <= 90 && !/^[a-z,;]/.test(line))
+        (currentProj.bullets.length > 0 && !line.endsWith('.'))
       );
 
       if (isLikelyProjectTitle) {
@@ -723,8 +827,9 @@
   /**
    * 7. Parse Honors & Achievements
    */
-  function parseAchievements(lines) {
-    if (!lines || lines.length === 0) return [];
+  function parseAchievements(rawLines) {
+    if (!rawLines || rawLines.length === 0) return [];
+    const lines = stitchSectionBullets(rawLines);
     const achievements = [];
 
     lines.forEach(line => {

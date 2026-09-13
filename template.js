@@ -24,6 +24,22 @@ function escapeLatex(text) {
   return str;
 }
 
+/**
+ * Format bullet text for LaTeX:
+ * Escapes special characters while converting markdown bold (**...**) to \textbf{...}
+ */
+function formatBulletLatex(text) {
+  if (!text) return '';
+  const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+  return parts.map(part => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      const inner = part.slice(2, -2);
+      return `\\textbf{${escapeLatex(inner)}}`;
+    }
+    return escapeLatex(part);
+  }).join('');
+}
+
 // Clean and normalize URLs for safe href and display
 function normalizeUrl(url) {
   if (!url) return '';
@@ -122,7 +138,7 @@ function generateExperienceLatex(experience) {
     if (exp.bullets && exp.bullets.length > 0) {
       exp.bullets.forEach(bullet => {
         if (bullet.trim()) {
-          latex += `        \\resumeItem{${escapeLatex(bullet)}}\n`;
+          latex += `        \\resumeItem{${formatBulletLatex(bullet)}}\n`;
         }
       });
     }
@@ -152,7 +168,7 @@ function generateProjectsLatex(projects) {
     if (proj.bullets && proj.bullets.length > 0) {
       proj.bullets.forEach(bullet => {
         if (bullet.trim()) {
-          latex += `            \\resumeItem{${escapeLatex(bullet)}}\n`;
+          latex += `            \\resumeItem{${formatBulletLatex(bullet)}}\n`;
         }
       });
     }
@@ -207,7 +223,7 @@ function generateAchievementsLatex(achievements, showAchievements = true) {
   achievements.forEach(ach => {
     let line = escapeLatex(ach.title);
     if (ach.description) {
-      line += `: ${escapeLatex(ach.description)}`;
+      line += `: ${formatBulletLatex(ach.description)}`;
     }
     if (ach.url) {
       line += ` [${createLatexHref(ach.url, ach.linkLabel || 'Proof/Link')}]`;
@@ -843,6 +859,7 @@ const BTECH_PRESETS = {
 // Export to window in browser, or module.exports in Node
 if (typeof window !== 'undefined') {
   window.escapeLatex = escapeLatex;
+  window.formatBulletLatex = formatBulletLatex;
   window.normalizeUrl = normalizeUrl;
   window.cleanUrlDisplay = cleanUrlDisplay;
   window.createLatexHref = createLatexHref;
@@ -855,6 +872,7 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     escapeLatex,
+    formatBulletLatex,
     normalizeUrl,
     cleanUrlDisplay,
     createLatexHref,
