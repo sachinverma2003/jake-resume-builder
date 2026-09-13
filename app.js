@@ -760,7 +760,7 @@ const PAGE_HEIGHT_MAX = 1056; // Standard 11in page at 96 DPI
 
 /**
  * Check if Resume fits cleanly on 1 page (Jake Gutierrez Spec)
- * Shows prominent warning badge, top alert banner, and visual cutoff line when overflowing
+ * Updates toolbar badge and cutoff line cleanly without disrupting preview layout
  */
 function checkPageHeight() {
   if (!visualResume) return;
@@ -768,8 +768,6 @@ function checkPageHeight() {
   const currentHeight = visualResume.scrollHeight;
   const overflowPx = currentHeight - PAGE_HEIGHT_MAX;
 
-  const overflowBanner = document.getElementById('page-overflow-banner');
-  const overflowLinesCount = document.getElementById('overflow-lines-count');
   const btnAutofit = document.getElementById('btn-autofit');
   let cutoffLine = visualResume.querySelector('.page-cutoff-line');
 
@@ -779,17 +777,14 @@ function checkPageHeight() {
     if (pageCounterBadge) {
       pageCounterBadge.className = 'page-counter-badge warning';
       pageCounterBadge.innerHTML = `⚠️ Exceeds 1 Page (+${overflowLines} ${overflowLines === 1 ? 'line' : 'lines'})`;
+      pageCounterBadge.title = 'Click to Auto-Fit into 1 Page';
+      pageCounterBadge.onclick = () => autoFitToOnePage();
     }
 
     if (btnAutofit) {
       btnAutofit.style.display = 'inline-flex';
       btnAutofit.className = 'btn btn-sm btn-amber';
       btnAutofit.innerHTML = `⚡ Auto-Fit 1 Page`;
-    }
-
-    if (overflowBanner) {
-      overflowBanner.style.display = 'flex';
-      if (overflowLinesCount) overflowLinesCount.innerText = String(overflowLines);
     }
 
     // Add visual page-cutoff guide line at 1056px if not already present
@@ -804,6 +799,8 @@ function checkPageHeight() {
     if (pageCounterBadge) {
       pageCounterBadge.className = 'page-counter-badge';
       pageCounterBadge.innerHTML = `✓ 1 Page &bull; ATS Compliant`;
+      pageCounterBadge.title = 'Resume fits cleanly on 1 Page';
+      pageCounterBadge.onclick = null;
     }
 
     if (btnAutofit) {
@@ -814,10 +811,6 @@ function checkPageHeight() {
       } else {
         btnAutofit.style.display = 'none';
       }
-    }
-
-    if (overflowBanner) {
-      overflowBanner.style.display = 'none';
     }
 
     if (cutoffLine) {
@@ -928,7 +921,7 @@ function executeCleanPdfDownload() {
 
   showToast('📄 Generating clean 1-page PDF...');
 
-  // Hide cutoff line and overflow banner during export
+  // Hide cutoff line during export
   const cutoff = resumeElem.querySelector('.page-cutoff-line');
   if (cutoff) cutoff.style.display = 'none';
 
@@ -936,9 +929,29 @@ function executeCleanPdfDownload() {
   const prevTransform = resumeElem.style.transform;
   const prevTransformOrigin = resumeElem.style.transformOrigin;
   const prevBoxShadow = resumeElem.style.boxShadow;
+  const prevHeight = resumeElem.style.height;
+  const prevMaxHeight = resumeElem.style.maxHeight;
+  const prevMinHeight = resumeElem.style.minHeight;
+  const prevOverflow = resumeElem.style.overflow;
 
   resumeElem.style.transform = 'none';
   resumeElem.style.boxShadow = 'none';
+
+  // STRICT 1-PAGE BLANK PAGE PREVENTION:
+  // If the resume fits on 1 page (scrollHeight <= 1065 or compact mode active),
+  // strictly clamp height to 1052px (10.96in) with overflow hidden.
+  // This eliminates jsPDF 0.001in subpixel bleed that previously spawned a blank 2nd page!
+  const isOnePage = resumeElem.scrollHeight <= 1065 || 
+                    visualResume.classList.contains('compact-1') || 
+                    visualResume.classList.contains('compact-2') || 
+                    visualResume.classList.contains('compact-3');
+
+  if (isOnePage) {
+    resumeElem.style.height = '1052px';
+    resumeElem.style.maxHeight = '1052px';
+    resumeElem.style.minHeight = '1052px';
+    resumeElem.style.overflow = 'hidden';
+  }
 
   // Ensure contact links have no underline in html2canvas render
   const contactLinks = resumeElem.querySelectorAll('.res-contacts a');
@@ -966,7 +979,20 @@ function executeCleanPdfDownload() {
       unit: 'in',
       format: 'letter',
       orientation: 'portrait'
-    }
+    },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  const cleanup = () => {
+    resumeElem.style.transform = prevTransform;
+    resumeElem.style.transformOrigin = prevTransformOrigin;
+    resumeElem.style.boxShadow = prevBoxShadow;
+    resumeElem.style.height = prevHeight;
+    resumeElem.style.maxHeight = prevMaxHeight;
+    resumeElem.style.minHeight = prevMinHeight;
+    resumeElem.style.overflow = prevOverflow;
+    if (cutoff) cutoff.style.display = 'flex';
+    contactLinks.forEach((a, i) => { a.style.textDecoration = prevUnderlines[i] || ''; });
   };
 
   html2pdf()
@@ -974,20 +1000,12 @@ function executeCleanPdfDownload() {
     .from(resumeElem)
     .save()
     .then(() => {
-      resumeElem.style.transform = prevTransform;
-      resumeElem.style.transformOrigin = prevTransformOrigin;
-      resumeElem.style.boxShadow = prevBoxShadow;
-      if (cutoff) cutoff.style.display = 'flex';
-      contactLinks.forEach((a, i) => { a.style.textDecoration = prevUnderlines[i] || ''; });
+      cleanup();
       showToast(`✓ Clean PDF downloaded: ${filename}`);
     })
     .catch((err) => {
       console.error('Error generating clean PDF:', err);
-      resumeElem.style.transform = prevTransform;
-      resumeElem.style.transformOrigin = prevTransformOrigin;
-      resumeElem.style.boxShadow = prevBoxShadow;
-      if (cutoff) cutoff.style.display = 'flex';
-      contactLinks.forEach((a, i) => { a.style.textDecoration = prevUnderlines[i] || ''; });
+      cleanup();
       showToast('⚠️ Opening browser print dialog...');
       window.print();
     });

@@ -8,7 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=2.6">
+  <link rel="stylesheet" href="style.css?v=3.1">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
@@ -21,7 +21,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v3.0</span></h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v3.1</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -459,23 +459,6 @@
 
       <!-- Tab 1: Visual Resume Preview Area (Scrollable) -->
       <div id="visual-preview-area" class="preview-scroll-area">
-        <!-- Page Overflow Warning Banner -->
-        <div id="page-overflow-banner" class="page-overflow-banner" style="display: none;">
-          <div class="overflow-banner-icon">⚠️</div>
-          <div class="overflow-banner-body">
-            <div class="overflow-banner-title">
-              Resume Exceeds 1 Page by approx. <span id="overflow-lines-count">2</span> line(s)
-            </div>
-            <div class="overflow-banner-desc">
-              Content beyond the cutoff line will spill onto Page 2 in downloaded PDFs.
-            </div>
-          </div>
-          <div class="overflow-banner-actions">
-            <button type="button" class="btn btn-sm btn-amber" onclick="autoFitToOnePage()">⚡ Auto-Fit Spacing</button>
-            <button type="button" class="btn btn-sm btn-secondary" onclick="openTrimModalFromBanner()">✂️ How to Trim</button>
-          </div>
-        </div>
-
         <div id="visual-resume" class="resume-paper">
           <!-- Dynamic Content rendered by app.js matching Jake Ryan template -->
         </div>
@@ -648,10 +631,10 @@
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v3.0) -->
+  <!-- Scripts (Cache-Busted v3.1) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=3.0"></script>
-  <script src="parser.js?v=3.0"></script>
-  <script src="app.js?v=3.0"></script>
+  <script src="template.js?v=3.1"></script>
+  <script src="parser.js?v=3.1"></script>
+  <script src="app.js?v=3.1"></script>
 </body>
 </html>
