@@ -24,17 +24,107 @@ function escapeLatex(text) {
   return str;
 }
 
+const PRESET_COLORS = {
+  navy: '1E40AF',
+  blue: '2563EB',
+  emerald: '059669',
+  green: '16A34A',
+  teal: '0D9488',
+  purple: '7C3AED',
+  crimson: 'DC2626',
+  red: 'E11D48',
+  amber: 'D97706',
+  orange: 'EA580C',
+  gray: '4B5563',
+  dark: '1F2937'
+};
+
+function parseColorHex(spec) {
+  if (!spec) return null;
+  const s = spec.trim().toLowerCase();
+  if (PRESET_COLORS[s]) return PRESET_COLORS[s];
+  const hexMatch = s.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    let hex = hexMatch[1];
+    if (hex.length === 3) {
+      hex = hex.split('').map(c => c + c).join('');
+    }
+    return hex.toUpperCase();
+  }
+  return null;
+}
+
+const KNOWN_SIZES = new Set(['small', 'sm', 'large', 'lg', 'tiny', 'xs', 'huge']);
+
+function parseFormattingSpec(specStr) {
+  const parts = specStr.split(',').map(p => p.trim());
+  let color = null;
+  let size = null;
+  let bg = null;
+
+  for (const p of parts) {
+    const plower = p.toLowerCase();
+    if (plower.startsWith('size:')) {
+      size = plower.slice(5).trim();
+    } else if (KNOWN_SIZES.has(plower)) {
+      size = plower;
+    } else if (plower.startsWith('bg:') || plower.startsWith('highlight:') || plower.startsWith('hl:')) {
+      const val = p.split(':')[1].trim();
+      bg = parseColorHex(val) || 'FEF08A';
+    } else {
+      const c = parseColorHex(p);
+      if (c) color = c;
+    }
+  }
+  return { color, size, bg };
+}
+
 /**
- * Format bullet text for LaTeX:
- * Escapes special characters while converting markdown bold (**...**) to \textbf{...}
+ * Format bullet and body text for LaTeX:
+ * Escapes special characters while converting markdown bold (**...**), italics (*...*),
+ * highlighters (==...==), custom colors ([text]{color}), and sizes ([text]{size:...}).
  */
 function formatBulletLatex(text) {
   if (!text) return '';
-  const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+
+  const pattern = /(==[^=\n]+==|\[[^\]\n]+\]\{[^}\n]+\}|\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g;
+  const parts = String(text).split(pattern);
+
   return parts.map(part => {
+    if (!part) return '';
+    if (part.startsWith('==') && part.endsWith('==') && part.length > 4) {
+      const inner = part.slice(2, -2);
+      return `\\colorbox[HTML]{FEF08A}{${formatBulletLatex(inner)}}`;
+    }
+    if (part.startsWith('[') && part.includes(']{')) {
+      const m = part.match(/^\[([^\]\n]+)\]\{([^}\n]+)\}$/);
+      if (m) {
+        const inner = m[1];
+        const spec = parseFormattingSpec(m[2]);
+        let res = formatBulletLatex(inner);
+        if (spec.color) {
+          res = `\\textcolor[HTML]{${spec.color}}{${res}}`;
+        }
+        if (spec.bg) {
+          res = `\\colorbox[HTML]{${spec.bg}}{${res}}`;
+        }
+        if (spec.size === 'small' || spec.size === 'sm') {
+          res = `{\\small ${res}}`;
+        } else if (spec.size === 'large' || spec.size === 'lg') {
+          res = `{\\large ${res}}`;
+        } else if (spec.size === 'tiny' || spec.size === 'xs') {
+          res = `{\\tiny ${res}}`;
+        }
+        return res;
+      }
+    }
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
       const inner = part.slice(2, -2);
-      return `\\textbf{${escapeLatex(inner)}}`;
+      return `\\textbf{${formatBulletLatex(inner)}}`;
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2 && !part.startsWith('**')) {
+      const inner = part.slice(1, -1);
+      return `\\textit{${formatBulletLatex(inner)}}`;
     }
     return escapeLatex(part);
   }).join('');
@@ -142,7 +232,7 @@ function generateIntroductionLatex(intro) {
   const text = typeof intro === 'object' ? (intro.text || '') : String(intro);
   if (!isEnabled || !text.trim()) return '';
 
-  let latex = `\n%-----------INTRODUCTION / PROFESSIONAL SUMMARY-----------\n\\section{Introduction}\n \\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n     ${escapeLatex(text.trim())}\n    }}\n \\end{itemize}\n`;
+  let latex = `\n%-----------INTRODUCTION / PROFESSIONAL SUMMARY-----------\n\\section{Introduction}\n \\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n     ${formatBulletLatex(text.trim())}\n    }}\n \\end{itemize}\n`;
   return latex;
 }
 
@@ -156,7 +246,7 @@ function generateEducationLatex(education) {
       degreeLine += ` \\hspace{1pt}$|$\\hspace{1pt} CGPA/Percentage: ${escapeLatex(edu.gpa)}`;
     }
     if (edu.coursework) {
-      degreeLine += ` \\\\ \\small{\\textbf{Relevant Coursework:} ${escapeLatex(edu.coursework)}}`;
+      degreeLine += ` \\\\ \\small{\\textbf{Relevant Coursework:} ${formatBulletLatex(edu.coursework)}}`;
     }
     latex += `    \\resumeSubheading\n      {${escapeLatex(edu.institution)}}{${escapeLatex(edu.location)}}\n      {${degreeLine}}{${escapeLatex(edu.dates)}}\n`;
   });
@@ -286,7 +376,7 @@ function generateAchievementsLatex(achievements, showAchievements = true) {
   if (!showAchievements || !achievements || achievements.length === 0) return '';
   let latex = `\n%-----------HONORS & ACHIEVEMENTS-----------\n\\section{Honors \\& Achievements}\n \\resumeItemListStart\n`;
   achievements.forEach(ach => {
-    let line = escapeLatex(ach.title);
+    let line = formatBulletLatex(ach.title);
     if (ach.description) {
       line += `: ${formatBulletLatex(ach.description)}`;
     }
@@ -384,6 +474,11 @@ function generateLatexCode(resumeData, options = {}) {
 \\addtolength{\\textheight}{1.36in}`;
   }
 
+  const accentHex = (options && options.sectionAccentColor && options.sectionAccentColor !== 'black') 
+    ? (PRESET_COLORS[options.sectionAccentColor] || parseColorHex(options.sectionAccentColor))
+    : null;
+  const titleruleColorCmd = accentHex ? `\\color[HTML]{${accentHex}}` : '\\color{black}';
+
   let latex = `%-------------------------
 % Resume in Latex
 % Author : Jake Gutierrez
@@ -397,7 +492,7 @@ function generateLatexCode(resumeData, options = {}) {
 \\usepackage[empty]{fullpage}
 \\usepackage{titlesec}
 \\usepackage{marvosym}
-\\usepackage[usenames,dvipsnames]{color}
+\\usepackage[dvipsnames,table]{xcolor}
 \\usepackage{verbatim}
 \\usepackage{enumitem}
 \\usepackage[hidelinks]{hyperref}
@@ -435,8 +530,8 @@ ${marginAdjustments}
 
 % Sections formatting
 \\titleformat{\\section}{
-  \\vspace{-4pt}\\scshape\\raggedright\\large
-}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
+  \\vspace{-4pt}\\scshape\\raggedright${(options && options.sectionHeaderSize) ? `\\${options.sectionHeaderSize}` : '\\large'}
+}{}{0em}{}[${titleruleColorCmd}\\titlerule \\vspace{-5pt}]
 
 % Ensure that generate pdf is machine readable/ATS parsable
 \\pdfgentounicode=1
@@ -488,7 +583,7 @@ ${marginAdjustments}
 
 %----------HEADING----------
 \\begin{center}
-    \\textbf{\\Huge \\scshape ${escapeLatex(personal.fullName || 'Jake Ryan')}} \\\\ \\vspace{1pt}
+    \\textbf{${(options && options.nameSize) ? `\\${options.nameSize}` : '\\Huge'} \\scshape ${escapeLatex(personal.fullName || 'Jake Ryan')}} \\\\ \\vspace{1pt}
     \\small ${headerLine}
 \\end{center}
 `;

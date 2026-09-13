@@ -2208,6 +2208,286 @@ body.is-resizing * {
   }
 }
 
+/* ==========================================================================
+   Rich Text Highlighting & Custom Color Styles (v3.4)
+   ========================================================================== */
+mark.res-hl {
+  background-color: #fef08a !important;
+  color: inherit !important;
+  padding: 0.5px 3.5px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+@media print {
+  mark.res-hl {
+    background-color: #fef08a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* Candidate Name Font Sizing Hierarchy */
+.resume-name.res-name-huge {
+  font-size: 2.05rem !important; /* ~24-25pt \Huge */
+  letter-spacing: 0.04em;
+}
+.resume-name.res-name-large {
+  font-size: 1.7rem !important; /* ~20pt \huge */
+  letter-spacing: 0.035em;
+}
+.resume-name.res-name-medium {
+  font-size: 1.4rem !important; /* ~17pt \LARGE */
+  letter-spacing: 0.03em;
+}
+.resume-name.res-name-compact {
+  font-size: 1.2rem !important; /* ~14pt \Large */
+  letter-spacing: 0.025em;
+}
+
+/* Section Header Font Sizing */
+.resume-section-title.res-sec-large {
+  font-size: 0.95rem !important;
+  letter-spacing: 0.06em;
+}
+.resume-section-title.res-sec-normal {
+  font-size: 0.85rem !important;
+  letter-spacing: 0.05em;
+}
+.resume-section-title.res-sec-small {
+  font-size: 0.78rem !important;
+  letter-spacing: 0.04em;
+}
+
+/* Section Rule Accent Colors */
+.resume-section-title.res-sec-accent-black {
+  border-bottom-color: #000000 !important;
+}
+.resume-section-title.res-sec-accent-navy {
+  border-bottom-color: #1e3a8a !important;
+  color: #1e3a8a !important;
+}
+.resume-section-title.res-sec-accent-slate {
+  border-bottom-color: #334155 !important;
+  color: #1e293b !important;
+}
+.resume-section-title.res-sec-accent-emerald {
+  border-bottom-color: #065f46 !important;
+  color: #065f46 !important;
+}
+.resume-section-title.res-sec-accent-burgundy {
+  border-bottom-color: #831843 !important;
+  color: #831843 !important;
+}
+
+/* Inline Custom Text Sizing */
+.res-text-sm {
+  font-size: 0.88em !important;
+}
+.res-text-lg {
+  font-size: 1.15em !important;
+}
+.res-text-xs {
+  font-size: 0.78em !important;
+}
+
+/* Inline Size Selector in Header Card */
+.font-size-picker-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.form-select-inline {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-select-inline:hover {
+  border-color: var(--primary);
+}
+
+/* Mini Formatting Toolbar */
+.format-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 6px;
+  position: relative;
+  user-select: none;
+}
+.format-toolbar-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-right: 4px;
+}
+.format-tool-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.format-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.format-tool-btn:active {
+  background: rgba(99, 102, 241, 0.3);
+  color: #ffffff;
+}
+.format-tool-hl {
+  background: rgba(254, 240, 138, 0.15);
+  color: #fef08a;
+  border-color: rgba(254, 240, 138, 0.3);
+  font-weight: 600;
+}
+.format-tool-hl:hover {
+  background: rgba(254, 240, 138, 0.28);
+  color: #ffffff;
+}
+
+/* Palette Groups & Dropdowns */
+.format-tool-color-group,
+.format-tool-size-group {
+  position: relative;
+  display: inline-block;
+}
+.format-color-palette {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  gap: 6px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  white-space: nowrap;
+}
+.color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, border-color 0.15s;
+}
+.color-dot:hover {
+  transform: scale(1.25);
+  border-color: #ffffff;
+}
+.format-size-palette {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  min-width: 80px;
+}
+.size-btn {
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  text-align: left;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.size-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Typography Modal Grid & Cheatsheet */
+.typography-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 1.2rem;
+}
+@media (max-width: 600px) {
+  .typography-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.formatting-cheatsheet-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.cheatsheet-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.cheatsheet-title svg {
+  color: var(--accent-cyan);
+}
+.cheatsheet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 14px;
+  font-size: 0.78rem;
+}
+@media (max-width: 500px) {
+  .cheatsheet-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.cheatsheet-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+}
+.cheatsheet-item code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  font-family: 'Fira Code', 'Courier New', monospace;
+}
+
 /* Responsive Stacking for Small Laptops & Mobile */
 @media (max-width: 992px) {
   .app-container.view-split {

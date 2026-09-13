@@ -31,7 +31,10 @@ let currentOptions = {
   sectionSpacing: '-4pt',
   itemSpacing: '-2pt',
   showCertifications: true,
-  showAchievements: true
+  showAchievements: true,
+  nameSize: 'Huge',
+  sectionHeaderSize: 'large',
+  sectionAccentColor: 'black'
 };
 
 let currentZoom = 0.85;
@@ -505,6 +508,22 @@ function populateFormFromState() {
 
   // Reorder Form Section Cards in DOM
   reorderFormSectionCards();
+
+  // Typography Options Sync
+  const optNameSize = document.getElementById('opt-name-size');
+  if (optNameSize) optNameSize.value = currentOptions.nameSize || 'Huge';
+
+  const optModalNameSize = document.getElementById('opt-modal-name-size');
+  if (optModalNameSize) optModalNameSize.value = currentOptions.nameSize || 'Huge';
+
+  const optModalSecSize = document.getElementById('opt-modal-sec-size');
+  if (optModalSecSize) optModalSecSize.value = currentOptions.sectionHeaderSize || 'large';
+
+  const optModalBodySize = document.getElementById('opt-modal-body-size');
+  if (optModalBodySize) optModalBodySize.value = currentOptions.fontSize || '11pt';
+
+  const optModalAccentColor = document.getElementById('opt-modal-accent-color');
+  if (optModalAccentColor) optModalAccentColor.value = currentOptions.sectionAccentColor || 'black';
 }
 
 function updateTestLink(elemId, url) {
@@ -816,9 +835,12 @@ function renderVisualResume() {
     contactsHtml.push(`<a href="${normalizeUrl(personal.portfolio)}" target="_blank" rel="noopener noreferrer" data-jump-target="inp-portfolio" title="Click to edit Portfolio" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
 
+  const nameSize = (currentOptions.nameSize || 'Huge').toLowerCase();
+  const nameClass = `res-name res-name-${nameSize}`;
+
   let html = `
     <header class="res-header">
-      <div class="res-name" data-jump-target="inp-name" title="Click to edit Full Name">${escapeHtml(personal.fullName || 'Jake Ryan')}</div>
+      <div class="${nameClass}" data-jump-target="inp-name" title="Click to edit Full Name">${escapeHtml(personal.fullName || 'Jake Ryan')}</div>
       <div class="res-contacts">
         ${contactsHtml.join(' <span class="res-sep">|</span> ')}
       </div>
@@ -850,6 +872,16 @@ function renderVisualResume() {
   visualResume.innerHTML = html;
 }
 
+function getSectionTitleHtml(title, sectionId, extraText = '') {
+  const secSize = (currentOptions.sectionHeaderSize || 'large').toLowerCase();
+  const secColor = currentOptions.sectionAccentColor || 'black';
+  let styleStr = '';
+  if (secColor && secColor !== 'black') {
+    styleStr = ` style="color: ${secColor}; border-bottom-color: ${secColor};"`;
+  }
+  return `<div class="res-section-title res-sec-${secSize}" data-jump-section="${sectionId}" title="Click to jump to ${title}"${styleStr}>${title}${extraText}</div>`;
+}
+
 // 0. Introduction / Summary Visual
 function renderIntroductionVisual(intro) {
   if (!intro) return '';
@@ -859,8 +891,8 @@ function renderIntroductionVisual(intro) {
 
   return `
     <section class="res-section">
-      <div class="res-section-title" data-jump-section="sec-intro" title="Click to jump to Introduction">Introduction</div>
-      <div class="res-intro-text" data-jump-target="inp-intro-text" title="Click to edit Introduction">${escapeHtml(text.trim())}</div>
+      ${getSectionTitleHtml('Introduction', 'sec-intro')}
+      <div class="res-intro-text" data-jump-target="inp-intro-text" title="Click to edit Introduction">${formatBulletHtml(text.trim())}</div>
     </section>
   `;
 }
@@ -870,11 +902,11 @@ function renderEducationVisual(education) {
   if (!education || education.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title" data-jump-section="sec-education" title="Click to jump to Education">Education</div>
+      ${getSectionTitleHtml('Education', 'sec-education')}
   `;
   education.forEach((edu, idx) => {
     const gpaText = edu.gpa ? ` | CGPA/Percentage: ${escapeHtml(edu.gpa)}` : '';
-    const courseworkText = edu.coursework ? `<div class="res-subdetails" data-jump-target="edu-${idx}-coursework" title="Click to edit Coursework"><strong>Relevant Coursework:</strong> ${escapeHtml(edu.coursework)}</div>` : '';
+    const courseworkText = edu.coursework ? `<div class="res-subdetails" data-jump-target="edu-${idx}-coursework" title="Click to edit Coursework"><strong>Relevant Coursework:</strong> ${formatBulletHtml(edu.coursework)}</div>` : '';
     html += `
       <div class="res-subheading" data-jump-target="edu-${idx}-institution" title="Click to edit Education entry #${idx + 1}">
         <div class="res-row-between">
@@ -898,7 +930,7 @@ function renderExperienceVisual(experience) {
   if (!experience || experience.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title" data-jump-section="sec-experience" title="Click to jump to Experience">Experience</div>
+      ${getSectionTitleHtml('Experience', 'sec-experience')}
   `;
   experience.forEach((exp, idx) => {
     html += `
@@ -926,7 +958,7 @@ function renderProjectsVisual(projects) {
   if (!projects || projects.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title" data-jump-section="sec-projects" title="Click to jump to Projects">Projects</div>
+      ${getSectionTitleHtml('Projects', 'sec-projects')}
   `;
   projects.forEach((proj, idx) => {
     let linkItems = [];
@@ -965,7 +997,7 @@ function renderSkillsVisual(skills) {
 
   let html = `
     <section class="res-section">
-      <div class="res-section-title" data-jump-section="sec-skills" title="Click to jump to Skills">Technical Skills</div>
+      ${getSectionTitleHtml('Technical Skills', 'sec-skills')}
       <ul class="res-skills-list">
   `;
   activeRows.forEach((item, idx) => {
@@ -980,7 +1012,7 @@ function renderCertificationsVisual(certifications, showCertifications = true) {
   if (!showCertifications || !certifications || certifications.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title" data-jump-section="sec-certs" title="Click to jump to Certifications">Certifications</div>
+      ${getSectionTitleHtml('Certifications', 'sec-certs')}
       <ul class="res-bullets" style="padding-left: 1.15rem; margin-top: 3px; margin-bottom: 2px;">
   `;
   certifications.forEach((cert, idx) => {
@@ -1036,7 +1068,7 @@ function renderAchievementsVisual(achievements, showAchievements = true) {
   if (!showAchievements || !achievements || achievements.length === 0) return '';
   let html = `
     <section class="res-section">
-      <div class="res-section-title" data-jump-section="sec-honors" title="Click to jump to Honors">Honors & Achievements</div>
+      ${getSectionTitleHtml('Honors & Achievements', 'sec-honors')}
       <ul class="res-bullets">
   `;
   achievements.forEach((ach, idx) => {
@@ -1554,21 +1586,300 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
+const PRESET_COLORS = {
+  navy: '1E40AF',
+  blue: '2563EB',
+  emerald: '059669',
+  green: '16A34A',
+  teal: '0D9488',
+  purple: '7C3AED',
+  crimson: 'DC2626',
+  red: 'E11D48',
+  amber: 'D97706',
+  orange: 'EA580C',
+  gray: '4B5563',
+  dark: '1F2937'
+};
+
+function parseColorHex(spec) {
+  if (!spec) return null;
+  const s = spec.trim().toLowerCase();
+  if (PRESET_COLORS[s]) return PRESET_COLORS[s];
+  const hexMatch = s.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    let hex = hexMatch[1];
+    if (hex.length === 3) {
+      hex = hex.split('').map(c => c + c).join('');
+    }
+    return hex.toUpperCase();
+  }
+  return null;
+}
+
+const KNOWN_SIZES = new Set(['small', 'sm', 'large', 'lg', 'tiny', 'xs', 'huge']);
+
+function parseFormattingSpec(specStr) {
+  const parts = specStr.split(',').map(p => p.trim());
+  let color = null;
+  let size = null;
+  let bg = null;
+
+  for (const p of parts) {
+    const plower = p.toLowerCase();
+    if (plower.startsWith('size:')) {
+      size = plower.slice(5).trim();
+    } else if (KNOWN_SIZES.has(plower)) {
+      size = plower;
+    } else if (plower.startsWith('bg:') || plower.startsWith('highlight:') || plower.startsWith('hl:')) {
+      const val = p.split(':')[1].trim();
+      bg = parseColorHex(val) || 'FEF08A';
+    } else {
+      const c = parseColorHex(p);
+      if (c) color = c;
+    }
+  }
+  return { color, size, bg };
+}
+
 /**
- * Format bullet text for HTML preview:
- * Safely escapes HTML while converting markdown bold (**...**) to <strong>...</strong>
+ * Format bullet and body text for HTML preview:
+ * Safely converts markdown bold (**...**), italics (*...*), highlighters (==...==),
+ * custom colors ([text]{color}), and sizes ([text]{size:...}).
  */
 function formatBulletHtml(text) {
   if (!text) return '';
-  const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+
+  const pattern = /(==[^=\n]+==|\[[^\]\n]+\]\{[^}\n]+\}|\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g;
+  const parts = String(text).split(pattern);
+
   return parts.map(part => {
+    if (!part) return '';
+    if (part.startsWith('==') && part.endsWith('==') && part.length > 4) {
+      const inner = part.slice(2, -2);
+      return `<mark class="res-hl">${formatBulletHtml(inner)}</mark>`;
+    }
+    if (part.startsWith('[') && part.includes(']{')) {
+      const m = part.match(/^\[([^\]\n]+)\]\{([^}\n]+)\}$/);
+      if (m) {
+        const inner = m[1];
+        const spec = parseFormattingSpec(m[2]);
+        let styles = [];
+        let classes = [];
+        if (spec.color) styles.push(`color: #${spec.color}`);
+        if (spec.bg) styles.push(`background-color: #${spec.bg}`);
+        if (spec.size === 'small' || spec.size === 'sm') classes.push('res-text-sm');
+        else if (spec.size === 'large' || spec.size === 'lg') classes.push('res-text-lg');
+        else if (spec.size === 'tiny' || spec.size === 'xs') classes.push('res-text-xs');
+
+        const styleAttr = styles.length ? ` style="${styles.join('; ')}"` : '';
+        const classAttr = classes.length ? ` class="${classes.join(' ')}"` : '';
+        return `<span${classAttr}${styleAttr}>${formatBulletHtml(inner)}</span>`;
+      }
+    }
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
       const inner = part.slice(2, -2);
-      return `<strong>${escapeHtml(inner)}</strong>`;
+      return `<strong>${formatBulletHtml(inner)}</strong>`;
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2 && !part.startsWith('**')) {
+      const inner = part.slice(1, -1);
+      return `<em>${formatBulletHtml(inner)}</em>`;
     }
     return escapeHtml(part);
   }).join('');
 }
+
+/* ==========================================================================
+   Typography, Highlighting & Rich Formatting Controller
+   ========================================================================== */
+
+let lastFocusedInput = null;
+
+document.addEventListener('focusin', (e) => {
+  if (e.target && e.target.matches && e.target.matches('input[type="text"], textarea')) {
+    lastFocusedInput = e.target;
+  }
+});
+
+// Keyboard shortcuts for formatting: Ctrl+B (bold), Ctrl+I (italic), Ctrl+H (highlight)
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.target && e.target.matches && e.target.matches('input[type="text"], textarea')) {
+    const key = e.key.toLowerCase();
+    if (key === 'b') {
+      e.preventDefault();
+      applyTextFormat('bold', null, e.target);
+    } else if (key === 'i') {
+      e.preventDefault();
+      applyTextFormat('italic', null, e.target);
+    } else if (key === 'h') {
+      e.preventDefault();
+      applyTextFormat('highlight', null, e.target);
+    }
+  }
+});
+
+function applyTextFormat(formatType, customValue = null, explicitTarget = null) {
+  let targetInput = explicitTarget || lastFocusedInput;
+  if (!targetInput || !document.body.contains(targetInput)) {
+    targetInput = document.querySelector('.bullet-item input, #inp-intro-text');
+  }
+  if (!targetInput) return;
+
+  const start = targetInput.selectionStart !== undefined ? targetInput.selectionStart : targetInput.value.length;
+  const end = targetInput.selectionEnd !== undefined ? targetInput.selectionEnd : targetInput.value.length;
+  const val = targetInput.value;
+  const selectedText = val.substring(start, end);
+  const textToWrap = selectedText || (formatType === 'highlight' ? 'highlighted text' : formatType === 'color' ? 'colored text' : formatType === 'bold' ? 'bold text' : 'text');
+
+  let replacement = '';
+  if (formatType === 'bold') {
+    replacement = `**${textToWrap}**`;
+  } else if (formatType === 'italic') {
+    replacement = `*${textToWrap}*`;
+  } else if (formatType === 'highlight') {
+    replacement = `==${textToWrap}==`;
+  } else if (formatType === 'color') {
+    const col = customValue || 'emerald';
+    replacement = `[${textToWrap}]{${col}}`;
+  } else if (formatType === 'size') {
+    const sz = customValue || 'small';
+    replacement = `[${textToWrap}]{size:${sz}}`;
+  }
+
+  const before = val.substring(0, start);
+  const after = val.substring(end);
+  targetInput.value = before + replacement + after;
+
+  const newCursorPos = start + replacement.length;
+  targetInput.focus();
+  targetInput.setSelectionRange(newCursorPos, newCursorPos);
+
+  targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+  showToast(`Applied ${formatType} formatting`);
+
+  closeAllFormattingPalettes();
+}
+window.applyTextFormat = applyTextFormat;
+
+function toggleColorPalette(btnEl) {
+  const group = btnEl.closest('.format-tool-color-group');
+  if (!group) return;
+  const menu = group.querySelector('.format-color-palette');
+  if (!menu) return;
+
+  const isVisible = menu.style.display === 'flex';
+  closeAllFormattingPalettes();
+  if (!isVisible) {
+    menu.style.display = 'flex';
+  }
+}
+window.toggleColorPalette = toggleColorPalette;
+
+function toggleSizePalette(btnEl) {
+  const group = btnEl.closest('.format-tool-size-group');
+  if (!group) return;
+  const menu = group.querySelector('.format-size-palette');
+  if (!menu) return;
+
+  const isVisible = menu.style.display === 'flex';
+  closeAllFormattingPalettes();
+  if (!isVisible) {
+    menu.style.display = 'flex';
+  }
+}
+window.toggleSizePalette = toggleSizePalette;
+
+function closeAllFormattingPalettes() {
+  document.querySelectorAll('.format-color-palette, .format-size-palette').forEach(el => {
+    el.style.display = 'none';
+  });
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.format-tool-color-group') && !e.target.closest('.format-tool-size-group')) {
+    closeAllFormattingPalettes();
+  }
+});
+
+function updateNameFontSize(val) {
+  if (!val) return;
+  currentOptions.nameSize = val;
+
+  const optNameSize = document.getElementById('opt-name-size');
+  if (optNameSize) optNameSize.value = val;
+  const optModalNameSize = document.getElementById('opt-modal-name-size');
+  if (optModalNameSize) optModalNameSize.value = val;
+
+  updatePreviews();
+  scheduleAutoSave();
+  showToast(`Name size set to ${val}`);
+}
+window.updateNameFontSize = updateNameFontSize;
+
+function updateSectionHeaderSize(val) {
+  if (!val) return;
+  currentOptions.sectionHeaderSize = val;
+
+  const optModalSecSize = document.getElementById('opt-modal-sec-size');
+  if (optModalSecSize) optModalSecSize.value = val;
+
+  updatePreviews();
+  scheduleAutoSave();
+  showToast(`Section headers set to ${val}`);
+}
+window.updateSectionHeaderSize = updateSectionHeaderSize;
+
+function updateBodyFontSize(val) {
+  if (!val) return;
+  currentOptions.fontSize = val;
+
+  const optModalBodySize = document.getElementById('opt-modal-body-size');
+  if (optModalBodySize) optModalBodySize.value = val;
+
+  updatePreviews();
+  scheduleAutoSave();
+  showToast(`Body font size set to ${val}`);
+}
+window.updateBodyFontSize = updateBodyFontSize;
+
+function updateSectionAccentColor(val) {
+  if (!val) return;
+  currentOptions.sectionAccentColor = val;
+
+  const optModalAccentColor = document.getElementById('opt-modal-accent-color');
+  if (optModalAccentColor) optModalAccentColor.value = val;
+
+  updatePreviews();
+  scheduleAutoSave();
+  showToast(`Section accent color updated`);
+}
+window.updateSectionAccentColor = updateSectionAccentColor;
+
+function openTypographyModal() {
+  const modal = document.getElementById('typography-modal');
+  if (!modal) return;
+  const optModalNameSize = document.getElementById('opt-modal-name-size');
+  if (optModalNameSize) optModalNameSize.value = currentOptions.nameSize || 'Huge';
+
+  const optModalSecSize = document.getElementById('opt-modal-sec-size');
+  if (optModalSecSize) optModalSecSize.value = currentOptions.sectionHeaderSize || 'large';
+
+  const optModalBodySize = document.getElementById('opt-modal-body-size');
+  if (optModalBodySize) optModalBodySize.value = currentOptions.fontSize || '11pt';
+
+  const optModalAccentColor = document.getElementById('opt-modal-accent-color');
+  if (optModalAccentColor) optModalAccentColor.value = currentOptions.sectionAccentColor || 'black';
+
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('open'));
+}
+window.openTypographyModal = openTypographyModal;
+
+function closeTypographyModal() {
+  const modal = document.getElementById('typography-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+window.closeTypographyModal = closeTypographyModal;
 
 /* ==========================================================================
    Draggable Splitter Pane Setup
@@ -3137,6 +3448,17 @@ window.jumpToFormInput = jumpToFormInput;
 window.setupSectionDragAndDrop = setupSectionDragAndDrop;
 window.setupDragAndDropReordering = setupDragAndDropReordering;
 window.setupSplitterResizer = setupSplitterResizer;
+
+// Typography & Rich Formatting Exports
+window.updateNameFontSize = updateNameFontSize;
+window.updateSectionHeaderSize = updateSectionHeaderSize;
+window.updateBodyFontSize = updateBodyFontSize;
+window.updateSectionAccentColor = updateSectionAccentColor;
+window.openTypographyModal = openTypographyModal;
+window.closeTypographyModal = closeTypographyModal;
+window.applyTextFormat = applyTextFormat;
+window.toggleColorPalette = toggleColorPalette;
+window.toggleSizePalette = toggleSizePalette;
 
 
 

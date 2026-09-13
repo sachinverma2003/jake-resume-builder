@@ -8,7 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=3.3.1">
+  <link rel="stylesheet" href="style.css?v=3.4">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
@@ -21,7 +21,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v3.3</span></h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v3.4</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -52,6 +52,10 @@
         <button id="btn-manage-profiles" class="btn-profile-manage" onclick="openProfilesModal()" title="Manage Resume Profiles (Create, Duplicate, Rename, Delete)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           Profiles
+        </button>
+        <button id="btn-styling-modal" class="btn-profile-manage" onclick="openTypographyModal()" title="Customize Fonts, Sizes & Accent Colors">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          Style &amp; Fonts
         </button>
       </div>
 
@@ -159,7 +163,18 @@
         <div class="section-body">
           <div class="grid-2">
             <div class="form-group">
-              <label for="inp-name">Full Name</label>
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <label for="inp-name">Full Name</label>
+                <div class="font-size-picker-mini" title="Candidate Name Font Size on Resume">
+                  <span style="font-size: 0.72rem; color: var(--text-muted); margin-right: 4px;">Size:</span>
+                  <select id="opt-name-size" class="form-select-inline" onchange="updateNameFontSize(this.value)">
+                    <option value="Huge" selected>Huge (24pt)</option>
+                    <option value="huge">Large (20pt)</option>
+                    <option value="LARGE">Medium (17pt)</option>
+                    <option value="Large">Compact (14pt)</option>
+                  </select>
+                </div>
+              </div>
               <input type="text" id="inp-name" class="form-control" placeholder="Jake Ryan">
             </div>
             <div class="form-group">
@@ -256,10 +271,36 @@
             </div>
 
             <div class="form-group" id="intro-form-group">
-              <label for="inp-intro-text">
-                <span>Summary / Objective Text (2-3 concise ATS lines recommended)</span>
-                <span id="intro-char-count" style="font-weight: 400; color: var(--text-muted); font-size: 0.7rem;">0 chars</span>
-              </label>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px;">
+                <label for="inp-intro-text">
+                  <span>Summary / Objective Text (2-3 concise ATS lines recommended)</span>
+                  <span id="intro-char-count" style="font-weight: 400; color: var(--text-muted); font-size: 0.7rem;">0 chars</span>
+                </label>
+                <!-- Mini Formatting Toolbar -->
+                <div class="format-toolbar">
+                  <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold', null, 'inp-intro-text')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+                  <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic', null, 'inp-intro-text')" title="Italic (Ctrl+I)"><em>I</em></button>
+                  <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight', null, 'inp-intro-text')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
+                  <div class="format-tool-color-group">
+                    <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
+                    <div class="format-color-palette" style="display: none;">
+                      <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue', 'inp-intro-text')" title="Royal Blue"></button>
+                      <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy', 'inp-intro-text')" title="Navy Blue"></button>
+                      <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald', 'inp-intro-text')" title="Emerald (+Metrics)"></button>
+                      <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple', 'inp-intro-text')" title="Purple"></button>
+                      <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson', 'inp-intro-text')" title="Crimson"></button>
+                      <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber', 'inp-intro-text')" title="Amber"></button>
+                    </div>
+                  </div>
+                  <div class="format-tool-size-group">
+                    <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
+                    <div class="format-size-palette" style="display: none;">
+                      <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small', 'inp-intro-text')">Small</button>
+                      <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large', 'inp-intro-text')">Large</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <textarea id="inp-intro-text" class="form-control" rows="3" placeholder="Dynamic, results-driven B.Tech Computer Science undergraduate with strong foundation in Data Structures, Algorithms, and Full Stack Development..." oninput="updateIntroductionText(this.value)"></textarea>
             </div>
 
@@ -291,6 +332,31 @@
             </div>
           </div>
           <div class="section-body">
+            <!-- Formatting Toolbar -->
+            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
+              <span class="format-toolbar-label">Format Text:</span>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
+              <div class="format-tool-color-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
+                <div class="format-color-palette" style="display: none;">
+                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
+                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
+                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
+                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
+                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
+                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
+                </div>
+              </div>
+              <div class="format-tool-size-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
+                <div class="format-size-palette" style="display: none;">
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
+                </div>
+              </div>
+            </div>
             <div id="education-list"></div>
           </div>
         </div>
@@ -323,6 +389,31 @@
               <button type="button" class="verb-chip" onclick="insertActionVerb('Implemented')">+ Implemented</button>
               <button type="button" class="verb-chip" onclick="insertActionVerb('Benchmarked')">+ Benchmarked</button>
             </div>
+            <!-- Bullet Formatting Toolbar -->
+            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
+              <span class="format-toolbar-label">Format Bullets:</span>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
+              <div class="format-tool-color-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
+                <div class="format-color-palette" style="display: none;">
+                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
+                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
+                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
+                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
+                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
+                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
+                </div>
+              </div>
+              <div class="format-tool-size-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
+                <div class="format-size-palette" style="display: none;">
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
+                </div>
+              </div>
+            </div>
             <div id="experience-list"></div>
           </div>
         </div>
@@ -346,6 +437,31 @@
             </div>
           </div>
           <div class="section-body">
+            <!-- Bullet Formatting Toolbar -->
+            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
+              <span class="format-toolbar-label">Format Bullets:</span>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
+              <div class="format-tool-color-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
+                <div class="format-color-palette" style="display: none;">
+                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
+                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
+                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
+                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
+                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
+                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
+                </div>
+              </div>
+              <div class="format-tool-size-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
+                <div class="format-size-palette" style="display: none;">
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
+                </div>
+              </div>
+            </div>
             <div id="projects-list"></div>
           </div>
         </div>
@@ -431,6 +547,31 @@
             </div>
           </div>
           <div class="section-body">
+            <!-- Formatting Toolbar -->
+            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
+              <span class="format-toolbar-label">Format Bullets:</span>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
+              <div class="format-tool-color-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
+                <div class="format-color-palette" style="display: none;">
+                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
+                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
+                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
+                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
+                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
+                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
+                </div>
+              </div>
+              <div class="format-tool-size-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
+                <div class="format-size-palette" style="display: none;">
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
+                </div>
+              </div>
+            </div>
             <div id="achievements-list"></div>
           </div>
         </div>
@@ -685,16 +826,103 @@
     </div>
   </div>
 
+  <!-- Typography & Styling Modal -->
+  <div id="typography-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
+    <div class="modal-dialog" style="max-width: 580px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+          <span>Typography &amp; Resume Sizing</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeTypographyModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem;">
+        <p class="modal-subtitle" style="margin-bottom: 1.25rem;">
+          Customize the scale and visual hierarchy of your resume. Changes are rendered instantly in both the visual preview and LaTeX document.
+        </p>
+
+        <div class="typography-grid">
+          <!-- Name Size -->
+          <div class="form-group">
+            <label class="form-label" for="modal-opt-name-size">Candidate Name Size</label>
+            <select id="modal-opt-name-size" class="form-control" onchange="updateNameFontSize(this.value)">
+              <option value="Huge">Huge (Default - 24pt / \Huge)</option>
+              <option value="huge">Large (20pt / \huge)</option>
+              <option value="LARGE">Medium (17pt / \LARGE)</option>
+              <option value="Large">Compact (14pt / \Large)</option>
+            </select>
+            <span class="form-help">Sets the visual weight and header prominence of your name.</span>
+          </div>
+
+          <!-- Section Headers Size -->
+          <div class="form-group">
+            <label class="form-label" for="modal-opt-sec-size">Section Headers Size</label>
+            <select id="modal-opt-sec-size" class="form-control" onchange="updateSectionHeaderSize(this.value)">
+              <option value="large">Large (Default - \large)</option>
+              <option value="normalsize">Medium (\normalsize)</option>
+              <option value="small">Compact (\small)</option>
+            </select>
+            <span class="form-help">Controls the font scale of section titles (Education, Experience, etc.).</span>
+          </div>
+
+          <!-- Base Body Font Size -->
+          <div class="form-group">
+            <label class="form-label" for="modal-opt-body-size">Document Body Font Size</label>
+            <select id="modal-opt-body-size" class="form-control" onchange="updateBodyFontSize(this.value)">
+              <option value="11pt">11pt (Standard Jake's Resume)</option>
+              <option value="10pt">10pt (Slightly more compact)</option>
+              <option value="9.5pt">9.5pt (Max content density)</option>
+            </select>
+            <span class="form-help">Base LaTeX document point size.</span>
+          </div>
+
+          <!-- Section Divider Accent Color -->
+          <div class="form-group">
+            <label class="form-label" for="modal-opt-sec-color">Section Accent Rule Color</label>
+            <select id="modal-opt-sec-color" class="form-control" onchange="updateSectionAccentColor(this.value)">
+              <option value="black">Classic Black (Default)</option>
+              <option value="navy">Executive Navy Blue (#1e3a8a)</option>
+              <option value="slate">Sleek Charcoal Slate (#334155)</option>
+              <option value="emerald">Modern Emerald (#065f46)</option>
+              <option value="burgundy">Distinguished Burgundy (#831843)</option>
+            </select>
+            <span class="form-help">Accent color for horizontal section divider rules.</span>
+          </div>
+        </div>
+
+        <!-- Formatting Cheatsheet Box -->
+        <div class="formatting-cheatsheet-card">
+          <div class="cheatsheet-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Rich Text Syntax Guide (Works across all bullets &amp; coursework):</span>
+          </div>
+          <div class="cheatsheet-grid">
+            <div class="cheatsheet-item"><code>==Highlighted==</code> &rarr; <mark class="res-hl" style="padding:0 3px;">Highlighted</mark></div>
+            <div class="cheatsheet-item"><code>**Bold Text**</code> &rarr; <strong>Bold Text</strong></div>
+            <div class="cheatsheet-item"><code>*Italic Text*</code> &rarr; <em>Italic Text</em></div>
+            <div class="cheatsheet-item"><code>[+45% metrics]{emerald}</code> &rarr; <span style="color:#059669; font-weight:600;">+45% metrics</span></div>
+            <div class="cheatsheet-item"><code>[Key Tech]{blue}</code> &rarr; <span style="color:#2563eb; font-weight:600;">Key Tech</span></div>
+            <div class="cheatsheet-item"><code>[Note]{small}</code> &rarr; <span style="font-size:0.85em; opacity:0.8;">Note</span></div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+          <button type="button" class="btn btn-primary" onclick="closeTypographyModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-notice" class="toast-notice">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-emerald);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v3.3.1) -->
+  <!-- Scripts (Cache-Busted v3.4) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=3.3.1"></script>
-  <script src="parser.js?v=3.3.1"></script>
-  <script src="app.js?v=3.3.1"></script>
+  <script src="template.js?v=3.4"></script>
+  <script src="parser.js?v=3.4"></script>
+  <script src="app.js?v=3.4"></script>
 </body>
 </html>
