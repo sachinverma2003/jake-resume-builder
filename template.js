@@ -1072,6 +1072,10 @@ if (typeof window !== 'undefined') {
   window.generateIntroductionLatex = generateIntroductionLatex;
   window.generateLatexCode = generateLatexCode;
   window.BTECH_PRESETS = BTECH_PRESETS;
+  window.PRESET_COLORS = PRESET_COLORS;
+  window.parseColorHex = parseColorHex;
+  window.KNOWN_SIZES = KNOWN_SIZES;
+  window.parseFormattingSpec = parseFormattingSpec;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -1086,6 +1090,10 @@ if (typeof module !== 'undefined' && module.exports) {
     normalizeSkills,
     generateIntroductionLatex,
     generateLatexCode,
-    BTECH_PRESETS
+    BTECH_PRESETS,
+    PRESET_COLORS,
+    parseColorHex,
+    KNOWN_SIZES,
+    parseFormattingSpec
   };
 }

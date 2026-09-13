@@ -103,22 +103,26 @@ html, body {
 .header-bar {
   position: sticky;
   top: 0;
-  height: var(--header-height);
+  min-height: var(--header-height);
+  height: auto;
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.25rem;
+  padding: 0.45rem 1.25rem;
   z-index: 200;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .brand-wrapper {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .brand-icon {
@@ -134,6 +138,10 @@ html, body {
   font-weight: 800;
   font-size: 1.2rem;
   color: #fff;
+}
+
+.brand-text {
+  white-space: nowrap;
 }
 
 .brand-text h1 {
@@ -2229,53 +2237,65 @@ mark.res-hl {
 }
 
 /* Candidate Name Font Sizing Hierarchy */
+.res-name.res-name-huge,
 .resume-name.res-name-huge {
   font-size: 2.05rem !important; /* ~24-25pt \Huge */
   letter-spacing: 0.04em;
 }
+.res-name.res-name-large,
 .resume-name.res-name-large {
   font-size: 1.7rem !important; /* ~20pt \huge */
   letter-spacing: 0.035em;
 }
+.res-name.res-name-medium,
 .resume-name.res-name-medium {
   font-size: 1.4rem !important; /* ~17pt \LARGE */
   letter-spacing: 0.03em;
 }
+.res-name.res-name-compact,
 .resume-name.res-name-compact {
   font-size: 1.2rem !important; /* ~14pt \Large */
   letter-spacing: 0.025em;
 }
 
 /* Section Header Font Sizing */
+.res-section-title.res-sec-large,
 .resume-section-title.res-sec-large {
   font-size: 0.95rem !important;
   letter-spacing: 0.06em;
 }
+.res-section-title.res-sec-normal,
 .resume-section-title.res-sec-normal {
   font-size: 0.85rem !important;
   letter-spacing: 0.05em;
 }
+.res-section-title.res-sec-small,
 .resume-section-title.res-sec-small {
   font-size: 0.78rem !important;
   letter-spacing: 0.04em;
 }
 
 /* Section Rule Accent Colors */
+.res-section-title.res-sec-accent-black,
 .resume-section-title.res-sec-accent-black {
   border-bottom-color: #000000 !important;
 }
+.res-section-title.res-sec-accent-navy,
 .resume-section-title.res-sec-accent-navy {
   border-bottom-color: #1e3a8a !important;
   color: #1e3a8a !important;
 }
+.res-section-title.res-sec-accent-slate,
 .resume-section-title.res-sec-accent-slate {
   border-bottom-color: #334155 !important;
   color: #1e293b !important;
 }
+.res-section-title.res-sec-accent-emerald,
 .resume-section-title.res-sec-accent-emerald {
   border-bottom-color: #065f46 !important;
   color: #065f46 !important;
 }
+.res-section-title.res-sec-accent-burgundy,
 .resume-section-title.res-sec-accent-burgundy {
   border-bottom-color: #831843 !important;
   color: #831843 !important;

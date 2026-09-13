@@ -513,16 +513,16 @@ function populateFormFromState() {
   const optNameSize = document.getElementById('opt-name-size');
   if (optNameSize) optNameSize.value = currentOptions.nameSize || 'Huge';
 
-  const optModalNameSize = document.getElementById('opt-modal-name-size');
+  const optModalNameSize = document.getElementById('modal-opt-name-size') || document.getElementById('opt-modal-name-size');
   if (optModalNameSize) optModalNameSize.value = currentOptions.nameSize || 'Huge';
 
-  const optModalSecSize = document.getElementById('opt-modal-sec-size');
+  const optModalSecSize = document.getElementById('modal-opt-sec-size') || document.getElementById('opt-modal-sec-size');
   if (optModalSecSize) optModalSecSize.value = currentOptions.sectionHeaderSize || 'large';
 
-  const optModalBodySize = document.getElementById('opt-modal-body-size');
+  const optModalBodySize = document.getElementById('modal-opt-body-size') || document.getElementById('opt-modal-body-size');
   if (optModalBodySize) optModalBodySize.value = currentOptions.fontSize || '11pt';
 
-  const optModalAccentColor = document.getElementById('opt-modal-accent-color');
+  const optModalAccentColor = document.getElementById('modal-opt-sec-color') || document.getElementById('opt-modal-accent-color');
   if (optModalAccentColor) optModalAccentColor.value = currentOptions.sectionAccentColor || 'black';
 }
 
@@ -1586,7 +1586,8 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
-const PRESET_COLORS = {
+// Inherited safely from template.js (with fallbacks if isolated)
+var APP_PRESET_COLORS = (typeof window !== 'undefined' && window.PRESET_COLORS) ? window.PRESET_COLORS : ((typeof PRESET_COLORS !== 'undefined') ? PRESET_COLORS : {
   navy: '1E40AF',
   blue: '2563EB',
   emerald: '059669',
@@ -1599,26 +1600,28 @@ const PRESET_COLORS = {
   orange: 'EA580C',
   gray: '4B5563',
   dark: '1F2937'
-};
+});
 
-function parseColorHex(spec) {
+var APP_KNOWN_SIZES = (typeof window !== 'undefined' && window.KNOWN_SIZES) ? window.KNOWN_SIZES : ((typeof KNOWN_SIZES !== 'undefined') ? KNOWN_SIZES : new Set(['small', 'sm', 'large', 'lg', 'tiny', 'xs', 'huge']));
+
+function resolveColorHex(spec) {
+  if (typeof window !== 'undefined' && typeof window.parseColorHex === 'function') return window.parseColorHex(spec);
+  if (typeof parseColorHex === 'function') return parseColorHex(spec);
   if (!spec) return null;
   const s = spec.trim().toLowerCase();
-  if (PRESET_COLORS[s]) return PRESET_COLORS[s];
+  if (APP_PRESET_COLORS[s]) return APP_PRESET_COLORS[s];
   const hexMatch = s.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
   if (hexMatch) {
     let hex = hexMatch[1];
-    if (hex.length === 3) {
-      hex = hex.split('').map(c => c + c).join('');
-    }
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
     return hex.toUpperCase();
   }
   return null;
 }
 
-const KNOWN_SIZES = new Set(['small', 'sm', 'large', 'lg', 'tiny', 'xs', 'huge']);
-
-function parseFormattingSpec(specStr) {
+function resolveFormattingSpec(specStr) {
+  if (typeof window !== 'undefined' && typeof window.parseFormattingSpec === 'function') return window.parseFormattingSpec(specStr);
+  if (typeof parseFormattingSpec === 'function') return parseFormattingSpec(specStr);
   const parts = specStr.split(',').map(p => p.trim());
   let color = null;
   let size = null;
@@ -1628,13 +1631,13 @@ function parseFormattingSpec(specStr) {
     const plower = p.toLowerCase();
     if (plower.startsWith('size:')) {
       size = plower.slice(5).trim();
-    } else if (KNOWN_SIZES.has(plower)) {
+    } else if (APP_KNOWN_SIZES.has(plower)) {
       size = plower;
     } else if (plower.startsWith('bg:') || plower.startsWith('highlight:') || plower.startsWith('hl:')) {
       const val = p.split(':')[1].trim();
-      bg = parseColorHex(val) || 'FEF08A';
+      bg = resolveColorHex(val) || 'FEF08A';
     } else {
-      const c = parseColorHex(p);
+      const c = resolveColorHex(p);
       if (c) color = c;
     }
   }
@@ -1662,7 +1665,7 @@ function formatBulletHtml(text) {
       const m = part.match(/^\[([^\]\n]+)\]\{([^}\n]+)\}$/);
       if (m) {
         const inner = m[1];
-        const spec = parseFormattingSpec(m[2]);
+        const spec = resolveFormattingSpec(m[2]);
         let styles = [];
         let classes = [];
         if (spec.color) styles.push(`color: #${spec.color}`);
@@ -1805,7 +1808,7 @@ function updateNameFontSize(val) {
 
   const optNameSize = document.getElementById('opt-name-size');
   if (optNameSize) optNameSize.value = val;
-  const optModalNameSize = document.getElementById('opt-modal-name-size');
+  const optModalNameSize = document.getElementById('modal-opt-name-size') || document.getElementById('opt-modal-name-size');
   if (optModalNameSize) optModalNameSize.value = val;
 
   updatePreviews();
@@ -1818,7 +1821,7 @@ function updateSectionHeaderSize(val) {
   if (!val) return;
   currentOptions.sectionHeaderSize = val;
 
-  const optModalSecSize = document.getElementById('opt-modal-sec-size');
+  const optModalSecSize = document.getElementById('modal-opt-sec-size') || document.getElementById('opt-modal-sec-size');
   if (optModalSecSize) optModalSecSize.value = val;
 
   updatePreviews();
@@ -1831,7 +1834,7 @@ function updateBodyFontSize(val) {
   if (!val) return;
   currentOptions.fontSize = val;
 
-  const optModalBodySize = document.getElementById('opt-modal-body-size');
+  const optModalBodySize = document.getElementById('modal-opt-body-size') || document.getElementById('opt-modal-body-size');
   if (optModalBodySize) optModalBodySize.value = val;
 
   updatePreviews();
@@ -1844,7 +1847,7 @@ function updateSectionAccentColor(val) {
   if (!val) return;
   currentOptions.sectionAccentColor = val;
 
-  const optModalAccentColor = document.getElementById('opt-modal-accent-color');
+  const optModalAccentColor = document.getElementById('modal-opt-sec-color') || document.getElementById('opt-modal-accent-color');
   if (optModalAccentColor) optModalAccentColor.value = val;
 
   updatePreviews();
@@ -1856,16 +1859,16 @@ window.updateSectionAccentColor = updateSectionAccentColor;
 function openTypographyModal() {
   const modal = document.getElementById('typography-modal');
   if (!modal) return;
-  const optModalNameSize = document.getElementById('opt-modal-name-size');
+  const optModalNameSize = document.getElementById('modal-opt-name-size') || document.getElementById('opt-modal-name-size');
   if (optModalNameSize) optModalNameSize.value = currentOptions.nameSize || 'Huge';
 
-  const optModalSecSize = document.getElementById('opt-modal-sec-size');
+  const optModalSecSize = document.getElementById('modal-opt-sec-size') || document.getElementById('opt-modal-sec-size');
   if (optModalSecSize) optModalSecSize.value = currentOptions.sectionHeaderSize || 'large';
 
-  const optModalBodySize = document.getElementById('opt-modal-body-size');
+  const optModalBodySize = document.getElementById('modal-opt-body-size') || document.getElementById('opt-modal-body-size');
   if (optModalBodySize) optModalBodySize.value = currentOptions.fontSize || '11pt';
 
-  const optModalAccentColor = document.getElementById('opt-modal-accent-color');
+  const optModalAccentColor = document.getElementById('modal-opt-sec-color') || document.getElementById('opt-modal-accent-color');
   if (optModalAccentColor) optModalAccentColor.value = currentOptions.sectionAccentColor || 'black';
 
   modal.style.display = 'flex';
@@ -3422,7 +3425,7 @@ window.resetToDefaultDraft = resetToDefaultDraft;
 window.getResumeState = () => resumeState;
 window.setResumeState = (st) => { resumeState = st; };
 window.scheduleAutoSave = scheduleAutoSave;
-window.loadDraftFromStorage = loadDraftFromStorage;
+window.loadDraftFromStorage = initProfiles;
 window.formatBulletHtml = formatBulletHtml;
 window.showDownloadOverflowWarningModal = showDownloadOverflowWarningModal;
 window.closeDownloadWarningModal = closeDownloadWarningModal;
