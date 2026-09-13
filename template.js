@@ -109,7 +109,7 @@ function createLatexHref(url, displayText = null) {
   const safeUrl = fullUrl.replace(/#/g, () => '\\#').replace(/%/g, () => '\\%');
   const safeDisplay = escapeLatex(display);
   
-  return `\\href{${safeUrl}}{\\underline{${safeDisplay}}}`;
+  return `\\href{${safeUrl}}{${safeDisplay}}`;
 }
 
 /**
@@ -319,7 +319,7 @@ function generateLatexCode(resumeData, options = {}) {
     headerLinks.push(escapeLatex(personal.phone));
   }
   if (personal.email) {
-    headerLinks.push(`\\href{mailto:${personal.email.trim()}}{\\underline{${escapeLatex(personal.email.trim())}}}`);
+    headerLinks.push(`\\href{mailto:${personal.email.trim()}}{${escapeLatex(personal.email.trim())}}`);
   }
   if (personal.linkedin) {
     const disp = getSiteDisplayName(personal.linkedin, personal.linkedinDisplay, 'LinkedIn');
@@ -339,6 +339,36 @@ function generateLatexCode(resumeData, options = {}) {
   }
 
   const headerLine = headerLinks.join(' $|$ \n    ');
+
+  let marginAdjustments = `% Adjust margins
+\\addtolength{\\oddsidemargin}{-0.5in}
+\\addtolength{\\evensidemargin}{-0.5in}
+\\addtolength{\\textwidth}{1in}
+\\addtolength{\\topmargin}{-.5in}
+\\addtolength{\\textheight}{1.0in}`;
+
+  if (options.compactLevel === 1) {
+    marginAdjustments = `% Adjust margins (Auto-Fit Level 1)
+\\addtolength{\\oddsidemargin}{-0.52in}
+\\addtolength{\\evensidemargin}{-0.52in}
+\\addtolength{\\textwidth}{1.04in}
+\\addtolength{\\topmargin}{-.55in}
+\\addtolength{\\textheight}{1.1in}`;
+  } else if (options.compactLevel === 2) {
+    marginAdjustments = `% Adjust margins (Auto-Fit Level 2)
+\\addtolength{\\oddsidemargin}{-0.55in}
+\\addtolength{\\evensidemargin}{-0.55in}
+\\addtolength{\\textwidth}{1.1in}
+\\addtolength{\\topmargin}{-.6in}
+\\addtolength{\\textheight}{1.2in}`;
+  } else if (options.compactLevel === 3) {
+    marginAdjustments = `% Adjust margins (Auto-Fit Level 3)
+\\addtolength{\\oddsidemargin}{-0.6in}
+\\addtolength{\\evensidemargin}{-0.6in}
+\\addtolength{\\textwidth}{1.2in}
+\\addtolength{\\topmargin}{-.68in}
+\\addtolength{\\textheight}{1.36in}`;
+  }
 
   let latex = `%-------------------------
 % Resume in Latex
@@ -381,12 +411,7 @@ function generateLatexCode(resumeData, options = {}) {
 \\renewcommand{\\headrulewidth}{0pt}
 \\renewcommand{\\footrulewidth}{0pt}
 
-% Adjust margins
-\\addtolength{\\oddsidemargin}{-0.5in}
-\\addtolength{\\evensidemargin}{-0.5in}
-\\addtolength{\\textwidth}{1in}
-\\addtolength{\\topmargin}{-.5in}
-\\addtolength{\\textheight}{1.0in}
+${marginAdjustments}
 
 \\urlstyle{same}
 

@@ -1096,16 +1096,28 @@ html, body {
 }
 
 .res-contacts a,
-.resume-paper a {
+.res-contacts a:visited {
   color: #000000 !important;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
   cursor: pointer;
 }
 
-.res-contacts a:hover,
+.res-contacts a:hover {
+  color: #0a4b78 !important;
+  text-decoration: underline !important;
+}
+
+.resume-paper a {
+  color: #000000 !important;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .resume-paper a:hover {
   color: #0a4b78 !important;
+  text-decoration: underline;
 }
 
 .res-sep {
@@ -1200,36 +1212,189 @@ html, body {
   margin-bottom: 0.8pt;
 }
 
-/* Compact Mode for Auto-Fit */
+/* Progressive Compact Modes for Guaranteed 1-Page Fit */
+/* Level 1: Subtle Compact */
+.resume-paper.compact-1 {
+  padding: 0.44in 0.48in !important;
+  line-height: 1.18 !important;
+}
+.resume-paper.compact-1 .res-name {
+  font-size: 20pt !important;
+  margin-bottom: 0.5pt !important;
+}
+.resume-paper.compact-1 .res-section {
+  margin-top: 2.8pt !important;
+  margin-bottom: 1pt !important;
+}
+.resume-paper.compact-1 .res-section-title {
+  font-size: 10.5pt !important;
+  margin-bottom: 2pt !important;
+  padding-bottom: 0.3pt !important;
+}
+.resume-paper.compact-1 .res-subheading {
+  margin-bottom: 1.2pt !important;
+}
+.resume-paper.compact-1 .res-bullets {
+  margin-top: 0.3pt !important;
+  margin-bottom: 1.2pt !important;
+}
+.resume-paper.compact-1 .res-bullets li,
+.resume-paper.compact-1 .res-skills-list li {
+  line-height: 1.18 !important;
+  margin-bottom: 0.5pt !important;
+}
+
+/* Level 2: Moderate Compact (default compact-mode) */
+.resume-paper.compact-2,
 .resume-paper.compact-mode {
-  line-height: 1.16;
+  padding: 0.38in 0.44in !important;
+  font-size: 10.5pt !important;
+  line-height: 1.14 !important;
 }
+.resume-paper.compact-2 .res-name,
 .resume-paper.compact-mode .res-name {
-  font-size: 19pt;
+  font-size: 19pt !important;
+  margin-bottom: 0 !important;
 }
+.resume-paper.compact-2 .res-contacts,
+.resume-paper.compact-mode .res-contacts {
+  font-size: 9pt !important;
+  line-height: 1.15 !important;
+}
+.resume-paper.compact-2 .res-section,
 .resume-paper.compact-mode .res-section {
-  margin-top: 2.5pt;
-  margin-bottom: 1pt;
+  margin-top: 2pt !important;
+  margin-bottom: 0.5pt !important;
 }
+.resume-paper.compact-2 .res-section-title,
 .resume-paper.compact-mode .res-section-title {
-  font-size: 10.5pt;
-  margin-bottom: 1.5pt;
-  padding-bottom: 0.5pt;
+  font-size: 10pt !important;
+  margin-bottom: 1.5pt !important;
+  padding-bottom: 0.2pt !important;
 }
+.resume-paper.compact-2 .res-subheading,
 .resume-paper.compact-mode .res-subheading {
-  margin-bottom: 1.5pt;
+  margin-bottom: 0.8pt !important;
 }
+.resume-paper.compact-2 .res-bullets,
 .resume-paper.compact-mode .res-bullets {
-  margin-top: 0.5pt;
-  margin-bottom: 1.5pt;
+  margin-top: 0 !important;
+  margin-bottom: 0.8pt !important;
 }
-.resume-paper.compact-mode .res-bullets li {
-  line-height: 1.18;
-  margin-bottom: 0.5pt;
-}
+.resume-paper.compact-2 .res-bullets li,
+.resume-paper.compact-mode .res-bullets li,
+.resume-paper.compact-2 .res-skills-list li,
 .resume-paper.compact-mode .res-skills-list li {
-  line-height: 1.2;
-  margin-bottom: 0.5pt;
+  line-height: 1.14 !important;
+  margin-bottom: 0.3pt !important;
+}
+
+/* Level 3: Maximum Safe Compact */
+.resume-paper.compact-3 {
+  padding: 0.32in 0.4in !important;
+  font-size: 10pt !important;
+  line-height: 1.10 !important;
+}
+.resume-paper.compact-3 .res-name {
+  font-size: 18pt !important;
+  margin-bottom: 0 !important;
+}
+.resume-paper.compact-3 .res-contacts {
+  font-size: 8.5pt !important;
+  line-height: 1.12 !important;
+}
+.resume-paper.compact-3 .res-section {
+  margin-top: 1.5pt !important;
+  margin-bottom: 0 !important;
+}
+.resume-paper.compact-3 .res-section-title {
+  font-size: 9.5pt !important;
+  margin-bottom: 1pt !important;
+  padding-bottom: 0.2pt !important;
+}
+.resume-paper.compact-3 .res-subheading {
+  margin-bottom: 0.5pt !important;
+}
+.resume-paper.compact-3 .res-bullets {
+  margin-top: 0 !important;
+  margin-bottom: 0.5pt !important;
+}
+.resume-paper.compact-3 .res-bullets li,
+.resume-paper.compact-3 .res-skills-list li {
+  line-height: 1.10 !important;
+  margin-bottom: 0.2pt !important;
+}
+
+/* Page Overflow Warning Banner */
+.page-overflow-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.12) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 8.5in;
+  max-width: 100%;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.12);
+}
+.overflow-banner-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.overflow-banner-body {
+  flex: 1;
+}
+.overflow-banner-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 2px;
+}
+.overflow-banner-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.overflow-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Visual Page Cutoff Line on Resume Paper */
+.page-cutoff-line {
+  position: absolute;
+  top: 1056px;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed #f59e0b;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+  z-index: 20;
+}
+.page-cutoff-line span {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 8pt;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 2px 10px;
+  border-radius: 0 0 4px 4px;
+  border: 1px solid #f59e0b;
+  border-top: none;
+  margin-right: 16px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+@media print {
+  .page-cutoff-line,
+  .page-overflow-banner {
+    display: none !important;
+  }
 }
 
 /* ==========================================================================

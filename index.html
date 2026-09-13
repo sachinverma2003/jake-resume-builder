@@ -21,7 +21,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v2.9</span></h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v3.0</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -440,6 +440,10 @@
 
         <!-- Controls & Badge -->
         <div class="preview-controls">
+          <button id="btn-autofit" class="btn btn-sm btn-amber" onclick="autoFitToOnePage()" title="Auto-fits spacing &amp; margins to guarantee 1 single page" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+            ⚡ Auto-Fit 1 Page
+          </button>
+
           <div id="page-counter-badge" class="page-counter-badge">
             ✓ 1 Page &bull; ATS Compliant
           </div>
@@ -455,6 +459,23 @@
 
       <!-- Tab 1: Visual Resume Preview Area (Scrollable) -->
       <div id="visual-preview-area" class="preview-scroll-area">
+        <!-- Page Overflow Warning Banner -->
+        <div id="page-overflow-banner" class="page-overflow-banner" style="display: none;">
+          <div class="overflow-banner-icon">⚠️</div>
+          <div class="overflow-banner-body">
+            <div class="overflow-banner-title">
+              Resume Exceeds 1 Page by approx. <span id="overflow-lines-count">2</span> line(s)
+            </div>
+            <div class="overflow-banner-desc">
+              Content beyond the cutoff line will spill onto Page 2 in downloaded PDFs.
+            </div>
+          </div>
+          <div class="overflow-banner-actions">
+            <button type="button" class="btn btn-sm btn-amber" onclick="autoFitToOnePage()">⚡ Auto-Fit Spacing</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="openTrimModalFromBanner()">✂️ How to Trim</button>
+          </div>
+        </div>
+
         <div id="visual-resume" class="resume-paper">
           <!-- Dynamic Content rendered by app.js matching Jake Ryan template -->
         </div>
@@ -550,16 +571,87 @@
     </div>
   </div>
 
+  <!-- 1-Page Overflow Warning Modal for Download -->
+  <div id="download-warning-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
+    <div class="modal-dialog" style="max-width: 520px;" onclick="event.stopPropagation()">
+      <div class="modal-header" style="background: rgba(245, 158, 11, 0.12); border-bottom: 1px solid rgba(245, 158, 11, 0.3);">
+        <div class="modal-title" style="color: #f59e0b; display: flex; align-items: center; gap: 8px;">
+          <span>⚠️</span> Resume Exceeds 1 Page
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeDownloadWarningModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p style="font-size: 14.5px; line-height: 1.55; margin-bottom: 14px; color: var(--text-primary);">
+          Your resume currently exceeds 1 page by approximately <strong id="download-overflow-lines" style="color: #f59e0b; font-size: 16px;">2 line(s)</strong> and will spill onto a second page.
+        </p>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; font-size: 13px; color: var(--text-secondary); line-height: 1.45;">
+          💡 <strong>Recruiter Standard:</strong> Software engineering resumes should strictly fit on 1 single page for ATS optimization and immediate recruiter impact.
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button type="button" class="btn btn-emerald btn-lg" onclick="autoFitAndDownload()" style="width: 100%; justify-content: center; font-weight: 600; font-size: 14.5px;">
+            ⚡ Auto-Fit to 1 Page &amp; Download PDF
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="proceedWithDownloadAnyway()" style="width: 100%; justify-content: center;">
+            ⬇️ Download Anyway (Multi-Page PDF)
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="openTrimModalFromDownload()" style="width: 100%; justify-content: center;">
+            ✂️ View Line Trim Suggestions
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trim Lines Guidance Modal (When content cannot be auto-fitted or user wants suggestions) -->
+  <div id="trim-lines-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
+    <div class="modal-dialog" style="max-width: 560px;" onclick="event.stopPropagation()">
+      <div class="modal-header" style="background: rgba(239, 68, 68, 0.12); border-bottom: 1px solid rgba(239, 68, 68, 0.3);">
+        <div class="modal-title" style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
+          <span>⚠️</span> Please Delete Lines to Fit on 1 Page
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeTrimLinesModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div style="margin-bottom: 16px;">
+          <p style="font-size: 14.5px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+            Content exceeds 1 page by approx. <span id="trim-lines-needed" style="color: #ef4444; font-size: 16px;">3</span> line(s).
+          </p>
+          <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+            Even with maximum ATS-safe spacing compaction, there is too much text. To maintain readable font sizes and professional margins, please delete or shorten approximately <strong id="trim-lines-needed-text" style="color: #ef4444;">3 line(s)</strong>.
+          </p>
+        </div>
+
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 18px;">
+          <h4 style="font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px;">
+            Recommended Ways to Save Line(s):
+          </h4>
+          <ul id="trim-recommendations-list" style="font-size: 13px; line-height: 1.6; color: var(--text-primary); padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+            <!-- Populated dynamically based on user's resume content -->
+          </ul>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeTrimLinesModal()">
+            Got It, I'll Edit Content
+          </button>
+          <button type="button" class="btn btn-emerald" onclick="closeTrimLinesModal(); document.getElementById('sec-experience').scrollIntoView({ behavior: 'smooth' });">
+            Jump to Content Editor &rarr;
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-notice" class="toast-notice">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-emerald);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v2.9) -->
+  <!-- Scripts (Cache-Busted v3.0) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=2.9"></script>
-  <script src="parser.js?v=2.9"></script>
-  <script src="app.js?v=2.9"></script>
+  <script src="template.js?v=3.0"></script>
+  <script src="parser.js?v=3.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>

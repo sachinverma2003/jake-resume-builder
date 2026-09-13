@@ -443,16 +443,7 @@ function scrollToSection(sectionId) {
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-/**
- * Auto-Fit to 1 Single Page
- */
-function autoFitToOnePage() {
-  currentOptions.fontSize = '10pt';
-  currentOptions.sectionSpacing = '-6pt';
-  currentOptions.itemSpacing = '-3pt';
-  updatePreviews();
-  showToast('✓ Auto-fitted spacing to exactly 1 page!');
-}
+// Auto-Fit engine is implemented below with progressive multi-level compaction
 
 /**
  * Insert Action Verb into the latest project or experience bullet
@@ -500,23 +491,23 @@ function renderVisualResume() {
   let contactsHtml = [];
   if (personal.phone) contactsHtml.push(`<span>${escapeHtml(personal.phone)}</span>`);
   if (personal.email) {
-    contactsHtml.push(`<a href="mailto:${personal.email.trim()}">${escapeHtml(personal.email.trim())}</a>`);
+    contactsHtml.push(`<a href="mailto:${personal.email.trim()}" style="text-decoration: none;">${escapeHtml(personal.email.trim())}</a>`);
   }
   if (personal.linkedin) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.linkedin, personal.linkedinDisplay, 'LinkedIn') : (personal.linkedinDisplay || 'LinkedIn');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.linkedin)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.linkedin)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
   if (personal.github) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.github, personal.githubDisplay, 'GitHub') : (personal.githubDisplay || 'GitHub');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.github)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.github)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
   if (personal.leetcode) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.leetcode, personal.leetcodeDisplay, 'LeetCode') : (personal.leetcodeDisplay || 'LeetCode');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.leetcode)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.leetcode)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
   if (personal.portfolio) {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.portfolio, personal.portfolioDisplay, 'Portfolio') : (personal.portfolioDisplay || 'Portfolio');
-    contactsHtml.push(`<a href="${normalizeUrl(personal.portfolio)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
+    contactsHtml.push(`<a href="${normalizeUrl(personal.portfolio)}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
 
   let html = `
@@ -765,69 +756,181 @@ function renderLatexView() {
 /**
  * Check if Resume fits cleanly on 1 page (Jake Gutierrez Spec)
  */
+const PAGE_HEIGHT_MAX = 1056; // Standard 11in page at 96 DPI
+
+/**
+ * Check if Resume fits cleanly on 1 page (Jake Gutierrez Spec)
+ * Shows prominent warning badge, top alert banner, and visual cutoff line when overflowing
+ */
 function checkPageHeight() {
   if (!visualResume) return;
-  
-  // 11 inches at 96 DPI is 1056px.
-  // Standard 1-page tolerance across browser font rendering allows up to 1100px.
+
   const currentHeight = visualResume.scrollHeight;
+  const overflowPx = currentHeight - PAGE_HEIGHT_MAX;
 
-  // Ensure no yellow page-break-guide line is ever present
-  const existingGuide = visualResume.querySelector('.page-break-guide');
-  if (existingGuide) {
-    existingGuide.remove();
-  }
+  const overflowBanner = document.getElementById('page-overflow-banner');
+  const overflowLinesCount = document.getElementById('overflow-lines-count');
+  const btnAutofit = document.getElementById('btn-autofit');
+  let cutoffLine = visualResume.querySelector('.page-cutoff-line');
 
-  if (currentHeight > 1100) {
-    pageCounterBadge.className = 'page-counter-badge warning';
-    pageCounterBadge.innerHTML = `⚠️ Content Exceeds 1 Page <button class="btn btn-sm btn-amber" onclick="autoFitToOnePage()" style="margin-left: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">Auto-Fit</button>`;
+  if (overflowPx > 6) {
+    const overflowLines = Math.max(1, Math.ceil(overflowPx / 18));
+
+    if (pageCounterBadge) {
+      pageCounterBadge.className = 'page-counter-badge warning';
+      pageCounterBadge.innerHTML = `⚠️ Exceeds 1 Page (+${overflowLines} ${overflowLines === 1 ? 'line' : 'lines'})`;
+    }
+
+    if (btnAutofit) {
+      btnAutofit.style.display = 'inline-flex';
+      btnAutofit.className = 'btn btn-sm btn-amber';
+      btnAutofit.innerHTML = `⚡ Auto-Fit 1 Page`;
+    }
+
+    if (overflowBanner) {
+      overflowBanner.style.display = 'flex';
+      if (overflowLinesCount) overflowLinesCount.innerText = String(overflowLines);
+    }
+
+    // Add visual page-cutoff guide line at 1056px if not already present
+    if (!cutoffLine) {
+      cutoffLine = document.createElement('div');
+      cutoffLine.className = 'page-cutoff-line';
+      cutoffLine.innerHTML = `<span>✂️ 1-Page Cutoff &bull; Content below spills to Page 2</span>`;
+      visualResume.appendChild(cutoffLine);
+    }
   } else {
-    pageCounterBadge.className = 'page-counter-badge';
-    pageCounterBadge.innerHTML = `✓ 1 Page • ATS Compliant`;
+    // Fits cleanly on 1 page
+    if (pageCounterBadge) {
+      pageCounterBadge.className = 'page-counter-badge';
+      pageCounterBadge.innerHTML = `✓ 1 Page &bull; ATS Compliant`;
+    }
+
+    if (btnAutofit) {
+      if (visualResume.classList.contains('compact-1') || visualResume.classList.contains('compact-2') || visualResume.classList.contains('compact-3')) {
+        btnAutofit.style.display = 'inline-flex';
+        btnAutofit.className = 'btn btn-sm btn-secondary';
+        btnAutofit.innerHTML = `✓ Auto-Fitted (1 Page)`;
+      } else {
+        btnAutofit.style.display = 'none';
+      }
+    }
+
+    if (overflowBanner) {
+      overflowBanner.style.display = 'none';
+    }
+
+    if (cutoffLine) {
+      cutoffLine.remove();
+    }
   }
 }
 
 /**
  * Auto-Fit to exactly 1 Page
- * Compacts spacing and LaTeX parameters to guarantee 1-page fit
+ * Progressively compacts spacing, padding, line-height, and font size
+ * If content is too long to fit safely, prompts user with exact lines to delete
  */
-function autoFitToOnePage() {
+function autoFitToOnePage(andDownload = false) {
   if (!visualResume) return;
-  
-  // Apply compact mode to preview DOM
-  visualResume.classList.add('compact-mode');
-  
-  // Adjust LaTeX spacing options
-  currentOptions.fontSize = '10.5pt';
-  currentOptions.sectionSpacing = '-6pt';
-  currentOptions.itemSpacing = '-3pt';
-  
-  // Re-render LaTeX code view and sync
-  renderLatexView();
-  
-  setTimeout(() => {
+
+  // Clear existing compact classes
+  visualResume.classList.remove('compact-1', 'compact-2', 'compact-3', 'compact-mode');
+
+  // Try Level 1 (Subtle Compact)
+  visualResume.classList.add('compact-1');
+  let h = visualResume.scrollHeight;
+  if (h <= PAGE_HEIGHT_MAX + 5) {
+    currentOptions.compactLevel = 1;
+    currentOptions.fontSize = '11pt';
+    renderLatexView();
+    checkPageHeight();
+    showToast('✓ Auto-Fit applied: Lightly compacted to fit exactly 1 page!');
+    if (andDownload) executeCleanPdfDownload();
+    return true;
+  }
+
+  // Try Level 2 (Moderate Compact)
+  visualResume.classList.remove('compact-1');
+  visualResume.classList.add('compact-2');
+  h = visualResume.scrollHeight;
+  if (h <= PAGE_HEIGHT_MAX + 5) {
+    currentOptions.compactLevel = 2;
+    currentOptions.fontSize = '10.5pt';
+    renderLatexView();
     checkPageHeight();
     showToast('✓ Auto-Fit applied: Compacted spacing to fit exactly 1 page!');
-  }, 60);
+    if (andDownload) executeCleanPdfDownload();
+    return true;
+  }
+
+  // Try Level 3 (Maximum Safe Compact)
+  visualResume.classList.remove('compact-2');
+  visualResume.classList.add('compact-3');
+  h = visualResume.scrollHeight;
+  if (h <= PAGE_HEIGHT_MAX + 5) {
+    currentOptions.compactLevel = 3;
+    currentOptions.fontSize = '10pt';
+    renderLatexView();
+    checkPageHeight();
+    showToast('✓ Auto-Fit applied: Maximum safe compaction applied to fit 1 page!');
+    if (andDownload) executeCleanPdfDownload();
+    return true;
+  }
+
+  // Still overflowing after maximum compaction Level 3!
+  currentOptions.compactLevel = 3;
+  currentOptions.fontSize = '10pt';
+  renderLatexView();
+  checkPageHeight();
+
+  const remainingOverflow = visualResume.scrollHeight - PAGE_HEIGHT_MAX;
+  const linesToDelete = Math.max(1, Math.ceil(remainingOverflow / 17));
+
+  // Open the "Cannot Auto-Fit Completely: Please Delete Lines" modal
+  showTrimLinesModal(linesToDelete, remainingOverflow, andDownload);
+  return false;
 }
 window.autoFitToOnePage = autoFitToOnePage;
 
 /**
- * Export Clean PDF without any browser print headers, URLs, or timestamps
- * Uses local html2pdf bundle to generate an authentic Overleaf-style PDF directly into Downloads
+ * Export Clean PDF without browser print headers, URLs, or timestamps
+ * Intercepts and warns if resume exceeds 1 page before downloading
  */
 function exportCleanPdf() {
   const resumeElem = document.getElementById('visual-resume');
   if (!resumeElem) return;
 
+  const currentHeight = resumeElem.scrollHeight;
+  if (currentHeight > PAGE_HEIGHT_MAX + 6) {
+    const overflowPx = currentHeight - PAGE_HEIGHT_MAX;
+    const lines = Math.max(1, Math.ceil(overflowPx / 18));
+    showDownloadOverflowWarningModal(lines, overflowPx);
+    return;
+  }
+
+  executeCleanPdfDownload();
+}
+window.exportCleanPdf = exportCleanPdf;
+
+/**
+ * Execute actual Clean PDF generation and download
+ */
+function executeCleanPdfDownload() {
+  const resumeElem = document.getElementById('visual-resume');
+  if (!resumeElem) return;
+
   if (typeof html2pdf === 'undefined') {
-    // Fallback to browser print if script not yet ready
     showToast('Opening print dialog (uncheck "Headers and footers" in print settings)...');
     window.print();
     return;
   }
 
-  showToast('📄 Generating clean PDF (Overleaf standard)...');
+  showToast('📄 Generating clean 1-page PDF...');
+
+  // Hide cutoff line and overflow banner during export
+  const cutoff = resumeElem.querySelector('.page-cutoff-line');
+  if (cutoff) cutoff.style.display = 'none';
 
   // Temporarily reset zoom scale and box shadow for 100% crisp render
   const prevTransform = resumeElem.style.transform;
@@ -836,6 +939,14 @@ function exportCleanPdf() {
 
   resumeElem.style.transform = 'none';
   resumeElem.style.boxShadow = 'none';
+
+  // Ensure contact links have no underline in html2canvas render
+  const contactLinks = resumeElem.querySelectorAll('.res-contacts a');
+  const prevUnderlines = [];
+  contactLinks.forEach(a => {
+    prevUnderlines.push(a.style.textDecoration);
+    a.style.textDecoration = 'none';
+  });
 
   const candidateName = (resumeState.personal.fullName || 'Jake_Ryan').trim().replace(/\s+/g, '_');
   const filename = `${candidateName}_Resume.pdf`;
@@ -866,6 +977,8 @@ function exportCleanPdf() {
       resumeElem.style.transform = prevTransform;
       resumeElem.style.transformOrigin = prevTransformOrigin;
       resumeElem.style.boxShadow = prevBoxShadow;
+      if (cutoff) cutoff.style.display = 'flex';
+      contactLinks.forEach((a, i) => { a.style.textDecoration = prevUnderlines[i] || ''; });
       showToast(`✓ Clean PDF downloaded: ${filename}`);
     })
     .catch((err) => {
@@ -873,11 +986,117 @@ function exportCleanPdf() {
       resumeElem.style.transform = prevTransform;
       resumeElem.style.transformOrigin = prevTransformOrigin;
       resumeElem.style.boxShadow = prevBoxShadow;
+      if (cutoff) cutoff.style.display = 'flex';
+      contactLinks.forEach((a, i) => { a.style.textDecoration = prevUnderlines[i] || ''; });
       showToast('⚠️ Opening browser print dialog...');
       window.print();
     });
 }
-window.exportCleanPdf = exportCleanPdf;
+window.executeCleanPdfDownload = executeCleanPdfDownload;
+
+function showDownloadOverflowWarningModal(lines, overflowPx) {
+  const modal = document.getElementById('download-warning-modal');
+  const linesEl = document.getElementById('download-overflow-lines');
+  if (linesEl) linesEl.innerText = `${lines} line${lines === 1 ? '' : 's'}`;
+  if (modal) modal.style.display = 'flex';
+}
+window.showDownloadOverflowWarningModal = showDownloadOverflowWarningModal;
+
+function closeDownloadWarningModal() {
+  const modal = document.getElementById('download-warning-modal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeDownloadWarningModal = closeDownloadWarningModal;
+
+function proceedWithDownloadAnyway() {
+  closeDownloadWarningModal();
+  closeTrimLinesModal();
+  executeCleanPdfDownload();
+}
+window.proceedWithDownloadAnyway = proceedWithDownloadAnyway;
+
+function autoFitAndDownload() {
+  closeDownloadWarningModal();
+  autoFitToOnePage(true);
+}
+window.autoFitAndDownload = autoFitAndDownload;
+
+function showTrimLinesModal(linesNeeded, remainingOverflowPx = 0, andDownload = false) {
+  closeDownloadWarningModal();
+  const modal = document.getElementById('trim-lines-modal');
+  const neededEl = document.getElementById('trim-lines-needed');
+  const neededTextEl = document.getElementById('trim-lines-needed-text');
+  const targetEl = document.getElementById('trim-lines-target');
+  const listEl = document.getElementById('trim-recommendations-list');
+
+  if (neededEl) neededEl.innerText = String(linesNeeded);
+  if (neededTextEl) neededTextEl.innerText = `${linesNeeded} line${linesNeeded === 1 ? '' : 's'}`;
+  if (targetEl) targetEl.innerText = String(linesNeeded);
+
+  if (listEl) {
+    const recs = generateTrimRecommendations(linesNeeded);
+    listEl.innerHTML = recs.map(r => `<li>${r}</li>`).join('');
+  }
+
+  if (modal) modal.style.display = 'flex';
+}
+window.showTrimLinesModal = showTrimLinesModal;
+
+function closeTrimLinesModal() {
+  const modal = document.getElementById('trim-lines-modal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeTrimLinesModal = closeTrimLinesModal;
+
+function openTrimModalFromBanner() {
+  const currentHeight = visualResume ? visualResume.scrollHeight : 0;
+  const overflowPx = Math.max(0, currentHeight - PAGE_HEIGHT_MAX);
+  const lines = Math.max(1, Math.ceil(overflowPx / 18));
+  showTrimLinesModal(lines, overflowPx, false);
+}
+window.openTrimModalFromBanner = openTrimModalFromBanner;
+
+function openTrimModalFromDownload() {
+  closeDownloadWarningModal();
+  openTrimModalFromBanner();
+}
+window.openTrimModalFromDownload = openTrimModalFromDownload;
+
+function generateTrimRecommendations(linesNeeded) {
+  const list = [];
+  const { projects, experience, certifications, achievements } = resumeState;
+
+  let totalProjBullets = 0;
+  if (projects && projects.length) {
+    projects.forEach(p => { totalProjBullets += (p.bullets ? p.bullets.length : 0); });
+  }
+
+  let totalExpBullets = 0;
+  if (experience && experience.length) {
+    experience.forEach(e => { totalExpBullets += (e.bullets ? e.bullets.length : 0); });
+  }
+
+  list.push(`<strong>Shorten wrapping bullet points:</strong> Check your Projects and Experience for lines where only 1&ndash;3 words spill onto a new line. Trimming 1&ndash;2 words reclaims an entire line!`);
+
+  if (totalProjBullets > 3) {
+    list.push(`<strong>Trim Project Bullets:</strong> You currently have ${totalProjBullets} bullets across ${projects.length} projects. Deleting ${Math.min(linesNeeded, 2)} bullet(s) from earlier projects will save ${Math.min(linesNeeded, 2)} line(s).`);
+  }
+
+  if (totalExpBullets > 3) {
+    list.push(`<strong>Consolidate Experience:</strong> You have ${totalExpBullets} experience bullets. Keep only high-impact, quantified bullets.`);
+  }
+
+  if (certifications && certifications.length > 2) {
+    list.push(`<strong>Certifications:</strong> You have ${certifications.length} certifications listed. Removing 1 saves 1 line.`);
+  }
+
+  if (achievements && achievements.length > 2) {
+    list.push(`<strong>Achievements:</strong> You have ${achievements.length} achievements listed. Removing or combining 1 saves 1 line.`);
+  }
+
+  return list;
+}
+window.generateTrimRecommendations = generateTrimRecommendations;
 
 /**
  * Copy LaTeX Code to Clipboard
@@ -2118,6 +2337,15 @@ window.setResumeState = (st) => { resumeState = st; };
 window.scheduleAutoSave = scheduleAutoSave;
 window.loadDraftFromStorage = loadDraftFromStorage;
 window.formatBulletHtml = formatBulletHtml;
+window.showDownloadOverflowWarningModal = showDownloadOverflowWarningModal;
+window.closeDownloadWarningModal = closeDownloadWarningModal;
+window.proceedWithDownloadAnyway = proceedWithDownloadAnyway;
+window.autoFitAndDownload = autoFitAndDownload;
+window.showTrimLinesModal = showTrimLinesModal;
+window.closeTrimLinesModal = closeTrimLinesModal;
+window.openTrimModalFromBanner = openTrimModalFromBanner;
+window.openTrimModalFromDownload = openTrimModalFromDownload;
+window.generateTrimRecommendations = generateTrimRecommendations;
 
 
 
