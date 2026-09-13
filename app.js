@@ -765,11 +765,14 @@ const PAGE_HEIGHT_MAX = 1056; // Standard 11in page at 96 DPI
 function checkPageHeight() {
   if (!visualResume) return;
 
+  // Crucial: remove existing cutoff line before measuring so it NEVER contaminates scrollHeight
+  const existingCutoff = visualResume.querySelector('.page-cutoff-line');
+  if (existingCutoff) existingCutoff.remove();
+
   const currentHeight = visualResume.scrollHeight;
   const overflowPx = currentHeight - PAGE_HEIGHT_MAX;
 
   const btnAutofit = document.getElementById('btn-autofit');
-  let cutoffLine = visualResume.querySelector('.page-cutoff-line');
 
   if (overflowPx > 6) {
     const overflowLines = Math.max(1, Math.ceil(overflowPx / 18));
@@ -777,23 +780,21 @@ function checkPageHeight() {
     if (pageCounterBadge) {
       pageCounterBadge.className = 'page-counter-badge warning';
       pageCounterBadge.innerHTML = `⚠️ Exceeds 1 Page (+${overflowLines} ${overflowLines === 1 ? 'line' : 'lines'})`;
-      pageCounterBadge.title = 'Click to Auto-Fit into 1 Page';
+      pageCounterBadge.title = 'Click to Smart Auto-Fit into 1 Page';
       pageCounterBadge.onclick = () => autoFitToOnePage();
     }
 
     if (btnAutofit) {
       btnAutofit.style.display = 'inline-flex';
       btnAutofit.className = 'btn btn-sm btn-amber';
-      btnAutofit.innerHTML = `⚡ Auto-Fit 1 Page`;
+      btnAutofit.innerHTML = `⚡ Smart Auto-Fit`;
     }
 
-    // Add visual page-cutoff guide line at 1056px if not already present
-    if (!cutoffLine) {
-      cutoffLine = document.createElement('div');
-      cutoffLine.className = 'page-cutoff-line';
-      cutoffLine.innerHTML = `<span>✂️ 1-Page Cutoff &bull; Content below spills to Page 2</span>`;
-      visualResume.appendChild(cutoffLine);
-    }
+    // Add visual page-cutoff guide line at 1056px (styled strictly above 1056px boundary)
+    const cutoffLine = document.createElement('div');
+    cutoffLine.className = 'page-cutoff-line';
+    cutoffLine.innerHTML = `<span>✂️ 1-Page Cutoff &bull; Content below spills to Page 2</span>`;
+    visualResume.appendChild(cutoffLine);
   } else {
     // Fits cleanly on 1 page
     if (pageCounterBadge) {
@@ -804,75 +805,114 @@ function checkPageHeight() {
     }
 
     if (btnAutofit) {
-      if (visualResume.classList.contains('compact-1') || visualResume.classList.contains('compact-2') || visualResume.classList.contains('compact-3')) {
+      const isFitted = visualResume.classList.contains('compact-1') ||
+                       visualResume.classList.contains('compact-2') ||
+                       visualResume.classList.contains('compact-3') ||
+                       visualResume.classList.contains('compact-4') ||
+                       visualResume.classList.contains('compact-5');
+      if (isFitted) {
         btnAutofit.style.display = 'inline-flex';
         btnAutofit.className = 'btn btn-sm btn-secondary';
-        btnAutofit.innerHTML = `✓ Auto-Fitted (1 Page)`;
+        btnAutofit.innerHTML = `✓ Smart Fitted (1 Page)`;
       } else {
         btnAutofit.style.display = 'none';
       }
-    }
-
-    if (cutoffLine) {
-      cutoffLine.remove();
     }
   }
 }
 
 /**
- * Auto-Fit to exactly 1 Page
- * Progressively compacts spacing, padding, line-height, and font size
- * If content is too long to fit safely, prompts user with exact lines to delete
+ * Smart Auto-Fit to exactly 1 Page
+ * Progressively tunes spacing and line heights across 5 granular levels
+ * Minimizes empty whitespace so the resume always looks 100% full and balanced
  */
 function autoFitToOnePage(andDownload = false) {
   if (!visualResume) return;
 
-  // Clear existing compact classes
-  visualResume.classList.remove('compact-1', 'compact-2', 'compact-3', 'compact-mode');
+  // Clean cutoff line before measuring
+  const existingCutoff = visualResume.querySelector('.page-cutoff-line');
+  if (existingCutoff) existingCutoff.remove();
 
-  // Try Level 1 (Subtle Compact)
+  // Clear existing compact classes
+  visualResume.classList.remove('compact-1', 'compact-2', 'compact-3', 'compact-4', 'compact-5', 'compact-mode');
+
+  // Check if it already fits without any compaction
+  if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
+    currentOptions.compactLevel = 0;
+    currentOptions.fontSize = '11pt';
+    renderLatexView();
+    checkPageHeight();
+    showToast('✓ Resume already fits cleanly on 1 page!');
+    if (andDownload) executeCleanPdfDownload();
+    return true;
+  }
+
+  // Smart Level 1: Micro Spacing (11pt font, saves ~20px / ~1 line)
   visualResume.classList.add('compact-1');
-  let h = visualResume.scrollHeight;
-  if (h <= PAGE_HEIGHT_MAX + 5) {
+  if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
     currentOptions.compactLevel = 1;
     currentOptions.fontSize = '11pt';
     renderLatexView();
     checkPageHeight();
-    showToast('✓ Auto-Fit applied: Lightly compacted to fit exactly 1 page!');
+    showToast('✓ Smart Auto-Fit: Micro-tuned spacing to fit 1 full page!');
     if (andDownload) executeCleanPdfDownload();
     return true;
   }
 
-  // Try Level 2 (Moderate Compact)
+  // Smart Level 2: Subtle Spacing (11pt font, saves ~45-55px / ~2-3 lines — EXACTLY 2-3 lines overflow!)
   visualResume.classList.remove('compact-1');
   visualResume.classList.add('compact-2');
-  h = visualResume.scrollHeight;
-  if (h <= PAGE_HEIGHT_MAX + 5) {
+  if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
     currentOptions.compactLevel = 2;
-    currentOptions.fontSize = '10.5pt';
+    currentOptions.fontSize = '11pt';
     renderLatexView();
     checkPageHeight();
-    showToast('✓ Auto-Fit applied: Compacted spacing to fit exactly 1 page!');
+    showToast('✓ Smart Auto-Fit: Spacing tuned to fit 1 page while looking completely full!');
     if (andDownload) executeCleanPdfDownload();
     return true;
   }
 
-  // Try Level 3 (Maximum Safe Compact)
+  // Smart Level 3: Moderate Spacing (10.7pt font, saves ~70-95px / ~4-5 lines)
   visualResume.classList.remove('compact-2');
   visualResume.classList.add('compact-3');
-  h = visualResume.scrollHeight;
-  if (h <= PAGE_HEIGHT_MAX + 5) {
+  if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
     currentOptions.compactLevel = 3;
+    currentOptions.fontSize = '10.7pt';
+    renderLatexView();
+    checkPageHeight();
+    showToast('✓ Smart Auto-Fit: Balanced compaction applied to fit 1 full page!');
+    if (andDownload) executeCleanPdfDownload();
+    return true;
+  }
+
+  // Smart Level 4: Compact Spacing (10.4pt font, saves ~110-140px / ~6-7 lines)
+  visualResume.classList.remove('compact-3');
+  visualResume.classList.add('compact-4');
+  if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
+    currentOptions.compactLevel = 4;
+    currentOptions.fontSize = '10.4pt';
+    renderLatexView();
+    checkPageHeight();
+    showToast('✓ Smart Auto-Fit: Compacted to fit 1 page!');
+    if (andDownload) executeCleanPdfDownload();
+    return true;
+  }
+
+  // Smart Level 5: Maximum ATS Safe Spacing (10pt font, saves ~150-180px / ~8-10 lines)
+  visualResume.classList.remove('compact-4');
+  visualResume.classList.add('compact-5');
+  if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
+    currentOptions.compactLevel = 5;
     currentOptions.fontSize = '10pt';
     renderLatexView();
     checkPageHeight();
-    showToast('✓ Auto-Fit applied: Maximum safe compaction applied to fit 1 page!');
+    showToast('✓ Smart Auto-Fit: Maximum safe compaction applied to fit 1 page!');
     if (andDownload) executeCleanPdfDownload();
     return true;
   }
 
-  // Still overflowing after maximum compaction Level 3!
-  currentOptions.compactLevel = 3;
+  // Still overflowing after maximum compaction Level 5!
+  currentOptions.compactLevel = 5;
   currentOptions.fontSize = '10pt';
   renderLatexView();
   checkPageHeight();
@@ -880,7 +920,7 @@ function autoFitToOnePage(andDownload = false) {
   const remainingOverflow = visualResume.scrollHeight - PAGE_HEIGHT_MAX;
   const linesToDelete = Math.max(1, Math.ceil(remainingOverflow / 17));
 
-  // Open the "Cannot Auto-Fit Completely: Please Delete Lines" modal
+  // Open the "Please Delete Lines" modal
   showTrimLinesModal(linesToDelete, remainingOverflow, andDownload);
   return false;
 }
@@ -888,15 +928,28 @@ window.autoFitToOnePage = autoFitToOnePage;
 
 /**
  * Export Clean PDF without browser print headers, URLs, or timestamps
- * Intercepts and warns if resume exceeds 1 page before downloading
+ * Automatically runs Smart Auto-Fit if overflowing, ensuring clean 1-click download
  */
 function exportCleanPdf() {
   const resumeElem = document.getElementById('visual-resume');
   if (!resumeElem) return;
 
+  // Crucial: remove cutoff line before measuring
+  const cutoff = resumeElem.querySelector('.page-cutoff-line');
+  if (cutoff) cutoff.remove();
+
   const currentHeight = resumeElem.scrollHeight;
+
+  // If overflowing, automatically run Smart Auto-Fit to ensure 1 full page!
   if (currentHeight > PAGE_HEIGHT_MAX + 6) {
-    const overflowPx = currentHeight - PAGE_HEIGHT_MAX;
+    const fitted = autoFitToOnePage(false);
+    if (fitted) {
+      showToast('⚡ Auto-fitted to 1 page! Downloading clean PDF...');
+      executeCleanPdfDownload();
+      return;
+    }
+    // Only if even maximum compaction (Level 5) cannot fit, prompt the user
+    const overflowPx = resumeElem.scrollHeight - PAGE_HEIGHT_MAX;
     const lines = Math.max(1, Math.ceil(overflowPx / 18));
     showDownloadOverflowWarningModal(lines, overflowPx);
     return;
@@ -921,37 +974,17 @@ function executeCleanPdfDownload() {
 
   showToast('📄 Generating clean 1-page PDF...');
 
-  // Hide cutoff line during export
+  // Crucial: remove cutoff line completely so it is never in canvas
   const cutoff = resumeElem.querySelector('.page-cutoff-line');
-  if (cutoff) cutoff.style.display = 'none';
+  if (cutoff) cutoff.remove();
 
   // Temporarily reset zoom scale and box shadow for 100% crisp render
   const prevTransform = resumeElem.style.transform;
   const prevTransformOrigin = resumeElem.style.transformOrigin;
   const prevBoxShadow = resumeElem.style.boxShadow;
-  const prevHeight = resumeElem.style.height;
-  const prevMaxHeight = resumeElem.style.maxHeight;
-  const prevMinHeight = resumeElem.style.minHeight;
-  const prevOverflow = resumeElem.style.overflow;
 
   resumeElem.style.transform = 'none';
   resumeElem.style.boxShadow = 'none';
-
-  // STRICT 1-PAGE BLANK PAGE PREVENTION:
-  // If the resume fits on 1 page (scrollHeight <= 1065 or compact mode active),
-  // strictly clamp height to 1052px (10.96in) with overflow hidden.
-  // This eliminates jsPDF 0.001in subpixel bleed that previously spawned a blank 2nd page!
-  const isOnePage = resumeElem.scrollHeight <= 1065 || 
-                    visualResume.classList.contains('compact-1') || 
-                    visualResume.classList.contains('compact-2') || 
-                    visualResume.classList.contains('compact-3');
-
-  if (isOnePage) {
-    resumeElem.style.height = '1052px';
-    resumeElem.style.maxHeight = '1052px';
-    resumeElem.style.minHeight = '1052px';
-    resumeElem.style.overflow = 'hidden';
-  }
 
   // Ensure contact links have no underline in html2canvas render
   const contactLinks = resumeElem.querySelectorAll('.res-contacts a');
@@ -963,6 +996,13 @@ function executeCleanPdfDownload() {
 
   const candidateName = (resumeState.personal.fullName || 'Jake_Ryan').trim().replace(/\s+/g, '_');
   const filename = `${candidateName}_Resume.pdf`;
+
+  const isOnePage = resumeElem.scrollHeight <= 1070 || 
+                    visualResume.classList.contains('compact-1') || 
+                    visualResume.classList.contains('compact-2') || 
+                    visualResume.classList.contains('compact-3') ||
+                    visualResume.classList.contains('compact-4') ||
+                    visualResume.classList.contains('compact-5');
 
   const opt = {
     margin: [0, 0, 0, 0],
@@ -979,25 +1019,28 @@ function executeCleanPdfDownload() {
       unit: 'in',
       format: 'letter',
       orientation: 'portrait'
-    },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    }
   };
 
   const cleanup = () => {
     resumeElem.style.transform = prevTransform;
     resumeElem.style.transformOrigin = prevTransformOrigin;
     resumeElem.style.boxShadow = prevBoxShadow;
-    resumeElem.style.height = prevHeight;
-    resumeElem.style.maxHeight = prevMaxHeight;
-    resumeElem.style.minHeight = prevMinHeight;
-    resumeElem.style.overflow = prevOverflow;
-    if (cutoff) cutoff.style.display = 'flex';
     contactLinks.forEach((a, i) => { a.style.textDecoration = prevUnderlines[i] || ''; });
+    checkPageHeight();
   };
 
   html2pdf()
     .set(opt)
     .from(resumeElem)
+    .toPdf()
+    .get('pdf')
+    .then(function (pdf) {
+      if (isOnePage && pdf.internal.getNumberOfPages() > 1) {
+        // Automatically delete any accidental blank 2nd page!
+        pdf.deletePage(2);
+      }
+    })
     .save()
     .then(() => {
       cleanup();
