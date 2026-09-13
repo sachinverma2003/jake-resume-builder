@@ -118,19 +118,19 @@
       const linkedinMatch = latexSource.match(/href\{(https?:\/\/(?:www\.)?linkedin\.com\/in\/[^}]+)\}/i);
       if (linkedinMatch) {
         state.personal.linkedin = linkedinMatch[1].trim();
-        state.personal.linkedinDisplay = cleanUrlDisplay(linkedinMatch[1]);
+        state.personal.linkedinDisplay = 'LinkedIn';
       }
 
       const githubMatch = latexSource.match(/href\{(https?:\/\/(?:www\.)?github\.com\/[^}]+)\}/i);
       if (githubMatch) {
         state.personal.github = githubMatch[1].trim();
-        state.personal.githubDisplay = cleanUrlDisplay(githubMatch[1]);
+        state.personal.githubDisplay = 'GitHub';
       }
 
       const leetcodeMatch = latexSource.match(/href\{(https?:\/\/(?:www\.)?(?:leetcode|codeforces|kaggle)\.com\/[^}]+)\}/i);
       if (leetcodeMatch) {
         state.personal.leetcode = leetcodeMatch[1].trim();
-        state.personal.leetcodeDisplay = cleanUrlDisplay(leetcodeMatch[1]);
+        state.personal.leetcodeDisplay = getSiteDisplayName(leetcodeMatch[1], '', 'LeetCode');
       }
 
       // 3. Segment by \section{...}
@@ -412,13 +412,13 @@
     const linkedinMatch = rawText.match(linkedinRegex);
     if (linkedinMatch) {
       personal.linkedin = `https://linkedin.com/in/${linkedinMatch[1]}`;
-      personal.linkedinDisplay = `linkedin.com/in/${linkedinMatch[1]}`;
+      personal.linkedinDisplay = 'LinkedIn';
     } else if (linkUrls.length > 0) {
       const lnk = linkUrls.find(u => linkedinRegex.test(u));
       if (lnk) {
         const m = lnk.match(linkedinRegex);
         personal.linkedin = `https://linkedin.com/in/${m[1]}`;
-        personal.linkedinDisplay = `linkedin.com/in/${m[1]}`;
+        personal.linkedinDisplay = 'LinkedIn';
       }
     }
 
@@ -427,7 +427,7 @@
     const githubMatch = rawText.match(githubRegex);
     if (githubMatch && !['sponsors', 'features', 'topics', 'trending'].includes(githubMatch[1].toLowerCase())) {
       personal.github = `https://github.com/${githubMatch[1]}`;
-      personal.githubDisplay = `github.com/${githubMatch[1]}`;
+      personal.githubDisplay = 'GitHub';
     } else if (linkUrls.length > 0) {
       const gh = linkUrls.find(u => {
         const m = u.match(githubRegex);
@@ -436,7 +436,7 @@
       if (gh) {
         const m = gh.match(githubRegex);
         personal.github = `https://github.com/${m[1]}`;
-        personal.githubDisplay = `github.com/${m[1]}`;
+        personal.githubDisplay = 'GitHub';
       }
     }
 
@@ -446,14 +446,14 @@
     if (leetcodeMatch) {
       const url = leetcodeMatch[0].startsWith('http') ? leetcodeMatch[0] : `https://${leetcodeMatch[0]}`;
       personal.leetcode = url;
-      personal.leetcodeDisplay = cleanUrlDisplay(url);
+      personal.leetcodeDisplay = getSiteDisplayName(url, '', 'LeetCode');
     } else if (linkUrls.length > 0) {
       const lc = linkUrls.find(u => leetcodeRegex.test(u));
       if (lc) {
         const m = lc.match(leetcodeRegex);
         const url = m[0].startsWith('http') ? m[0] : `https://${m[0]}`;
         personal.leetcode = url;
-        personal.leetcodeDisplay = cleanUrlDisplay(url);
+        personal.leetcodeDisplay = getSiteDisplayName(url, '', 'LeetCode');
       }
     }
 
@@ -464,7 +464,7 @@
       const found = urlMatch[0];
       if (!found.includes('@') && !found.includes('pdf') && !found.includes('coursera') && !found.includes('aws') && !found.includes('drive.google.com')) {
         personal.portfolio = found;
-        personal.portfolioDisplay = cleanUrlDisplay(found);
+        personal.portfolioDisplay = 'Portfolio';
         break;
       }
     }
@@ -483,7 +483,7 @@
       });
       if (portLink) {
         personal.portfolio = portLink;
-        personal.portfolioDisplay = cleanUrlDisplay(portLink);
+        personal.portfolioDisplay = 'Portfolio';
       }
     }
 
@@ -707,7 +707,7 @@
         let company = '';
         let location = '';
 
-        const splitParts = titleLine.split(/\s+[—–|-]+\s+/).map(p => p.trim()).filter(Boolean);
+        const splitParts = titleLine.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
         if (splitParts.length >= 2) {
           company = splitParts[0];
           role = splitParts[1];
@@ -934,8 +934,13 @@
     let linkIdx = 0;
 
     lines.forEach(line => {
-      const clean = line.replace(/^[•\-*+\s]+/, '').trim();
+      let clean = line.replace(/^[•\-*+\s]+/, '').trim();
       if (!clean || clean.length < 4) return;
+
+      // Clean trailing link annotations like "Certificate", "[Certificate]", "Verify", etc.
+      clean = clean.replace(/\s*(?:\[|\()?cert(?:ificate)?s?(?:\]|\))?$/i, '').trim();
+      clean = clean.replace(/\s*(?:\[|\()?verify(?: certificate)?(?:\]|\))?$/i, '').trim();
+      clean = clean.replace(/\s*(?:\[|\()?(?:view|link|credential)(?:\]|\))?$/i, '').trim();
 
       let name = clean;
       let issuer = '';
@@ -945,13 +950,21 @@
       const dateMatch = clean.match(dateRegex);
       if (dateMatch) {
         date = dateMatch[0].trim();
-        name = name.replace(dateMatch[0], '');
+        name = name.replace(dateMatch[0], '').trim();
       }
 
-      if (name.includes(' - ') || name.includes(' -- ') || name.includes(' | ')) {
-        const parts = name.split(/\s+[-|–]+\s+/).map(p => p.trim());
-        name = parts[0];
-        issuer = parts.slice(1).join(' - ');
+      // Check for any dash or separator: en-dash, em-dash, hyphen, pipe, or colon
+      if (name.includes(' – ') || name.includes(' — ') || name.includes(' - ') || name.includes(' -- ') || name.includes(' | ')) {
+        const parts = name.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
+        if (parts.length > 1) {
+          name = parts[0];
+          issuer = parts.slice(1).join(' - ');
+        }
+      }
+
+      name = name.replace(/\s*(?:\[|\()?cert(?:ificate)?s?(?:\]|\))?$/i, '').trim();
+      if (issuer) {
+        issuer = issuer.replace(/\s*(?:\[|\()?cert(?:ificate)?s?(?:\]|\))?$/i, '').trim();
       }
 
       if (linkIdx < certLinks.length) {
@@ -959,8 +972,8 @@
       }
 
       certs.push({
-        name: name.replace(/[|,\-–\s]+$/, '').trim(),
-        issuer: issuer || '',
+        name: name.replace(/[|,\-–—\s]+$/, '').trim(),
+        issuer: issuer.replace(/[|,\-–—\s]+$/, '').trim(),
         date: date || '',
         credentialId: '',
         url: url
@@ -990,7 +1003,7 @@
         title = parts[0].trim();
         description = parts.slice(1).join(':').trim();
       } else if (clean.includes(' — ') || clean.includes(' – ') || clean.includes(' - ')) {
-        const parts = clean.split(/\s+[—–-]+\s+/);
+        const parts = clean.split(/\s+[—–\-]+\s+/);
         title = parts[0].trim();
         description = parts.slice(1).join(' — ').trim();
       }
@@ -1176,6 +1189,57 @@
 
   function parseLatexCertifications(latex) {
     const list = [];
+
+    // 1. Check for bullet list format: \resumeItem{\textbf{Prefix} -- Rest \hfill \href{url}{\color{blue}Certificate}}
+    const resumeItemRegex = /\\resumeItem\{([\s\S]*?)\}(?=\s*\\resumeItem|\s*\\resumeItemListEnd|$)/gi;
+    let bMatch;
+    while ((bMatch = resumeItemRegex.exec(latex)) !== null) {
+      const itemBody = bMatch[1].trim();
+      let name = '';
+      let issuer = '';
+      let date = '';
+      let url = '';
+
+      const hrefMatch = itemBody.match(/\\href\{([^}]+)\}\{([^}]+)\}/i);
+      if (hrefMatch) {
+        url = hrefMatch[1].trim();
+      }
+
+      const dateMatch = itemBody.match(/\\textit\{([^}]+)\}/i);
+      if (dateMatch) {
+        date = cleanLatexText(dateMatch[1]);
+      }
+
+      let mainText = itemBody
+        .replace(/\\hfill[\s\S]*$/, '')
+        .replace(/\\href\{[^}]+\}\{[^}]+\}/g, '')
+        .trim();
+
+      const boldMatch = mainText.match(/\\textbf\{([^}]+)\}/i);
+      if (boldMatch) {
+        name = cleanLatexText(boldMatch[1]);
+        const afterBold = mainText.replace(boldMatch[0], '').replace(/^[\s\-–—:]+/, '').trim();
+        if (afterBold) {
+          issuer = cleanLatexText(afterBold);
+        }
+      } else {
+        name = cleanLatexText(mainText);
+      }
+
+      if (name) {
+        list.push({
+          name: name.trim(),
+          issuer: issuer.trim(),
+          date: date.trim(),
+          credentialId: '',
+          url: url
+        });
+      }
+    }
+
+    if (list.length > 0) return list;
+
+    // Fallback: older \textbf{...} -- ... \hfill \textit{...}
     const certRegex = /\\textbf\{([^}]+)\}(?:\s*--\s*([^\\}]+))?(?:\s*\\hfill\s*\\textit\{([^}]+)\})?/gi;
     let match;
     while ((match = certRegex.exec(latex)) !== null) {
@@ -1250,6 +1314,29 @@
     return url.replace(/^https?:\/\/(?:www\.)?/i, '').replace(/\/$/, '');
   }
 
+  function getSiteDisplayName(url, customDisplay, defaultSiteName = '') {
+    if (customDisplay && typeof customDisplay === 'string') {
+      const trimmed = customDisplay.trim();
+      if (trimmed && !trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.includes('/') && !trimmed.includes('.com') && !trimmed.includes('.org') && !trimmed.includes('.io') && !trimmed.includes('.dev') && !trimmed.includes('.net')) {
+        return trimmed;
+      }
+    }
+    if (!url) return defaultSiteName || 'Link';
+    const lower = url.toLowerCase();
+    if (lower.includes('linkedin.com')) return 'LinkedIn';
+    if (lower.includes('github.com')) return 'GitHub';
+    if (lower.includes('leetcode.com')) return 'LeetCode';
+    if (lower.includes('codeforces.com')) return 'Codeforces';
+    if (lower.includes('kaggle.com')) return 'Kaggle';
+    if (lower.includes('codechef.com')) return 'CodeChef';
+    if (lower.includes('hackerrank.com')) return 'HackerRank';
+    if (lower.includes('geeksforgeeks.org')) return 'GeeksforGeeks';
+    if (lower.includes('gitlab.com')) return 'GitLab';
+    if (lower.includes('bitbucket.org')) return 'Bitbucket';
+    if (defaultSiteName) return defaultSiteName;
+    return 'Portfolio';
+  }
+
   function createEmptyState() {
     return {
       personal: {
@@ -1275,6 +1362,9 @@
       sectionOrder: ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements']
     };
   }
+
+  ResumeParser.cleanUrlDisplay = cleanUrlDisplay;
+  ResumeParser.getSiteDisplayName = getSiteDisplayName;
 
   return ResumeParser;
 }));

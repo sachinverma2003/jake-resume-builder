@@ -161,6 +161,22 @@ if (document.readyState === 'loading') {
  * Populate all form inputs based on current resumeState
  */
 function populateFormFromState() {
+  // Ensure displays default to clean site names if empty or if containing URLs/slashes
+  if (resumeState.personal.linkedin && (!resumeState.personal.linkedinDisplay || resumeState.personal.linkedinDisplay.includes('/'))) {
+    resumeState.personal.linkedinDisplay = 'LinkedIn';
+  }
+  if (resumeState.personal.github && (!resumeState.personal.githubDisplay || resumeState.personal.githubDisplay.includes('/'))) {
+    resumeState.personal.githubDisplay = 'GitHub';
+  }
+  if (resumeState.personal.leetcode && (!resumeState.personal.leetcodeDisplay || resumeState.personal.leetcodeDisplay.includes('/'))) {
+    resumeState.personal.leetcodeDisplay = typeof getSiteDisplayName === 'function' 
+      ? getSiteDisplayName(resumeState.personal.leetcode, '', 'LeetCode') 
+      : 'LeetCode';
+  }
+  if (resumeState.personal.portfolio && (!resumeState.personal.portfolioDisplay || resumeState.personal.portfolioDisplay.includes('/'))) {
+    resumeState.personal.portfolioDisplay = 'Portfolio';
+  }
+
   // Personal Info
   document.getElementById('inp-name').value = resumeState.personal.fullName || '';
   document.getElementById('inp-phone').value = resumeState.personal.phone || '';
@@ -172,6 +188,8 @@ function populateFormFromState() {
   document.getElementById('inp-leetcode').value = resumeState.personal.leetcode || '';
   document.getElementById('inp-leetcode-display').value = resumeState.personal.leetcodeDisplay || '';
   document.getElementById('inp-portfolio').value = resumeState.personal.portfolio || '';
+  const portDisp = document.getElementById('inp-portfolio-display');
+  if (portDisp) portDisp.value = resumeState.personal.portfolioDisplay || '';
 
   // Update Test Link buttons
   updateTestLink('test-linkedin', resumeState.personal.linkedin);
@@ -297,7 +315,8 @@ function setupEventListeners() {
     { id: 'inp-github-display', key: 'githubDisplay' },
     { id: 'inp-leetcode', key: 'leetcode' },
     { id: 'inp-leetcode-display', key: 'leetcodeDisplay' },
-    { id: 'inp-portfolio', key: 'portfolio' }
+    { id: 'inp-portfolio', key: 'portfolio' },
+    { id: 'inp-portfolio-display', key: 'portfolioDisplay' }
   ];
 
   personalInputs.forEach(({ id, key, testId }) => {
@@ -484,19 +503,19 @@ function renderVisualResume() {
     contactsHtml.push(`<a href="mailto:${personal.email.trim()}">${escapeHtml(personal.email.trim())}</a>`);
   }
   if (personal.linkedin) {
-    const disp = personal.linkedinDisplay || cleanUrlDisplay(personal.linkedin);
+    const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.linkedin, personal.linkedinDisplay, 'LinkedIn') : (personal.linkedinDisplay || 'LinkedIn');
     contactsHtml.push(`<a href="${normalizeUrl(personal.linkedin)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
   }
   if (personal.github) {
-    const disp = personal.githubDisplay || cleanUrlDisplay(personal.github);
+    const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.github, personal.githubDisplay, 'GitHub') : (personal.githubDisplay || 'GitHub');
     contactsHtml.push(`<a href="${normalizeUrl(personal.github)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
   }
   if (personal.leetcode) {
-    const disp = personal.leetcodeDisplay || cleanUrlDisplay(personal.leetcode);
+    const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.leetcode, personal.leetcodeDisplay, 'LeetCode') : (personal.leetcodeDisplay || 'LeetCode');
     contactsHtml.push(`<a href="${normalizeUrl(personal.leetcode)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
   }
   if (personal.portfolio) {
-    const disp = personal.portfolioDisplay || cleanUrlDisplay(personal.portfolio);
+    const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.portfolio, personal.portfolioDisplay, 'Portfolio') : (personal.portfolioDisplay || 'Portfolio');
     contactsHtml.push(`<a href="${normalizeUrl(personal.portfolio)}" target="_blank" rel="noopener noreferrer">${escapeHtml(disp)}</a>`);
   }
 
@@ -659,26 +678,57 @@ function renderSkillsVisual(skills) {
   return html;
 }
 
-// 5. Certifications Visual
+// 5. Certifications Visual (Single-line bullet list matching standard format & Image 3)
 function renderCertificationsVisual(certifications, showCertifications = true) {
   if (!showCertifications || !certifications || certifications.length === 0) return '';
   let html = `
     <section class="res-section">
       <div class="res-section-title">Certifications</div>
-      <ul class="res-skills-list">
+      <ul class="res-bullets" style="padding-left: 1.15rem; margin-top: 3px; margin-bottom: 2px;">
   `;
   certifications.forEach(cert => {
-    let certInfo = `<strong>${escapeHtml(cert.name)}</strong>`;
-    if (cert.issuer) certInfo += ` &mdash; ${escapeHtml(cert.issuer)}`;
-    if (cert.date) certInfo += ` <span style="float: right; font-style: italic;">${escapeHtml(cert.date)}</span>`;
+    let name = (typeof cleanCertTitle === 'function' ? cleanCertTitle(cert.name) : (cert.name || '')).trim();
+    let issuer = (typeof cleanCertTitle === 'function' ? cleanCertTitle(cert.issuer) : (cert.issuer || '')).trim();
 
-    if (cert.url) {
-      const linkText = cert.credentialId 
-        ? `Credential ID: ${escapeHtml(cert.credentialId)} [Verify]` 
-        : `Verify Certificate`;
-      certInfo += `<div style="font-size: 9pt; margin-left: 10pt; margin-top: 1pt;"><a href="${normalizeUrl(cert.url)}" target="_blank" rel="noopener noreferrer">${linkText}</a></div>`;
+    let boldPrefix = '';
+    let restText = '';
+
+    if (name && issuer) {
+      boldPrefix = name;
+      restText = issuer;
+    } else if (name) {
+      if (name.includes(' – ') || name.includes(' — ') || name.includes(' - ') || name.includes(' -- ')) {
+        const parts = name.split(/\s+[—–\-]+\s+/);
+        boldPrefix = parts[0];
+        restText = parts.slice(1).join(' &ndash; ');
+      } else {
+        boldPrefix = name;
+        restText = '';
+      }
+    } else if (issuer) {
+      boldPrefix = issuer;
+      restText = '';
     }
-    html += `<li>${certInfo}</li>`;
+
+    let titleHtml = `<strong>${escapeHtml(boldPrefix)}</strong>`;
+    if (restText) {
+      titleHtml += ` &ndash; ${escapeHtml(restText)}`;
+    }
+
+    let rightParts = [];
+    if (cert.date) {
+      rightParts.push(`<span style="font-style: italic; color: #4b5563;">${escapeHtml(cert.date)}</span>`);
+    }
+    if (cert.url) {
+      rightParts.push(`<a href="${normalizeUrl(cert.url)}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 500;">Certificate</a>`);
+    }
+
+    html += `
+      <li style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+        <div>${titleHtml}</div>
+        ${rightParts.length > 0 ? `<div style="text-align: right; white-space: nowrap; margin-left: 14px;">${rightParts.join('&nbsp;&nbsp;')}</div>` : ''}
+      </li>
+    `;
   });
   html += `</ul></section>`;
   return html;

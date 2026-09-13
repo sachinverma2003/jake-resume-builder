@@ -59,6 +59,41 @@ function cleanUrlDisplay(url) {
     .replace(/\/$/, '');
 }
 
+// Clean site name for link display (e.g. LinkedIn, GitHub, LeetCode, Portfolio)
+function getSiteDisplayName(url, customDisplay, defaultSiteName = '') {
+  if (customDisplay && typeof customDisplay === 'string') {
+    const trimmed = customDisplay.trim();
+    if (trimmed && !trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.includes('/') && !trimmed.includes('.com') && !trimmed.includes('.org') && !trimmed.includes('.io') && !trimmed.includes('.dev') && !trimmed.includes('.net')) {
+      return trimmed;
+    }
+  }
+  if (!url) return defaultSiteName || 'Link';
+  const lower = url.toLowerCase();
+  if (lower.includes('linkedin.com')) return 'LinkedIn';
+  if (lower.includes('github.com')) return 'GitHub';
+  if (lower.includes('leetcode.com')) return 'LeetCode';
+  if (lower.includes('codeforces.com')) return 'Codeforces';
+  if (lower.includes('kaggle.com')) return 'Kaggle';
+  if (lower.includes('codechef.com')) return 'CodeChef';
+  if (lower.includes('hackerrank.com')) return 'HackerRank';
+  if (lower.includes('geeksforgeeks.org')) return 'GeeksforGeeks';
+  if (lower.includes('gitlab.com')) return 'GitLab';
+  if (lower.includes('bitbucket.org')) return 'Bitbucket';
+  if (defaultSiteName) return defaultSiteName;
+  return 'Portfolio';
+}
+
+// Helper to clean trailing certification annotations
+function cleanCertTitle(text) {
+  if (!text) return '';
+  return text.trim()
+    .replace(/\s*(?:\[|\()?cert(?:ificate)?s?(?:\]|\))?$/i, '')
+    .replace(/\s*(?:\[|\()?verify(?: certificate)?(?:\]|\))?$/i, '')
+    .replace(/\s*(?:\[|\()?(?:view|link|credential)(?:\]|\))?$/i, '')
+    .replace(/[|,\-–—\s]+$/, '')
+    .trim();
+}
+
 /**
  * Creates safe LaTeX \href link
  * - Ensures url has protocol
@@ -191,28 +226,58 @@ function generateSkillsLatex(skills) {
   return latex;
 }
 
-// 5. Certifications Section LaTeX
+// 5. Certifications Section LaTeX (Single-line bullet list matching standard format)
 function generateCertificationsLatex(certifications, showCertifications = true) {
   if (!showCertifications || !certifications || certifications.length === 0) return '';
-  let latex = `\n%-----------CERTIFICATIONS-----------\n\\section{Certifications}\n \\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n`;
-  const certRows = [];
+  let latex = `\n%-----------CERTIFICATIONS-----------\n\\section{Certifications}\n \\resumeItemListStart\n`;
+  
   certifications.forEach(cert => {
-    let row = `     \\textbf{${escapeLatex(cert.name)}}`;
-    if (cert.issuer) {
-      row += ` -- ${escapeLatex(cert.issuer)}`;
+    let name = cleanCertTitle(cert.name || '');
+    let issuer = cleanCertTitle(cert.issuer || '');
+
+    let boldPrefix = '';
+    let restText = '';
+
+    if (name && issuer) {
+      boldPrefix = name;
+      restText = issuer;
+    } else if (name) {
+      if (name.includes(' – ') || name.includes(' — ') || name.includes(' - ') || name.includes(' -- ')) {
+        const parts = name.split(/\s+[—–\-]+\s+/);
+        boldPrefix = parts[0];
+        restText = parts.slice(1).join(' -- ');
+      } else {
+        boldPrefix = name;
+        restText = '';
+      }
+    } else if (issuer) {
+      boldPrefix = issuer;
+      restText = '';
     }
+
+    let line = `\\textbf{${escapeLatex(boldPrefix)}}`;
+    if (restText) {
+      line += ` -- ${escapeLatex(restText)}`;
+    }
+
+    let rightParts = [];
     if (cert.date) {
-      row += ` \\hfill \\textit{${escapeLatex(cert.date)}}`;
+      rightParts.push(`\\textit{${escapeLatex(cert.date)}}`);
     }
     if (cert.url) {
-      const linkText = cert.credentialId 
-        ? `Credential ID: ${escapeLatex(cert.credentialId)} [Verify]` 
-        : 'Verify Certificate';
-      row += ` \\\\ \\hspace{10pt} \\footnotesize{${createLatexHref(cert.url, linkText)}}`;
+      const fullUrl = normalizeUrl(cert.url);
+      const safeUrl = fullUrl.replace(/#/g, () => '\\#').replace(/%/g, () => '\\%');
+      rightParts.push(`\\href{${safeUrl}}{\\color{blue}Certificate}`);
     }
-    certRows.push(row);
+
+    if (rightParts.length > 0) {
+      line += ` \\hfill ${rightParts.join(' \\quad ')}`;
+    }
+
+    latex += `    \\resumeItem{${line}}\n`;
   });
-  latex += certRows.join(' \\\\\n') + `\n    }}\n \\end{itemize}\n`;
+
+  latex += ` \\resumeItemListEnd\n`;
   return latex;
 }
 
@@ -257,16 +322,20 @@ function generateLatexCode(resumeData, options = {}) {
     headerLinks.push(`\\href{mailto:${personal.email.trim()}}{\\underline{${escapeLatex(personal.email.trim())}}}`);
   }
   if (personal.linkedin) {
-    headerLinks.push(createLatexHref(personal.linkedin, personal.linkedinDisplay || cleanUrlDisplay(personal.linkedin)));
+    const disp = getSiteDisplayName(personal.linkedin, personal.linkedinDisplay, 'LinkedIn');
+    headerLinks.push(createLatexHref(personal.linkedin, disp));
   }
   if (personal.github) {
-    headerLinks.push(createLatexHref(personal.github, personal.githubDisplay || cleanUrlDisplay(personal.github)));
+    const disp = getSiteDisplayName(personal.github, personal.githubDisplay, 'GitHub');
+    headerLinks.push(createLatexHref(personal.github, disp));
   }
   if (personal.leetcode) {
-    headerLinks.push(createLatexHref(personal.leetcode, personal.leetcodeDisplay || cleanUrlDisplay(personal.leetcode)));
+    const disp = getSiteDisplayName(personal.leetcode, personal.leetcodeDisplay, 'LeetCode');
+    headerLinks.push(createLatexHref(personal.leetcode, disp));
   }
   if (personal.portfolio) {
-    headerLinks.push(createLatexHref(personal.portfolio, personal.portfolioDisplay || cleanUrlDisplay(personal.portfolio)));
+    const disp = getSiteDisplayName(personal.portfolio, personal.portfolioDisplay, 'Portfolio');
+    headerLinks.push(createLatexHref(personal.portfolio, disp));
   }
 
   const headerLine = headerLinks.join(' $|$ \n    ');
@@ -428,9 +497,9 @@ const BTECH_PRESETS = {
       phone: '123-456-7890',
       email: 'jake@su.edu',
       linkedin: 'https://linkedin.com/in/jake',
-      linkedinDisplay: 'linkedin.com/in/jake',
+      linkedinDisplay: 'LinkedIn',
       github: 'https://github.com/jake',
-      githubDisplay: 'github.com/jake',
+      githubDisplay: 'GitHub',
       leetcode: '',
       leetcodeDisplay: '',
       portfolio: '',
@@ -545,13 +614,13 @@ const BTECH_PRESETS = {
       phone: '+91 98765 43210',
       email: 'aarav.sharma@gmail.com',
       linkedin: 'https://linkedin.com/in/aarav-sharma-dev',
-      linkedinDisplay: 'linkedin.com/in/aarav-sharma-dev',
+      linkedinDisplay: 'LinkedIn',
       github: 'https://github.com/aaravsharma',
-      githubDisplay: 'github.com/aaravsharma',
+      githubDisplay: 'GitHub',
       leetcode: 'https://leetcode.com/u/aarav_codes',
-      leetcodeDisplay: 'leetcode.com/u/aarav_codes',
+      leetcodeDisplay: 'LeetCode',
       portfolio: 'https://aaravsharma.dev',
-      portfolioDisplay: 'aaravsharma.dev'
+      portfolioDisplay: 'Portfolio'
     },
     education: [
       {
@@ -654,13 +723,13 @@ const BTECH_PRESETS = {
       phone: '+91 91234 56789',
       email: 'priya.iyer@gmail.com',
       linkedin: 'https://linkedin.com/in/priya-iyer-ai',
-      linkedinDisplay: 'linkedin.com/in/priya-iyer-ai',
+      linkedinDisplay: 'LinkedIn',
       github: 'https://github.com/priyaiyer-ai',
-      githubDisplay: 'github.com/priyaiyer-ai',
+      githubDisplay: 'GitHub',
       leetcode: 'https://kaggle.com/priyaiyer',
-      leetcodeDisplay: 'kaggle.com/priyaiyer',
+      leetcodeDisplay: 'Kaggle',
       portfolio: 'https://priyaiyer.github.io',
-      portfolioDisplay: 'priyaiyer.github.io'
+      portfolioDisplay: 'Portfolio'
     },
     education: [
       {
@@ -751,11 +820,11 @@ const BTECH_PRESETS = {
       phone: '+91 98111 22334',
       email: 'rohan.verma.cse@gmail.com',
       linkedin: 'https://linkedin.com/in/rohanverma-dev',
-      linkedinDisplay: 'linkedin.com/in/rohanverma-dev',
+      linkedinDisplay: 'LinkedIn',
       github: 'https://github.com/rohan-verma',
-      githubDisplay: 'github.com/rohan-verma',
+      githubDisplay: 'GitHub',
       leetcode: 'https://leetcode.com/u/rohan_v',
-      leetcodeDisplay: 'leetcode.com/u/rohan_v',
+      leetcodeDisplay: 'LeetCode',
       portfolio: '',
       portfolioDisplay: ''
     },
@@ -862,6 +931,8 @@ if (typeof window !== 'undefined') {
   window.formatBulletLatex = formatBulletLatex;
   window.normalizeUrl = normalizeUrl;
   window.cleanUrlDisplay = cleanUrlDisplay;
+  window.getSiteDisplayName = getSiteDisplayName;
+  window.cleanCertTitle = cleanCertTitle;
   window.createLatexHref = createLatexHref;
   window.normalizeSkills = normalizeSkills;
   window.generateIntroductionLatex = generateIntroductionLatex;
@@ -875,6 +946,8 @@ if (typeof module !== 'undefined' && module.exports) {
     formatBulletLatex,
     normalizeUrl,
     cleanUrlDisplay,
+    getSiteDisplayName,
+    cleanCertTitle,
     createLatexHref,
     normalizeSkills,
     generateIntroductionLatex,
