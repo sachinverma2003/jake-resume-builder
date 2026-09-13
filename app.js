@@ -257,6 +257,38 @@ function setupEventListeners() {
   document.getElementById('btn-download-tex').addEventListener('click', downloadTexFile);
   document.getElementById('btn-open-overleaf').addEventListener('click', openInOverleaf);
   document.getElementById('btn-print-pdf').addEventListener('click', exportCleanPdf);
+
+  // Resume Dropzone Drag & Drop
+  const dropzone = document.getElementById('dropzone');
+  if (dropzone) {
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      });
+    });
+    dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        processResumeFile(files[0]);
+      }
+    });
+  }
+
+  // Keyboard Escape listener
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeUploadModal();
+    }
+  });
 }
 
 /**
@@ -1499,6 +1531,258 @@ function applyIntroTemplate(type) {
   showToast(type === 'clear' ? 'Cleared introduction text' : `Applied ${type.toUpperCase()} introduction template!`);
 }
 
+/* ==========================================================================
+   Resume Upload & Auto-Extraction Controller
+   ========================================================================== */
+
+let pendingExtractedData = null;
+
+function openUploadModal() {
+  const modal = document.getElementById('upload-modal');
+  if (!modal) return;
+  resetUploadModal();
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => {
+    modal.classList.add('open');
+  });
+}
+
+function closeUploadModal() {
+  const modal = document.getElementById('upload-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  setTimeout(() => {
+    modal.style.display = 'none';
+  }, 220);
+}
+
+function handleModalBackdropClick(e) {
+  if (e.target.id === 'upload-modal') {
+    closeUploadModal();
+  }
+}
+
+function switchUploadTab(tabKey) {
+  const btnFile = document.getElementById('tab-btn-file');
+  const btnPaste = document.getElementById('tab-btn-paste');
+  const contentFile = document.getElementById('tab-content-file');
+  const contentPaste = document.getElementById('tab-content-paste');
+
+  if (tabKey === 'file') {
+    btnFile?.classList.add('active');
+    btnPaste?.classList.remove('active');
+    contentFile?.classList.add('active');
+    contentPaste?.classList.remove('active');
+  } else {
+    btnPaste?.classList.add('active');
+    btnFile?.classList.remove('active');
+    contentPaste?.classList.add('active');
+    contentFile?.classList.remove('active');
+  }
+}
+
+function triggerFileInput() {
+  const fileInput = document.getElementById('resume-file-input');
+  if (fileInput) {
+    fileInput.value = '';
+    fileInput.click();
+  }
+}
+
+function setParseLoading(isLoading, message = 'Extracting and analyzing resume...') {
+  const progressContainer = document.getElementById('parse-progress-container');
+  const progressLabel = document.getElementById('parse-progress-label');
+  const tabsContainer = document.querySelector('.modal-tabs');
+  const contentFile = document.getElementById('tab-content-file');
+  const contentPaste = document.getElementById('tab-content-paste');
+  const resultsContainer = document.getElementById('parse-results-container');
+
+  if (isLoading) {
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressLabel) progressLabel.textContent = message;
+    if (tabsContainer) tabsContainer.style.display = 'none';
+    if (contentFile) contentFile.style.display = 'none';
+    if (contentPaste) contentPaste.style.display = 'none';
+    if (resultsContainer) resultsContainer.style.display = 'none';
+  } else {
+    if (progressContainer) progressContainer.style.display = 'none';
+  }
+}
+
+function resetUploadModal() {
+  pendingExtractedData = null;
+  const tabsContainer = document.querySelector('.modal-tabs');
+  const contentFile = document.getElementById('tab-content-file');
+  const contentPaste = document.getElementById('tab-content-paste');
+  const progressContainer = document.getElementById('parse-progress-container');
+  const resultsContainer = document.getElementById('parse-results-container');
+  const pasteTextarea = document.getElementById('paste-resume-textarea');
+  const fileInput = document.getElementById('resume-file-input');
+
+  if (tabsContainer) tabsContainer.style.display = 'flex';
+  if (contentFile) {
+    contentFile.style.display = '';
+    contentFile.classList.add('active');
+  }
+  if (contentPaste) {
+    contentPaste.style.display = '';
+    contentPaste.classList.remove('active');
+  }
+  if (progressContainer) progressContainer.style.display = 'none';
+  if (resultsContainer) resultsContainer.style.display = 'none';
+  if (pasteTextarea) pasteTextarea.value = '';
+  if (fileInput) fileInput.value = '';
+
+  const btnFile = document.getElementById('tab-btn-file');
+  const btnPaste = document.getElementById('tab-btn-paste');
+  btnFile?.classList.add('active');
+  btnPaste?.classList.remove('active');
+}
+
+async function handleFileSelected(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  await processResumeFile(file);
+}
+
+async function processResumeFile(file) {
+  const filename = file.name.toLowerCase();
+  setParseLoading(true, `Reading ${file.name}...`);
+
+  try {
+    let parsedResult = null;
+
+    if (filename.endsWith('.pdf')) {
+      if (typeof ResumeParser === 'undefined' || !ResumeParser.extractTextFromPdf) {
+        throw new Error('PDF extraction engine not loaded. Please ensure you are connected or refresh the page.');
+      }
+      setParseLoading(true, 'Extracting text and structure from PDF...');
+      const arrayBuffer = await file.arrayBuffer();
+      const extractedText = await ResumeParser.extractTextFromPdf(arrayBuffer, (percent) => {
+        setParseLoading(true, `Reading PDF pages (${percent}%)...`);
+      });
+      setParseLoading(true, 'Analyzing sections, contact info, and experiences...');
+      parsedResult = ResumeParser.parseText(extractedText);
+    } else if (filename.endsWith('.tex')) {
+      setParseLoading(true, 'Parsing LaTeX document...');
+      const texContent = await file.text();
+      parsedResult = ResumeParser.parseLatex(texContent);
+    } else {
+      setParseLoading(true, 'Parsing text document...');
+      const textContent = await file.text();
+      parsedResult = ResumeParser.parseText(textContent);
+    }
+
+    if (!parsedResult) {
+      throw new Error('Could not extract resume information from this file.');
+    }
+
+    showExtractionSummary(parsedResult);
+  } catch (err) {
+    console.error('Resume extraction error:', err);
+    setParseLoading(false);
+    resetUploadModal();
+    alert(`Could not extract resume: ${err.message || err}`);
+  }
+}
+
+function handlePasteExtraction() {
+  const textarea = document.getElementById('paste-resume-textarea');
+  const text = textarea?.value?.trim();
+  if (!text) {
+    alert('Please paste some resume text into the box first.');
+    return;
+  }
+
+  setParseLoading(true, 'Analyzing pasted resume text...');
+  try {
+    let parsedResult = null;
+    if (text.includes('\\documentclass') || text.includes('\\begin{document}')) {
+      parsedResult = ResumeParser.parseLatex(text);
+    } else {
+      parsedResult = ResumeParser.parseText(text);
+    }
+    showExtractionSummary(parsedResult);
+  } catch (err) {
+    console.error('Paste extraction error:', err);
+    setParseLoading(false);
+    resetUploadModal();
+    alert(`Failed to analyze resume text: ${err.message || err}`);
+  }
+}
+
+function showExtractionSummary(data) {
+  setParseLoading(false);
+  pendingExtractedData = data;
+
+  const resultsContainer = document.getElementById('parse-results-container');
+  const summaryName = document.getElementById('summary-name');
+  const summaryBadges = document.getElementById('summary-badges');
+
+  if (summaryName) {
+    summaryName.textContent = data.personal?.fullName || 'Extracted Candidate Profile';
+  }
+
+  if (summaryBadges) {
+    const badges = [
+      { count: data.education?.length || 0, label: 'Education' },
+      { count: data.experience?.length || 0, label: 'Experience' },
+      { count: data.projects?.length || 0, label: 'Projects' },
+      { count: data.skills?.length || 0, label: 'Skill Categories' },
+      { count: data.certifications?.length || 0, label: 'Certificates' },
+      { count: data.achievements?.length || 0, label: 'Honors' }
+    ];
+
+    if (data.introduction?.enabled && data.introduction?.text) {
+      badges.unshift({ count: '✓', label: 'Introduction' });
+    }
+
+    summaryBadges.innerHTML = badges.map(b => `
+      <div class="summary-badge-item">
+        <div class="summary-badge-count">${b.count}</div>
+        <div class="summary-badge-label">${b.label}</div>
+      </div>
+    `).join('');
+  }
+
+  if (resultsContainer) {
+    resultsContainer.style.display = 'block';
+  }
+}
+
+function applyExtractedResume(mergeMode = false) {
+  if (!pendingExtractedData) return;
+
+  const data = pendingExtractedData;
+
+  if (!data.personal) data.personal = {};
+  if (!Array.isArray(data.education)) data.education = [];
+  if (!Array.isArray(data.experience)) data.experience = [];
+  if (!Array.isArray(data.projects)) data.projects = [];
+  if (!Array.isArray(data.skills)) data.skills = [];
+  if (!Array.isArray(data.certifications)) data.certifications = [];
+  if (!Array.isArray(data.achievements)) data.achievements = [];
+  if (!data.introduction) data.introduction = { enabled: false, text: '' };
+  if (!data.sectionOrder) {
+    data.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+  }
+
+  if (typeof normalizeSkills === 'function') {
+    data.skills = normalizeSkills(data.skills);
+  }
+
+  // Update global application state
+  resumeState = JSON.parse(JSON.stringify(data));
+
+  // Populate form fields, re-order cards, and update visual preview & LaTeX code
+  populateFormFromState();
+  updatePreviews();
+
+  // Close modal and show confirmation toast
+  closeUploadModal();
+  showToast('✓ Resume imported and loaded into editor!');
+}
+
 // Explicit Global Window Bindings for Inline HTML Event Handlers
 window.initApp = initApp;
 window.scrollToSection = scrollToSection;
@@ -1540,4 +1824,14 @@ window.exportCleanPdf = exportCleanPdf;
 window.copyLatexCode = copyLatexCode;
 window.downloadTexFile = downloadTexFile;
 window.openInOverleaf = openInOverleaf;
+window.openUploadModal = openUploadModal;
+window.closeUploadModal = closeUploadModal;
+window.handleModalBackdropClick = handleModalBackdropClick;
+window.switchUploadTab = switchUploadTab;
+window.triggerFileInput = triggerFileInput;
+window.handleFileSelected = handleFileSelected;
+window.handlePasteExtraction = handlePasteExtraction;
+window.applyExtractedResume = applyExtractedResume;
+window.resetUploadModal = resetUploadModal;
+
 

@@ -8,7 +8,9 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=2.3">
+  <link rel="stylesheet" href="style.css?v=2.4">
+  <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
@@ -19,7 +21,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v2.3</span></h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v2.4</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -54,6 +56,10 @@
 
       <!-- Action Buttons -->
       <div class="action-buttons">
+        <button id="btn-upload-resume" class="btn btn-upload" onclick="openUploadModal()" title="Upload existing resume (PDF, .tex, or Text) to auto-fill">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          Upload Resume
+        </button>
         <button id="btn-copy-latex" class="btn btn-secondary" title="Copy clean LaTeX code">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
           Copy LaTeX
@@ -448,15 +454,93 @@
 
   </main>
 
+  <!-- Resume Upload & Auto-Extraction Modal -->
+  <div id="upload-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <span>Import &amp; Auto-Extract Resume</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeUploadModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-subtitle">
+          Upload your existing resume (PDF, LaTeX <code>.tex</code>, or text) to automatically extract your details and populate the Jake Gutierrez template. <em>(100% private, processed locally on your device).</em>
+        </p>
+
+        <!-- Tabs: Upload File vs Paste Text -->
+        <div class="modal-tabs">
+          <button type="button" id="tab-btn-file" class="modal-tab-btn active" onclick="switchUploadTab('file')">📁 Upload Document (PDF / .tex / .txt)</button>
+          <button type="button" id="tab-btn-paste" class="modal-tab-btn" onclick="switchUploadTab('paste')">📋 Paste Resume Text</button>
+        </div>
+
+        <!-- Tab 1: File Dropzone -->
+        <div id="tab-content-file" class="modal-tab-content active">
+          <div id="dropzone" class="dropzone-area" onclick="triggerFileInput()">
+            <input type="file" id="resume-file-input" accept=".pdf,.tex,.txt" style="display: none;" onchange="handleFileSelected(event)">
+            <div class="dropzone-icon">
+              <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            </div>
+            <div class="dropzone-text">
+              <strong>Click to browse or Drag &amp; Drop your resume file here</strong>
+              <span>Supports <strong>.PDF</strong>, LaTeX <strong>.TEX</strong>, or <strong>.TXT</strong> files</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Paste Text Area -->
+        <div id="tab-content-paste" class="modal-tab-content">
+          <textarea id="paste-resume-textarea" class="modal-textarea" rows="7" placeholder="Paste your entire resume text here (Ctrl+A &rarr; Ctrl+C from LinkedIn, Word, Canva, or Google Docs)..."></textarea>
+          <button type="button" class="btn btn-primary btn-full-width" style="margin-top: 0.65rem;" onclick="handlePasteExtraction()">
+            ⚡ Extract Details from Pasted Text
+          </button>
+        </div>
+
+        <!-- Parsing Progress Animation -->
+        <div id="parse-progress-container" style="display: none;">
+          <div class="parse-spinner-wrapper">
+            <div class="parse-spinner"></div>
+            <span id="parse-progress-label">Extracting text from document...</span>
+          </div>
+        </div>
+
+        <!-- Extraction Results Preview Review Box -->
+        <div id="parse-results-container" style="display: none;">
+          <div class="parse-summary-card">
+            <div class="summary-header">
+              <span class="summary-badge-success">✓ Extraction Complete</span>
+              <strong id="summary-name" class="summary-candidate-name">Candidate Name</strong>
+            </div>
+            <div id="summary-badges" class="summary-badges-grid">
+              <!-- Dynamic badges e.g. 🎓 2 Degrees, 💼 2 Work Exp, 🚀 3 Projects -->
+            </div>
+            <div class="summary-actions">
+              <button type="button" class="btn btn-emerald btn-lg" onclick="applyExtractedResume(false)">
+                ✓ Apply to Editor &amp; Generate Resume
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="resetUploadModal()">
+                Upload Another File
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-notice" class="toast-notice">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-emerald);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v2.3) -->
+  <!-- Scripts (Cache-Busted v2.4) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=2.3"></script>
-  <script src="app.js?v=2.3"></script>
+  <script src="template.js?v=2.4"></script>
+  <script src="parser.js?v=2.4"></script>
+  <script src="app.js?v=2.4"></script>
 </body>
 </html>
