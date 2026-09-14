@@ -3167,3 +3167,98 @@ mark.res-hl {
     gap: 0.35rem;
   }
 }
+
+/* ==========================================================================
+   FORGE STUDIO v3.5.1 — Compact Brand & Sidebar Resize + Drag Reorder
+   ========================================================================== */
+
+/* Compact Brand */
+.brand-icon-sm {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  font-size: 0.95rem;
+  border-radius: 7px;
+}
+.brand-text h1 {
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+.brand-wrapper {
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+/* Sidebar Resize Handle */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 100;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.sidebar-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 40px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.08);
+  transition: background 0.15s ease, height 0.15s ease;
+}
+.sidebar-resize-handle:hover::after,
+.sidebar-resize-handle.is-resizing::after {
+  background: #6366f1;
+  height: 60px;
+  box-shadow: 0 0 8px rgba(99,102,241,0.5);
+}
+.nav-sidebar {
+  position: relative; /* needed for absolute resize handle */
+}
+
+/* Sidebar Step Drag Handle */
+.step-drag-handle {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0 2px;
+  user-select: none;
+}
+.sidebar-step:hover .step-drag-handle {
+  opacity: 0.6;
+}
+.sidebar-step[draggable="true"]:hover .step-drag-handle {
+  opacity: 1;
+  color: #818cf8;
+}
+.sidebar-step.drag-over-top {
+  border-top: 2px solid #6366f1;
+  background: rgba(99,102,241,0.08);
+}
+.sidebar-step.drag-over-bottom {
+  border-bottom: 2px solid #6366f1;
+  background: rgba(99,102,241,0.08);
+}
+.sidebar-step.is-dragging {
+  opacity: 0.35;
+  background: rgba(99,102,241,0.06);
+}
+/* Body cursor during resize */
+body.sidebar-is-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.sidebar-is-resizing * {
+  cursor: col-resize !important;
+}

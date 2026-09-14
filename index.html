@@ -19,14 +19,13 @@
        ═══════════════════════════════════════════════════ -->
   <header class="header-bar">
 
-    <!-- Left: Brand -->
+    <!-- Left: Brand (compact) -->
     <div class="brand-wrapper">
-      <div class="brand-icon">
+      <div class="brand-icon brand-icon-sm">
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume <span class="version-tag">v3.5</span></h1>
-        <span>Forge Studio &bull; LaTeX ATS Engine</span>
+        <h1>Jake Resume <span class="version-tag">v3.5</span></h1>
       </div>
     </div>
 
@@ -137,37 +136,44 @@
           <span class="step-icon">👤</span>
           <span class="step-label">Personal</span>
         </button>
-        <button class="sidebar-step" id="step-intro" onclick="scrollToSection('sec-intro')" title="Introduction / Summary">
+        <button class="sidebar-step" id="step-intro" draggable="true" data-step-key="introduction" onclick="scrollToSection('sec-intro')" title="Drag to reorder • Click to jump">
+          <span class="step-drag-handle">⠿</span>
           <span class="step-status-dot"></span>
           <span class="step-icon">📝</span>
           <span class="step-label">Introduction</span>
         </button>
-        <button class="sidebar-step" id="step-education" onclick="scrollToSection('sec-education')" title="Education">
+        <button class="sidebar-step" id="step-education" draggable="true" data-step-key="education" onclick="scrollToSection('sec-education')" title="Drag to reorder • Click to jump">
+          <span class="step-drag-handle">⠿</span>
           <span class="step-status-dot"></span>
           <span class="step-icon">🎓</span>
           <span class="step-label">Education</span>
         </button>
-        <button class="sidebar-step" id="step-experience" onclick="scrollToSection('sec-experience')" title="Experience &amp; Internships">
+        <button class="sidebar-step" id="step-experience" draggable="true" data-step-key="experience" onclick="scrollToSection('sec-experience')" title="Drag to reorder • Click to jump">
+          <span class="step-drag-handle">⠿</span>
           <span class="step-status-dot"></span>
           <span class="step-icon">💼</span>
           <span class="step-label">Experience</span>
         </button>
-        <button class="sidebar-step" id="step-projects" onclick="scrollToSection('sec-projects')" title="Technical Projects">
+        <button class="sidebar-step" id="step-projects" draggable="true" data-step-key="projects" onclick="scrollToSection('sec-projects')" title="Drag to reorder • Click to jump">
+          <span class="step-drag-handle">⠿</span>
           <span class="step-status-dot"></span>
           <span class="step-icon">🚀</span>
           <span class="step-label">Projects</span>
         </button>
-        <button class="sidebar-step" id="step-skills" onclick="scrollToSection('sec-skills')" title="Technical Skills">
+        <button class="sidebar-step" id="step-skills" draggable="true" data-step-key="skills" onclick="scrollToSection('sec-skills')" title="Drag to reorder • Click to jump">
+          <span class="step-drag-handle">⠿</span>
           <span class="step-status-dot"></span>
           <span class="step-icon">⚡</span>
           <span class="step-label">Skills</span>
         </button>
-        <button class="sidebar-step" id="step-certs" onclick="scrollToSection('sec-certs')" title="Certifications">
+        <button class="sidebar-step" id="step-certs" draggable="true" data-step-key="certifications" onclick="scrollToSection('sec-certs')" title="Drag to reorder • Click to jump">
+          <span class="step-drag-handle">⠿</span>
           <span class="step-status-dot"></span>
           <span class="step-icon">📜</span>
           <span class="step-label">Certs</span>
         </button>
-        <button class="sidebar-step" id="step-honors" onclick="scrollToSection('sec-honors')" title="Honors &amp; Achievements">
+        <button class="sidebar-step" id="step-honors" draggable="true" data-step-key="achievements" onclick="scrollToSection('sec-honors')" title="Drag to reorder • Click to jump">
+          <span class="step-drag-handle">⠿</span>
           <span class="step-status-dot"></span>
           <span class="step-icon">🏆</span>
           <span class="step-label">Honors</span>
@@ -175,6 +181,9 @@
         <!-- Custom section steps injected by JS via updateSidebarSteps() -->
         <div id="sidebar-custom-steps"></div>
       </div>
+
+      <!-- Sidebar Resize Handle -->
+      <div class="sidebar-resize-handle" id="sidebar-resize-handle" title="Drag to resize sidebar"></div>
 
       <!-- Sidebar Bottom Zone -->
       <div class="sidebar-bottom">
@@ -581,8 +590,7 @@
             </div>
           </div>
 
-        </div> <!-- /reorderable-sections-container -->
-
+        <!-- Content inside form pane gets padding -->
         <div style="height: 60px;"></div>
       </aside>
 

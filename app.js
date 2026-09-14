@@ -4425,3 +4425,176 @@ const _origPreviews = window.updatePreviews;
 window.updatePreviews = function(s) { if(_origPreviews) _origPreviews(s); updateSidebarProgress(); };
 
 document.addEventListener('DOMContentLoaded', () => { setTimeout(updateSidebarProgress, 500); });
+
+/* ==========================================================================
+   FORGE STUDIO v3.5.1 — Sidebar Resize & Drag-to-Reorder
+   ========================================================================== */
+
+const SIDEBAR_WIDTH_KEY = 'forge-sidebar-width';
+const SIDEBAR_MIN_W = 140;
+const SIDEBAR_MAX_W = 320;
+
+function setupSidebarResizer() {
+  const handle = document.getElementById('sidebar-resize-handle');
+  const sidebar = document.getElementById('nav-sidebar');
+  if (!handle || !sidebar) return;
+
+  // Restore saved width
+  const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+  if (saved) {
+    const w = parseInt(saved, 10);
+    if (w >= SIDEBAR_MIN_W && w <= SIDEBAR_MAX_W) {
+      sidebar.style.width = w + 'px';
+      sidebar.style.minWidth = w + 'px';
+      document.documentElement.style.setProperty('--sidebar-width', w + 'px');
+    }
+  }
+
+  let isDragging = false;
+
+  handle.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    handle.classList.add('is-resizing');
+    document.body.classList.add('sidebar-is-resizing');
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const appShell = document.querySelector('.app-shell');
+    if (!appShell) return;
+    const rect = appShell.getBoundingClientRect();
+    let newW = e.clientX - rect.left;
+    newW = Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, newW));
+    sidebar.style.width = newW + 'px';
+    sidebar.style.minWidth = newW + 'px';
+    document.documentElement.style.setProperty('--sidebar-width', newW + 'px');
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    handle.classList.remove('is-resizing');
+    document.body.classList.remove('sidebar-is-resizing');
+    const w = parseInt(sidebar.style.width, 10);
+    if (!isNaN(w)) {
+      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, w); } catch(e) {}
+    }
+  });
+
+  // Double-click to reset
+  handle.addEventListener('dblclick', () => {
+    const defaultW = 220;
+    sidebar.style.width = defaultW + 'px';
+    sidebar.style.minWidth = defaultW + 'px';
+    document.documentElement.style.setProperty('--sidebar-width', defaultW + 'px');
+    try { localStorage.removeItem(SIDEBAR_WIDTH_KEY); } catch(e) {}
+    showToast('Sidebar reset to default width');
+  });
+}
+window.setupSidebarResizer = setupSidebarResizer;
+
+/* ── Sidebar Drag-to-Reorder Sections ── */
+function setupSidebarDragReorder() {
+  const steps = document.querySelectorAll('.sidebar-step[draggable="true"]');
+  let draggedKey = null;
+
+  steps.forEach((step) => {
+    const key = step.getAttribute('data-step-key');
+    if (!key) return;
+
+    step.addEventListener('dragstart', (e) => {
+      draggedKey = key;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', key);
+      step.classList.add('is-dragging');
+      // Small delay so browser renders ghost first
+      setTimeout(() => step.style.opacity = '0.35', 0);
+    });
+
+    step.addEventListener('dragend', () => {
+      step.classList.remove('is-dragging');
+      step.style.opacity = '';
+      draggedKey = null;
+      document.querySelectorAll('.sidebar-step').forEach(s => {
+        s.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+    });
+
+    step.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedKey || draggedKey === key) return;
+      const rect = step.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      step.classList.remove('drag-over-top', 'drag-over-bottom');
+      step.classList.add(e.clientY < midY ? 'drag-over-top' : 'drag-over-bottom');
+    });
+
+    step.addEventListener('dragleave', () => {
+      step.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+
+    step.addEventListener('drop', (e) => {
+      e.preventDefault();
+      step.classList.remove('drag-over-top', 'drag-over-bottom');
+      const fromKey = draggedKey || e.dataTransfer.getData('text/plain');
+      const toKey = key;
+      if (!fromKey || fromKey === toKey) return;
+
+      const order = resumeState.sectionOrder || ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+      const fromIdx = order.indexOf(fromKey);
+      let toIdx = order.indexOf(toKey);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      // Determine insert position (before or after toKey)
+      const rect = step.getBoundingClientRect();
+      const insertBefore = e.clientY < rect.top + rect.height / 2;
+      order.splice(fromIdx, 1);
+      toIdx = order.indexOf(toKey);
+      order.splice(insertBefore ? toIdx : toIdx + 1, 0, fromKey);
+      resumeState.sectionOrder = order;
+
+      // Clear order preset active state
+      document.querySelectorAll('.order-chip-btn').forEach(b => b.classList.remove('active'));
+
+      // Reorder form cards and update previews
+      reorderFormSectionCards();
+      updatePreviews();
+      scheduleAutoSave();
+
+      // Sync sidebar steps DOM order to match new section order
+      syncSidebarStepOrder(order);
+
+      showToast(`\u2713 Moved "${fromKey}" section`);
+    });
+  });
+}
+window.setupSidebarDragReorder = setupSidebarDragReorder;
+
+/* Reorder sidebar step buttons to match sectionOrder */
+function syncSidebarStepOrder(order) {
+  const stepsContainer = document.getElementById('sidebar-steps');
+  if (!stepsContainer) return;
+  // Personal is always first — skip it
+  const personalStep = document.getElementById('step-personal');
+
+  order.forEach((key) => {
+    const stepId = {
+      introduction: 'step-intro', education: 'step-education', experience: 'step-experience',
+      projects: 'step-projects', skills: 'step-skills', certifications: 'step-certs',
+      achievements: 'step-honors'
+    }[key];
+    if (!stepId) return;
+    const el = document.getElementById(stepId);
+    if (el) stepsContainer.appendChild(el); // moves to end in order
+  });
+}
+window.syncSidebarStepOrder = syncSidebarStepOrder;
+
+/* Initialize both on DOM ready */
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    setupSidebarResizer();
+    setupSidebarDragReorder();
+  }, 200);
+});
