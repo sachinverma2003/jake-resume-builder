@@ -4375,27 +4375,76 @@ function updateSidebarProgress() {
     const s = resumeState;
     let filled = 0;
     let total = 0;
-    total += 3;
+
+    // 1. Personal & Contact Info
+    total += 1;
     if (s.personal && s.personal.fullName && s.personal.fullName.trim()) filled++;
+    total += 1;
     if (s.personal && s.personal.email && s.personal.email.trim()) filled++;
+    total += 1;
     if (s.personal && s.personal.phone && s.personal.phone.trim()) filled++;
     total += 1;
-    const hasEdu = s.education && s.education.length > 0 && s.education[0].school && s.education[0].school.trim();
-    if (hasEdu) filled++;
-    total += 1;
-    const hasExp = s.experience && s.experience.length > 0 && s.experience[0].company && s.experience[0].company.trim();
-    if (hasExp) filled++;
-    total += 1;
-    const hasProj = s.projects && s.projects.length > 0 && s.projects[0].name && s.projects[0].name.trim();
-    if (hasProj) filled++;
-    total += 1;
-    const hasSkills = s.skills && s.skills.length > 0 && s.skills[0].category && s.skills[0].category.trim();
-    if (hasSkills) filled++;
-    total += 1;
     if ((s.personal && s.personal.github && s.personal.github.trim()) ||
-        (s.personal && s.personal.linkedin && s.personal.linkedin.trim())) filled++;
+        (s.personal && s.personal.linkedin && s.personal.linkedin.trim()) ||
+        (s.personal && s.personal.leetcode && s.personal.leetcode.trim()) ||
+        (s.personal && s.personal.portfolio && s.personal.portfolio.trim())) filled++;
 
-    const pct = Math.round((filled / total) * 100);
+    // 2. Education (Supports both .institution and .school)
+    total += 1;
+    const hasEdu = s.education && s.education.length > 0 && (
+      (s.education[0].institution && s.education[0].institution.trim()) ||
+      (s.education[0].school && s.education[0].school.trim())
+    );
+    if (hasEdu) filled++;
+
+    // 3. Experience (Supports both .company and .role)
+    total += 1;
+    const hasExp = s.experience && s.experience.length > 0 && (
+      (s.experience[0].company && s.experience[0].company.trim()) ||
+      (s.experience[0].role && s.experience[0].role.trim())
+    );
+    if (hasExp) filled++;
+
+    // 4. Projects (Supports both .title and .name)
+    total += 1;
+    const hasProj = s.projects && s.projects.length > 0 && (
+      (s.projects[0].title && s.projects[0].title.trim()) ||
+      (s.projects[0].name && s.projects[0].name.trim())
+    );
+    if (hasProj) filled++;
+
+    // 5. Technical Skills (Supports both .category and .items)
+    total += 1;
+    const hasSkills = s.skills && s.skills.length > 0 && (
+      (s.skills[0].category && s.skills[0].category.trim()) ||
+      (s.skills[0].items && s.skills[0].items.trim())
+    );
+    if (hasSkills) filled++;
+
+    // 6. Certifications
+    total += 1;
+    const hasCerts = s.certifications && s.certifications.length > 0 && (
+      (s.certifications[0].name && s.certifications[0].name.trim()) ||
+      (s.certifications[0].title && s.certifications[0].title.trim())
+    );
+    if (hasCerts) filled++;
+
+    // 7. Honors & Achievements
+    total += 1;
+    const hasHonors = s.achievements && s.achievements.length > 0 && (
+      (typeof s.achievements[0] === 'string' && s.achievements[0].trim()) ||
+      (s.achievements[0] && s.achievements[0].title && s.achievements[0].title.trim()) ||
+      (s.achievements[0] && s.achievements[0].name && s.achievements[0].name.trim())
+    );
+    if (hasHonors) filled++;
+
+    // 8. Introduction (Optional section - only counts toward total if enabled)
+    if (s.introduction && s.introduction.enabled) {
+      total += 1;
+      if (s.introduction.text && s.introduction.text.trim()) filled++;
+    }
+
+    const pct = total > 0 ? Math.round((filled / total) * 100) : 100;
     const pctEl = document.getElementById('sidebar-progress-pct');
     if (pctEl) pctEl.textContent = pct;
     const ringFill = document.getElementById('sidebar-ring-fill');
@@ -4405,21 +4454,25 @@ function updateSidebarProgress() {
       ringFill.style.strokeDashoffset = offset;
       ringFill.style.stroke = pct >= 80 ? '#10b981' : '#6366f1';
     }
+
+    const isIntroDone = !s.introduction || !s.introduction.enabled || !!(s.introduction.text && s.introduction.text.trim());
     const stepMap = {
       'step-personal':   !!(s.personal && s.personal.fullName && s.personal.fullName.trim()),
-      'step-intro':      !!(s.introduction && s.introduction.enabled && s.introduction.text && s.introduction.text.trim()),
+      'step-intro':      isIntroDone,
       'step-education':  !!hasEdu,
       'step-experience': !!hasExp,
       'step-projects':   !!hasProj,
       'step-skills':     !!hasSkills,
-      'step-certs':      !!(s.certifications && s.certifications.length > 0),
-      'step-honors':     !!(s.achievements && s.achievements.length > 0),
+      'step-certs':      !!hasCerts,
+      'step-honors':     !!hasHonors,
     };
     Object.entries(stepMap).forEach(([id, isDone]) => {
       const el = document.getElementById(id);
       if (el) el.classList.toggle('done', isDone);
     });
-  } catch(e) {}
+  } catch(e) {
+    console.error('Error updating sidebar progress:', e);
+  }
 }
 window.updateSidebarProgress = updateSidebarProgress;
 
