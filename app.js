@@ -271,6 +271,9 @@ function switchProfile(newProfileId) {
   if (!resumeState.sectionOrder) {
     resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
   }
+  if (!resumeState.customSections) {
+    resumeState.customSections = [];
+  }
   if (!resumeState.introduction) {
     resumeState.introduction = { enabled: false, text: '' };
   }
@@ -582,6 +585,9 @@ function setupEventListeners() {
       resumeState = JSON.parse(JSON.stringify(BTECH_PRESETS[selected]));
       if (!resumeState.sectionOrder) {
         resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+      }
+      if (!resumeState.customSections) {
+        resumeState.customSections = [];
       }
       if (!resumeState.introduction) {
         resumeState.introduction = { enabled: false, text: '' };
@@ -1707,6 +1713,7 @@ function formatBulletHtml(text) {
         if (spec.bg) styles.push(`background-color: #${spec.bg}`);
         if (spec.size === 'small' || spec.size === 'sm') classes.push('res-text-sm');
         else if (spec.size === 'large' || spec.size === 'lg') classes.push('res-text-lg');
+        else if (spec.size === 'huge') classes.push('res-text-huge');
         else if (spec.size === 'tiny' || spec.size === 'xs') classes.push('res-text-xs');
 
         const styleAttr = styles.length ? ` style="${styles.join('; ')}"` : '';
@@ -1954,26 +1961,44 @@ function smartApplyFormat(val, selStart, selEnd, formatType, customValue = null)
     }
   }
 
-  // 5. Fresh formatting
-  const textToWrap = selectedText || (formatType === 'highlight' ? 'highlighted text' : formatType === 'color' ? 'colored text' : formatType === 'bold' ? 'bold text' : 'text');
-  let replacement = '';
-  if (formatType === 'bold') replacement = `**${textToWrap}**`;
-  else if (formatType === 'italic') replacement = `*${textToWrap}*`;
-  else if (formatType === 'highlight') replacement = `==${textToWrap}==`;
-  else if (formatType === 'color') replacement = `[${textToWrap}]{${customValue || 'emerald'}}`;
-  else if (formatType === 'size') replacement = `[${textToWrap}]{size:${customValue || 'small'}}`;
+  // 5. Fresh formatting (Preserve leading/trailing whitespace outside formatting delimiters)
+  let lead = '';
+  let trail = '';
+  let coreText = selectedText;
+  if (selectedText) {
+    const leadMatch = selectedText.match(/^\s+/);
+    if (leadMatch) {
+      lead = leadMatch[0];
+      coreText = coreText.slice(lead.length);
+    }
+    const trailMatch = coreText.match(/\s+$/);
+    if (trailMatch) {
+      trail = trailMatch[0];
+      coreText = coreText.slice(0, -trail.length);
+    }
+  }
 
-  let innerStart = start;
-  let innerEnd = start + replacement.length;
+  const textToWrap = coreText || (formatType === 'highlight' ? 'highlighted text' : formatType === 'color' ? 'colored text' : formatType === 'bold' ? 'bold text' : 'text');
+  let formattedCore = '';
+  if (formatType === 'bold') formattedCore = `**${textToWrap}**`;
+  else if (formatType === 'italic') formattedCore = `*${textToWrap}*`;
+  else if (formatType === 'highlight') formattedCore = `==${textToWrap}==`;
+  else if (formatType === 'color') formattedCore = `[${textToWrap}]{${customValue || 'emerald'}}`;
+  else if (formatType === 'size') formattedCore = `[${textToWrap}]{size:${customValue || 'small'}}`;
+
+  const replacement = lead + formattedCore + trail;
+
+  let innerStart = start + lead.length;
+  let innerEnd = start + lead.length + formattedCore.length;
   if (!selectedText) {
     if (formatType === 'bold' || formatType === 'highlight') {
-      innerStart = start + 2;
+      innerStart = start + lead.length + 2;
       innerEnd = innerStart + textToWrap.length;
     } else if (formatType === 'italic') {
-      innerStart = start + 1;
+      innerStart = start + lead.length + 1;
       innerEnd = innerStart + textToWrap.length;
     } else if (formatType === 'color' || formatType === 'size') {
-      innerStart = start + 1;
+      innerStart = start + lead.length + 1;
       innerEnd = innerStart + textToWrap.length;
     }
   }
@@ -2481,6 +2506,119 @@ function attachBulletDragEvents(bulletEl, listKey, itemIdx, bulletIdx, renderFn)
         updatePreviews();
         scheduleAutoSave();
         showToast(`Reordered bullet point`);
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  });
+}
+
+function attachCustomItemDragEvents(el, customId, idx) {
+  const handle = el.querySelector('.item-drag-handle');
+  if (!handle) return;
+  handle.setAttribute('draggable', 'true');
+
+  handle.addEventListener('dragstart', (e) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'custom-item', customId, fromIdx: idx }));
+    e.dataTransfer.effectAllowed = 'move';
+    el.classList.add('is-dragging');
+  });
+
+  el.addEventListener('dragend', () => {
+    el.classList.remove('is-dragging');
+    document.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  });
+
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = el.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    el.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (e.clientY < midY) el.classList.add('drag-over-top');
+    else el.classList.add('drag-over-bottom');
+  });
+
+  el.addEventListener('dragleave', () => {
+    el.classList.remove('drag-over-top', 'drag-over-bottom');
+  });
+
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.remove('drag-over-top', 'drag-over-bottom');
+    try {
+      const raw = e.dataTransfer.getData('text/plain');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data.type === 'custom-item' && data.customId === customId && data.fromIdx !== idx) {
+        const sec = (resumeState.customSections || []).find(cs => cs.id === customId);
+        if (sec && sec.items) {
+          const [movedItem] = sec.items.splice(data.fromIdx, 1);
+          sec.items.splice(idx, 0, movedItem);
+          renderCustomSectionsList();
+          updatePreviews();
+          scheduleAutoSave();
+          showToast(`Reordered ${sec.title || 'entry'}`);
+        }
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  });
+}
+
+function attachCustomBulletDragEvents(bulletEl, customId, itemIdx, bulletIdx) {
+  const handle = bulletEl.querySelector('.bullet-drag-handle');
+  if (!handle) return;
+  handle.setAttribute('draggable', 'true');
+
+  handle.addEventListener('dragstart', (e) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'custom-bullet', customId, itemIdx, fromBulletIdx: bulletIdx }));
+    e.dataTransfer.effectAllowed = 'move';
+    bulletEl.classList.add('is-dragging');
+  });
+
+  bulletEl.addEventListener('dragend', () => {
+    bulletEl.classList.remove('is-dragging');
+    document.querySelectorAll('.bullet-item.drag-over-top, .bullet-item.drag-over-bottom').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bottom'));
+  });
+
+  bulletEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = bulletEl.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    bulletEl.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (e.clientY < midY) bulletEl.classList.add('drag-over-top');
+    else bulletEl.classList.add('drag-over-bottom');
+  });
+
+  bulletEl.addEventListener('dragleave', () => {
+    bulletEl.classList.remove('drag-over-top', 'drag-over-bottom');
+  });
+
+  bulletEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bulletEl.classList.remove('drag-over-top', 'drag-over-bottom');
+    try {
+      const raw = e.dataTransfer.getData('text/plain');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data.type === 'custom-bullet' && data.customId === customId && data.itemIdx === itemIdx && data.fromBulletIdx !== bulletIdx) {
+        const sec = (resumeState.customSections || []).find(cs => cs.id === customId);
+        if (sec && sec.items && sec.items[itemIdx] && sec.items[itemIdx].bullets) {
+          const bullets = sec.items[itemIdx].bullets;
+          const [movedBullet] = bullets.splice(data.fromBulletIdx, 1);
+          bullets.splice(bulletIdx, 0, movedBullet);
+          renderCustomSectionsList();
+          updatePreviews();
+          scheduleAutoSave();
+          showToast('Reordered bullet point');
+        }
       }
     } catch (err) {
       console.warn(err);
@@ -3442,17 +3580,20 @@ function renderCustomSectionsList() {
         </div>
       `;
       itemsContainer.appendChild(itmEl);
+      attachCustomItemDragEvents(itmEl, c.id, itmIdx);
 
       const bulletsContainer = itmEl.querySelector(`#custom-${c.id}-item-${itmIdx}-bullets`);
       (item.bullets || []).forEach((bullet, bIdx) => {
         const bItem = document.createElement('div');
         bItem.className = 'bullet-item';
         bItem.innerHTML = `
+          <span class="bullet-drag-handle" draggable="true" title="Drag to reorder bullet" onclick="event.stopPropagation()">⋮⋮</span>
           <span class="bullet-indicator">&bull;</span>
           <input type="text" id="custom-${c.id}-item-${itmIdx}-bullet-${bIdx}" class="form-control" value="${escapeHtml(bullet)}" placeholder="Key highlight or summary description" oninput="updateCustomItemBullet('${c.id}', ${itmIdx}, ${bIdx}, this.value)">
           <button type="button" class="btn btn-sm btn-danger" onclick="removeCustomItemBullet('${c.id}', ${itmIdx}, ${bIdx})">&times;</button>
         `;
         bulletsContainer.appendChild(bItem);
+        attachCustomBulletDragEvents(bItem, c.id, itmIdx, bIdx);
       });
     });
   });
@@ -3530,6 +3671,7 @@ function updateCustomSectionTitle(customId, title) {
     c.title = title;
     updateQuickNavChips(resumeState.sectionOrder);
     updatePreviews();
+    scheduleAutoSave();
   }
 }
 window.updateCustomSectionTitle = updateCustomSectionTitle;
@@ -3547,6 +3689,7 @@ function addCustomSectionItem(customId) {
   });
   renderCustomSectionsList();
   updatePreviews();
+  scheduleAutoSave();
 }
 window.addCustomSectionItem = addCustomSectionItem;
 
@@ -3556,6 +3699,7 @@ function removeCustomSectionItem(customId, itemIdx) {
   c.items.splice(itemIdx, 1);
   renderCustomSectionsList();
   updatePreviews();
+  scheduleAutoSave();
 }
 window.removeCustomSectionItem = removeCustomSectionItem;
 
@@ -3569,6 +3713,7 @@ function moveCustomItem(customId, itemIdx, direction) {
   c.items[targetIdx] = temp;
   renderCustomSectionsList();
   updatePreviews();
+  scheduleAutoSave();
 }
 window.moveCustomItem = moveCustomItem;
 
@@ -3577,6 +3722,7 @@ function updateCustomItemField(customId, itemIdx, field, val) {
   if (!c || !c.items || !c.items[itemIdx]) return;
   c.items[itemIdx][field] = val;
   updatePreviews();
+  scheduleAutoSave();
 }
 window.updateCustomItemField = updateCustomItemField;
 
@@ -3587,6 +3733,7 @@ function addCustomItemBullet(customId, itemIdx) {
   c.items[itemIdx].bullets.push('');
   renderCustomSectionsList();
   updatePreviews();
+  scheduleAutoSave();
 }
 window.addCustomItemBullet = addCustomItemBullet;
 
@@ -3596,6 +3743,7 @@ function removeCustomItemBullet(customId, itemIdx, bIdx) {
   c.items[itemIdx].bullets.splice(bIdx, 1);
   renderCustomSectionsList();
   updatePreviews();
+  scheduleAutoSave();
 }
 window.removeCustomItemBullet = removeCustomItemBullet;
 
@@ -3604,6 +3752,7 @@ function updateCustomItemBullet(customId, itemIdx, bIdx, val) {
   if (!c || !c.items || !c.items[itemIdx] || !c.items[itemIdx].bullets) return;
   c.items[itemIdx].bullets[bIdx] = val;
   updatePreviews();
+  scheduleAutoSave();
 }
 window.updateCustomItemBullet = updateCustomItemBullet;
 
@@ -3944,6 +4093,7 @@ function applyExtractedResume(mergeMode = false) {
   if (!Array.isArray(data.skills)) data.skills = [];
   if (!Array.isArray(data.certifications)) data.certifications = [];
   if (!Array.isArray(data.achievements)) data.achievements = [];
+  if (!Array.isArray(data.customSections)) data.customSections = [];
   if (!data.introduction) data.introduction = { enabled: false, text: '' };
   if (!data.sectionOrder) {
     data.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
@@ -3972,7 +4122,7 @@ function applyExtractedResume(mergeMode = false) {
 function exportResumeBackupJson() {
   const payload = {
     app: 'Jake Resume LaTeX Builder',
-    version: '3.3',
+    version: '3.4.3',
     format: 'jake-resume-backup',
     exportedAt: new Date().toISOString(),
     activeProfileId: activeProfileId,
@@ -4020,6 +4170,7 @@ function resetToDefaultDraft() {
   if (!resumeState.sectionOrder) {
     resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
   }
+  resumeState.customSections = [];
   if (!resumeState.introduction) {
     resumeState.introduction = { enabled: false, text: '' };
   }
@@ -4138,6 +4289,8 @@ window.handleRenameProfile = handleRenameProfile;
 window.handleDeleteProfile = handleDeleteProfile;
 window.jumpToFormInput = jumpToFormInput;
 window.setupSectionDragAndDrop = setupSectionDragAndDrop;
+window.attachCustomItemDragEvents = attachCustomItemDragEvents;
+window.attachCustomBulletDragEvents = attachCustomBulletDragEvents;
 window.setupDragAndDropReordering = setupDragAndDropReordering;
 window.setupSplitterResizer = setupSplitterResizer;
 

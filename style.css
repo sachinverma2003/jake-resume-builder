@@ -2311,6 +2311,9 @@ mark.res-hl {
 .res-text-xs {
   font-size: 0.78em !important;
 }
+.res-text-huge {
+  font-size: 1.35em !important;
+}
 
 /* Inline Size Selector in Header Card */
 .font-size-picker-mini {

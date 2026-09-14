@@ -112,6 +112,8 @@ function formatBulletLatex(text) {
           res = `{\\small ${res}}`;
         } else if (spec.size === 'large' || spec.size === 'lg') {
           res = `{\\large ${res}}`;
+        } else if (spec.size === 'huge') {
+          res = `{\\huge ${res}}`;
         } else if (spec.size === 'tiny' || spec.size === 'xs') {
           res = `{\\tiny ${res}}`;
         }
@@ -263,7 +265,8 @@ function generateExperienceLatex(experience) {
     if (exp.subsections && exp.subsections.length > 0) {
       exp.subsections.forEach(sub => {
         if ((sub.label && sub.label.trim()) || (sub.text && sub.text.trim())) {
-          const lbl = sub.label && sub.label.trim() ? `\\textbf{${formatBulletLatex(sub.label.trim())}}: ` : '';
+          const rawLbl = sub.label ? sub.label.trim().replace(/:+$/, '') : '';
+          const lbl = rawLbl ? `\\textbf{${formatBulletLatex(rawLbl)}:} ` : '';
           latex += `        \\resumeItem{${lbl}${formatBulletLatex(sub.text || '')}}\n`;
         }
       });
@@ -301,7 +304,8 @@ function generateProjectsLatex(projects) {
     if (proj.subsections && proj.subsections.length > 0) {
       proj.subsections.forEach(sub => {
         if ((sub.label && sub.label.trim()) || (sub.text && sub.text.trim())) {
-          const lbl = sub.label && sub.label.trim() ? `\\textbf{${formatBulletLatex(sub.label.trim())}}: ` : '';
+          const rawLbl = sub.label ? sub.label.trim().replace(/:+$/, '') : '';
+          const lbl = rawLbl ? `\\textbf{${formatBulletLatex(rawLbl)}:} ` : '';
           latex += `            \\resumeItem{${lbl}${formatBulletLatex(sub.text || '')}}\n`;
         }
       });
@@ -425,6 +429,8 @@ function generateCustomSectionLatex(customSec) {
 
       if (itmTitle || itmDates || itmSub || itmLoc) {
         latex += `    \\resumeSubheading\n      {${itmTitle}}{${itmDates}}\n      {${itmSub}}{${itmLoc}}\n`;
+      } else {
+        latex += `    \\item\\vspace{-5pt}\n`;
       }
       if (item.bullets && item.bullets.length > 0) {
         const activeBullets = item.bullets.filter(b => b && b.trim());
@@ -557,14 +563,13 @@ function generateLatexCode(resumeData, options = {}) {
 \\usepackage[empty]{fullpage}
 \\usepackage{titlesec}
 \\usepackage{marvosym}
-\\usepackage[usenames,dvipsnames]{color}
+\\usepackage[usenames,dvipsnames]{xcolor}
 \\usepackage{verbatim}
 \\usepackage{enumitem}
 \\usepackage[hidelinks]{hyperref}
 \\usepackage{fancyhdr}
 \\usepackage[english]{babel}
 \\usepackage{tabularx}
-\\usepackage{xcolor}
 \\input{glyphtounicode}
 
 % Custom Color Definitions for Highlighting & Typography
