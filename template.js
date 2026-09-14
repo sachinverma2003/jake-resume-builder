@@ -851,7 +851,7 @@ const BTECH_PRESETS = {
         degree: 'B.Tech in Computer Science and Engineering',
         dates: 'Dec 2022 -- May 2026',
         gpa: '9.24 / 10.0',
-        coursework: 'Data Structures, Operating Systems, DBMS, Computer Networks, System Design'
+        coursework: 'Data Structures & Algorithms, Operating Systems, DBMS, Computer Networks, System Design'
       },
       {
         institution: 'Delhi Public School, R.K. Puram',
@@ -859,7 +859,7 @@ const BTECH_PRESETS = {
         degree: 'CBSE Class XII (Senior Secondary)',
         dates: 'Apr 2020 -- May 2022',
         gpa: '96.4%',
-        coursework: ''
+        coursework: 'Physics, Chemistry, Mathematics, Computer Science'
       }
     ],
     experience: [
@@ -869,8 +869,19 @@ const BTECH_PRESETS = {
         location: 'Gurugram, India',
         dates: 'May 2025 -- July 2025',
         bullets: [
-          'Architected an asynchronous notification pipeline using Go and Kafka, processing 1.2M+ daily notifications with 99.98% delivery rate.',
-          'Reduced Redis memory usage by 32% by redesigning cache eviction strategies and serializing payloads with Protobuf.'
+          'Architected an asynchronous notification pipeline using Go and Kafka, processing 1.2M+ daily events with 99.98% delivery rate and zero message drop.',
+          'Reduced Redis memory usage by 34% by re-engineering cache eviction strategies and serializing high-frequency payloads with Protocol Buffers.',
+          'Engineered automated regression test suites and Dockerized CI/CD pipelines, decreasing deployment cycle time from 28 to 9 minutes.'
+        ]
+      },
+      {
+        role: 'Backend Developer Intern',
+        company: 'Razorpay',
+        location: 'Bengaluru, India',
+        dates: 'Jan 2025 -- Apr 2025',
+        bullets: [
+          'Engineered high-concurrency payment reconciliation APIs handling 25,000+ RPM using Node.js, Express, and PostgreSQL with connection pooling.',
+          'Optimized database queries and indexed foreign keys across multi-tenant tables, dropping p99 API response latency from 320ms to 68ms.'
         ]
       }
     ],
@@ -884,12 +895,13 @@ const BTECH_PRESETS = {
         githubUrl: 'https://github.com/aaravsharma/devcollab-realtime',
         githubLabel: 'GitHub',
         bullets: [
-          'Built collaborative code editor with real-time cursor sync using Operational Transformation (OT) supporting 50+ concurrent users.',
-          'Isolated code execution environments within sandboxed Docker containers, completing compiles in <650ms.'
+          'Built collaborative code editor featuring real-time multi-cursor synchronization using Operational Transformation (OT) supporting 50+ concurrent users.',
+          'Isolated untrusted user code execution environments within sandboxed Docker containers, completing compiles and execution in <650ms.',
+          'Deployed auto-scaling backend on AWS EC2 behind an NGINX reverse proxy with Redis Pub/Sub for distributed state synchronization.'
         ]
       },
       {
-        title: 'Distributed Key-Value Store',
+        title: 'Distributed Raft Key-Value Store',
         techStack: 'C++, Raft Consensus Algorithm, gRPC, LevelDB',
         dates: 'Aug 2024 -- Nov 2024',
         liveUrl: '',
@@ -897,22 +909,23 @@ const BTECH_PRESETS = {
         githubUrl: 'https://github.com/aaravsharma/raft-distributed-kv',
         githubLabel: 'GitHub',
         bullets: [
-          'Built fault-tolerant distributed key-value store using Raft Consensus Protocol handling leader election and log replication.',
-          'Benchmarked performance using multi-threaded client, achieving 18,000 read QPS and 6,500 write QPS.'
+          'Built fault-tolerant distributed key-value store using Raft Consensus Protocol handling automatic leader election and log replication.',
+          'Engineered atomic snapshotting and log compaction mechanisms, cutting memory overhead by 45% during persistent state transfers.',
+          'Benchmarked throughput using multi-threaded client, achieving 18,000 read QPS and 6,500 write QPS under simulated 25% packet loss.'
         ]
       }
     ],
     introduction: {
-      enabled: true,
-      text: 'Results-driven B.Tech Computer Science graduate specializing in scalable backend architectures, distributed systems, and modern cloud infrastructure. Experienced with high-traffic web applications in Java and Node.js.'
+      enabled: false,
+      text: 'Results-driven B.Tech Computer Science graduate specializing in scalable backend architectures, distributed systems, and modern cloud infrastructure. Experienced with high-traffic web applications in Java, Go, and Node.js.'
     },
-    sectionOrder: ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'],
+    sectionOrder: ['education', 'experience', 'projects', 'skills', 'certifications', 'achievements'],
     skills: [
-      { category: 'Languages', items: 'C++, Java, Python, JavaScript, TypeScript, SQL, Go' },
-      { category: 'Frameworks', items: 'React, Next.js, Node.js, Express.js, Tailwind CSS, Spring Boot' },
-      { category: 'Developer Tools', items: 'Git, GitHub, Docker, Kubernetes, AWS (EC2, S3), Redis, PostgreSQL, MongoDB, Linux' },
-      { category: 'Libraries', items: 'Prisma ORM, Redux Toolkit, Socket.io, gRPC' },
-      { category: 'Core CS Coursework', items: 'Object-Oriented Programming, Data Structures & Algorithms, Distributed Systems' }
+      { category: 'Languages', items: 'C++, Java, Python, JavaScript, TypeScript, SQL (PostgreSQL), Go, Bash' },
+      { category: 'Frameworks & Runtimes', items: 'React, Next.js, Node.js, Express.js, Tailwind CSS, Spring Boot, FastAPI' },
+      { category: 'Developer Tools', items: 'Git, GitHub, Docker, Kubernetes, AWS (EC2, S3, RDS), Redis, PostgreSQL, MongoDB, Linux' },
+      { category: 'Libraries & Systems', items: 'Prisma ORM, Redux Toolkit, Socket.io, gRPC, Protocol Buffers, Apache Kafka' },
+      { category: 'Core CS Competencies', items: 'Data Structures & Algorithms, Object-Oriented Design, Operating Systems, DBMS, Distributed Systems' }
     ],
     certifications: [
       {
@@ -921,18 +934,31 @@ const BTECH_PRESETS = {
         date: 'Issued Jan 2025',
         credentialId: 'AWS-SAA-849204',
         url: 'https://cp.certmetrics.com/amazon/public/verify'
+      },
+      {
+        name: 'Certified Kubernetes Application Developer (CKAD)',
+        issuer: 'Cloud Native Computing Foundation',
+        date: 'Issued Aug 2024',
+        credentialId: 'CKAD-749210',
+        url: 'https://www.cncf.io/certification/ckad/'
       }
     ],
     achievements: [
       {
         title: 'LeetCode Knight',
-        description: 'Global Rating 2048 (Top 2.1% globally), solved 550+ problems in Data Structures & Algorithms',
+        description: 'Global Rating 2048 (Top 2.1% globally), solved 650+ problems in Data Structures & Algorithms',
         url: 'https://leetcode.com/u/aarav_codes',
         linkLabel: 'LeetCode Profile'
       },
       {
         title: 'Smart India Hackathon (SIH 2024)',
         description: 'National Finalist among 1,200+ teams; built an automated supply chain dispute resolver for Ministry of Coal',
+        url: '',
+        linkLabel: ''
+      },
+      {
+        title: 'ACM-ICPC Amritapuri Regionalist',
+        description: 'Ranked 42nd out of 850+ collegiate teams across South Asia in ICPC Regional Contest 2024',
         url: '',
         linkLabel: ''
       }

@@ -148,6 +148,14 @@ function initProfiles() {
 
     if (rawProfiles) {
       resumeProfiles = JSON.parse(rawProfiles);
+      // Auto-upgrade legacy Aarav Sharma profile if it only has 1 job
+      if (Array.isArray(resumeProfiles)) {
+        resumeProfiles.forEach(p => {
+          if (p.state && p.state.personal && p.state.personal.fullName === 'Aarav Sharma' && p.state.experience && p.state.experience.length === 1) {
+            p.state = JSON.parse(JSON.stringify(BTECH_PRESETS.sde));
+          }
+        });
+      }
     }
 
     if (!Array.isArray(resumeProfiles) || resumeProfiles.length === 0) {
@@ -161,7 +169,11 @@ function initProfiles() {
         try {
           const parsed = JSON.parse(rawDraft);
           if (parsed && parsed.state && parsed.state.personal) {
-            initialDraftState = parsed.state;
+            if (parsed.state.personal.fullName === 'Aarav Sharma' && parsed.state.experience && parsed.state.experience.length === 1) {
+              initialDraftState = JSON.parse(JSON.stringify(BTECH_PRESETS.sde));
+            } else {
+              initialDraftState = parsed.state;
+            }
             initialOptions = parsed.options;
             initialTimestamp = parsed.updatedAt || Date.now();
           }
