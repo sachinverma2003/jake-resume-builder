@@ -840,7 +840,7 @@ function renderVisualResume() {
 
   let html = `
     <header class="res-header">
-      <div class="${nameClass}" data-jump-target="inp-name" title="Click to edit Full Name">${escapeHtml(personal.fullName || 'Jake Ryan')}</div>
+      <div class="${nameClass}" data-jump-target="inp-name" title="Click to edit Full Name">${formatBulletHtml(personal.fullName || 'Jake Ryan')}</div>
       <div class="res-contacts">
         ${contactsHtml.join(' <span class="res-sep">|</span> ')}
       </div>
@@ -905,17 +905,17 @@ function renderEducationVisual(education) {
       ${getSectionTitleHtml('Education', 'sec-education')}
   `;
   education.forEach((edu, idx) => {
-    const gpaText = edu.gpa ? ` | CGPA/Percentage: ${escapeHtml(edu.gpa)}` : '';
+    const gpaText = edu.gpa ? ` | CGPA/Percentage: ${formatBulletHtml(edu.gpa)}` : '';
     const courseworkText = edu.coursework ? `<div class="res-subdetails" data-jump-target="edu-${idx}-coursework" title="Click to edit Coursework"><strong>Relevant Coursework:</strong> ${formatBulletHtml(edu.coursework)}</div>` : '';
     html += `
       <div class="res-subheading" data-jump-target="edu-${idx}-institution" title="Click to edit Education entry #${idx + 1}">
         <div class="res-row-between">
-          <span class="res-bold" data-jump-target="edu-${idx}-institution">${escapeHtml(edu.institution)}</span>
-          <span class="res-location" data-jump-target="edu-${idx}-location">${escapeHtml(edu.location)}</span>
+          <span class="res-bold" data-jump-target="edu-${idx}-institution">${formatBulletHtml(edu.institution)}</span>
+          <span class="res-location" data-jump-target="edu-${idx}-location">${formatBulletHtml(edu.location)}</span>
         </div>
         <div class="res-row-between">
-          <span class="res-italic" data-jump-target="edu-${idx}-degree">${escapeHtml(edu.degree)}${gpaText}</span>
-          <span class="res-dates" data-jump-target="edu-${idx}-dates">${escapeHtml(edu.dates)}</span>
+          <span class="res-italic" data-jump-target="edu-${idx}-degree">${formatBulletHtml(edu.degree)}${gpaText}</span>
+          <span class="res-dates" data-jump-target="edu-${idx}-dates">${formatBulletHtml(edu.dates)}</span>
         </div>
         ${courseworkText}
       </div>
@@ -936,12 +936,12 @@ function renderExperienceVisual(experience) {
     html += `
       <div class="res-subheading">
         <div class="res-row-between">
-          <span class="res-bold" data-jump-target="exp-${idx}-role" title="Click to edit Job Title">${escapeHtml(exp.role)}</span>
-          <span class="res-dates" data-jump-target="exp-${idx}-dates" title="Click to edit Dates">${escapeHtml(exp.dates)}</span>
+          <span class="res-bold" data-jump-target="exp-${idx}-role" title="Click to edit Job Title">${formatBulletHtml(exp.role)}</span>
+          <span class="res-dates" data-jump-target="exp-${idx}-dates" title="Click to edit Dates">${formatBulletHtml(exp.dates)}</span>
         </div>
         <div class="res-row-between">
-          <span class="res-italic" data-jump-target="exp-${idx}-company" title="Click to edit Company">${escapeHtml(exp.company)}</span>
-          <span class="res-location" data-jump-target="exp-${idx}-location" title="Click to edit Location">${escapeHtml(exp.location)}</span>
+          <span class="res-italic" data-jump-target="exp-${idx}-company" title="Click to edit Company">${formatBulletHtml(exp.company)}</span>
+          <span class="res-location" data-jump-target="exp-${idx}-location" title="Click to edit Location">${formatBulletHtml(exp.location)}</span>
         </div>
         <ul class="res-bullets">
           ${exp.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="exp-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
@@ -969,14 +969,14 @@ function renderProjectsVisual(projects) {
       linkItems.push(`<a href="${normalizeUrl(proj.githubUrl)}" target="_blank" rel="noopener noreferrer" data-jump-target="proj-${idx}-githubUrl">${escapeHtml(proj.githubLabel || 'GitHub')}</a>`);
     }
 
-    const techPart = proj.techStack ? ` | <em>${escapeHtml(proj.techStack)}</em>` : '';
+    const techPart = proj.techStack ? ` | <em>${formatBulletHtml(proj.techStack)}</em>` : '';
     const linksPart = linkItems.length > 0 ? ` | ${linkItems.join(' | ')}` : '';
 
     html += `
       <div class="res-subheading">
         <div class="res-row-between">
-          <span><strong class="res-bold" data-jump-target="proj-${idx}-title" title="Click to edit Project Title">${escapeHtml(proj.title)}</strong><span data-jump-target="proj-${idx}-techStack" title="Click to edit Technologies">${techPart}</span>${linksPart}</span>
-          <span class="res-dates" data-jump-target="proj-${idx}-dates" title="Click to edit Dates">${escapeHtml(proj.dates)}</span>
+          <span><strong class="res-bold" data-jump-target="proj-${idx}-title" title="Click to edit Project Title">${formatBulletHtml(proj.title)}</strong><span data-jump-target="proj-${idx}-techStack" title="Click to edit Technologies">${techPart}</span>${linksPart}</span>
+          <span class="res-dates" data-jump-target="proj-${idx}-dates" title="Click to edit Dates">${formatBulletHtml(proj.dates)}</span>
         </div>
         <ul class="res-bullets">
           ${proj.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="proj-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
@@ -1001,7 +1001,7 @@ function renderSkillsVisual(skills) {
       <ul class="res-skills-list">
   `;
   activeRows.forEach((item, idx) => {
-    html += `<li data-jump-target="skill-${idx}-items" title="Click to edit Skill Category"><strong>${escapeHtml(item.category.trim())}:</strong> ${escapeHtml(item.items.trim())}</li>`;
+    html += `<li data-jump-target="skill-${idx}-items" title="Click to edit Skill Category"><strong>${formatBulletHtml(item.category.trim())}:</strong> ${formatBulletHtml(item.items.trim())}</li>`;
   });
   html += `</ul></section>`;
   return html;
@@ -1039,14 +1039,14 @@ function renderCertificationsVisual(certifications, showCertifications = true) {
       restText = '';
     }
 
-    let titleHtml = `<strong>${escapeHtml(boldPrefix)}</strong>`;
+    let titleHtml = `<strong>${formatBulletHtml(boldPrefix)}</strong>`;
     if (restText) {
-      titleHtml += ` &ndash; ${escapeHtml(restText)}`;
+      titleHtml += ` &ndash; ${formatBulletHtml(restText)}`;
     }
 
     let rightParts = [];
     if (cert.date) {
-      rightParts.push(`<span style="font-style: italic; color: #4b5563;" data-jump-target="cert-${idx}-date">${escapeHtml(cert.date)}</span>`);
+      rightParts.push(`<span style="font-style: italic; color: #4b5563;" data-jump-target="cert-${idx}-date">${formatBulletHtml(cert.date)}</span>`);
     }
     if (cert.url) {
       rightParts.push(`<a href="${normalizeUrl(cert.url)}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 500;">Certificate</a>`);
@@ -1072,7 +1072,7 @@ function renderAchievementsVisual(achievements, showAchievements = true) {
       <ul class="res-bullets">
   `;
   achievements.forEach((ach, idx) => {
-    let line = `<strong>${escapeHtml(ach.title)}</strong>`;
+    let line = `<strong>${formatBulletHtml(ach.title)}</strong>`;
     if (ach.description) line += `: ${formatBulletHtml(ach.description)}`;
     if (ach.url) {
       line += ` [<a href="${normalizeUrl(ach.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ach.linkLabel || 'Link')}</a>]`;
@@ -1702,6 +1702,16 @@ document.addEventListener('focusin', (e) => {
     lastFocusedInput = e.target;
   }
 });
+document.addEventListener('mouseup', (e) => {
+  if (e.target && e.target.matches && e.target.matches('input[type="text"], textarea')) {
+    lastFocusedInput = e.target;
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.target && e.target.matches && e.target.matches('input[type="text"], textarea')) {
+    lastFocusedInput = e.target;
+  }
+});
 
 // Keyboard shortcuts for formatting: Ctrl+B (bold), Ctrl+I (italic), Ctrl+H (highlight)
 document.addEventListener('keydown', (e) => {
@@ -1721,9 +1731,13 @@ document.addEventListener('keydown', (e) => {
 });
 
 function applyTextFormat(formatType, customValue = null, explicitTarget = null) {
-  let targetInput = explicitTarget || lastFocusedInput;
-  if (!targetInput || !document.body.contains(targetInput)) {
-    targetInput = document.querySelector('.bullet-item input, #inp-intro-text');
+  let targetInput = explicitTarget || (
+    (document.activeElement && document.activeElement.matches && document.activeElement.matches('input[type="text"], textarea'))
+      ? document.activeElement
+      : (lastFocusedInput && document.body.contains(lastFocusedInput) ? lastFocusedInput : null)
+  );
+  if (!targetInput) {
+    targetInput = document.querySelector('.bullet-item input, #inp-intro-text, input[type="text"], textarea');
   }
   if (!targetInput) return;
 
@@ -1752,9 +1766,30 @@ function applyTextFormat(formatType, customValue = null, explicitTarget = null) 
   const after = val.substring(end);
   targetInput.value = before + replacement + after;
 
-  const newCursorPos = start + replacement.length;
-  targetInput.focus();
-  targetInput.setSelectionRange(newCursorPos, newCursorPos);
+  if (!selectedText) {
+    // Select placeholder so user can immediately type over it
+    let innerStart = start;
+    let innerEnd = start + textToWrap.length;
+    if (formatType === 'bold') {
+      innerStart = start + 2;
+      innerEnd = innerStart + textToWrap.length;
+    } else if (formatType === 'italic') {
+      innerStart = start + 1;
+      innerEnd = innerStart + textToWrap.length;
+    } else if (formatType === 'highlight') {
+      innerStart = start + 2;
+      innerEnd = innerStart + textToWrap.length;
+    } else if (formatType === 'color' || formatType === 'size') {
+      innerStart = start + 1;
+      innerEnd = innerStart + textToWrap.length;
+    }
+    targetInput.focus();
+    targetInput.setSelectionRange(innerStart, innerEnd);
+  } else {
+    const newCursorPos = start + replacement.length;
+    targetInput.focus();
+    targetInput.setSelectionRange(newCursorPos, newCursorPos);
+  }
 
   targetInput.dispatchEvent(new Event('input', { bubbles: true }));
   showToast(`Applied ${formatType} formatting`);

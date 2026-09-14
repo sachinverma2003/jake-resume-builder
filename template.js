@@ -241,14 +241,14 @@ function generateEducationLatex(education) {
   if (!education || education.length === 0) return '';
   let latex = `\n%-----------EDUCATION-----------\n\\section{Education}\n  \\resumeSubHeadingListStart\n`;
   education.forEach(edu => {
-    let degreeLine = escapeLatex(edu.degree);
+    let degreeLine = formatBulletLatex(edu.degree);
     if (edu.gpa) {
-      degreeLine += ` \\hspace{1pt}$|$\\hspace{1pt} CGPA/Percentage: ${escapeLatex(edu.gpa)}`;
+      degreeLine += ` \\hspace{1pt}$|$\\hspace{1pt} CGPA/Percentage: ${formatBulletLatex(edu.gpa)}`;
     }
     if (edu.coursework) {
       degreeLine += ` \\\\ \\small{\\textbf{Relevant Coursework:} ${formatBulletLatex(edu.coursework)}}`;
     }
-    latex += `    \\resumeSubheading\n      {${escapeLatex(edu.institution)}}{${escapeLatex(edu.location)}}\n      {${degreeLine}}{${escapeLatex(edu.dates)}}\n`;
+    latex += `    \\resumeSubheading\n      {${formatBulletLatex(edu.institution)}}{${formatBulletLatex(edu.location)}}\n      {${degreeLine}}{${formatBulletLatex(edu.dates)}}\n`;
   });
   latex += `  \\resumeSubHeadingListEnd\n`;
   return latex;
@@ -259,7 +259,7 @@ function generateExperienceLatex(experience) {
   if (!experience || experience.length === 0) return '';
   let latex = `\n%-----------EXPERIENCE-----------\n\\section{Experience}\n  \\resumeSubHeadingListStart\n`;
   experience.forEach(exp => {
-    latex += `    \\resumeSubheading\n      {${escapeLatex(exp.role)}}{${escapeLatex(exp.dates)}}\n      {${escapeLatex(exp.company)}}{${escapeLatex(exp.location)}}\n      \\resumeItemListStart\n`;
+    latex += `    \\resumeSubheading\n      {${formatBulletLatex(exp.role)}}{${formatBulletLatex(exp.dates)}}\n      {${formatBulletLatex(exp.company)}}{${formatBulletLatex(exp.location)}}\n      \\resumeItemListStart\n`;
     if (exp.bullets && exp.bullets.length > 0) {
       exp.bullets.forEach(bullet => {
         if (bullet.trim()) {
@@ -278,9 +278,9 @@ function generateProjectsLatex(projects) {
   if (!projects || projects.length === 0) return '';
   let latex = `\n%-----------PROJECTS-----------\n\\section{Projects}\n    \\resumeSubHeadingListStart\n`;
   projects.forEach(proj => {
-    let titlePart = `\\textbf{${escapeLatex(proj.title)}}`;
+    let titlePart = `\\textbf{${formatBulletLatex(proj.title)}}`;
     if (proj.techStack) {
-      titlePart += ` $|$ \\emph{${escapeLatex(proj.techStack)}}`;
+      titlePart += ` $|$ \\emph{${formatBulletLatex(proj.techStack)}}`;
     }
     if (proj.liveUrl) {
       titlePart += ` $|$ ${createLatexHref(proj.liveUrl, proj.liveLabel || 'Live Demo')}`;
@@ -289,7 +289,7 @@ function generateProjectsLatex(projects) {
       titlePart += ` $|$ ${createLatexHref(proj.githubUrl, proj.githubLabel || 'GitHub')}`;
     }
 
-    latex += `      \\resumeProjectHeading\n          {${titlePart}}{${escapeLatex(proj.dates)}}\n          \\resumeItemListStart\n`;
+    latex += `      \\resumeProjectHeading\n          {${titlePart}}{${formatBulletLatex(proj.dates)}}\n          \\resumeItemListStart\n`;
     if (proj.bullets && proj.bullets.length > 0) {
       proj.bullets.forEach(bullet => {
         if (bullet.trim()) {
@@ -311,7 +311,7 @@ function generateSkillsLatex(skills) {
   if (activeRows.length === 0) return '';
 
   let latex = `\n%-----------TECHNICAL SKILLS-----------\n\\section{Technical Skills}\n \\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n`;
-  const skillRows = activeRows.map(s => `     \\textbf{${escapeLatex(s.category.trim())}}{: ${escapeLatex(s.items.trim())}}`);
+  const skillRows = activeRows.map(s => `     \\textbf{${formatBulletLatex(s.category.trim())}}{: ${formatBulletLatex(s.items.trim())}}`);
   latex += skillRows.join(' \\\\\n') + `\n    }}\n \\end{itemize}\n`;
   return latex;
 }
@@ -345,14 +345,14 @@ function generateCertificationsLatex(certifications, showCertifications = true) 
       restText = '';
     }
 
-    let line = `\\textbf{${escapeLatex(boldPrefix)}}`;
+    let line = `\\textbf{${formatBulletLatex(boldPrefix)}}`;
     if (restText) {
-      line += ` -- ${escapeLatex(restText)}`;
+      line += ` -- ${formatBulletLatex(restText)}`;
     }
 
     let rightParts = [];
     if (cert.date) {
-      rightParts.push(`\\textit{${escapeLatex(cert.date)}}`);
+      rightParts.push(`\\textit{${formatBulletLatex(cert.date)}}`);
     }
     if (cert.url) {
       const fullUrl = normalizeUrl(cert.url);
@@ -583,7 +583,7 @@ ${marginAdjustments}
 
 %----------HEADING----------
 \\begin{center}
-    \\textbf{${(options && options.nameSize) ? `\\${options.nameSize}` : '\\Huge'} \\scshape ${escapeLatex(personal.fullName || 'Jake Ryan')}} \\\\ \\vspace{1pt}
+    \\textbf{${(options && options.nameSize) ? `\\${options.nameSize}` : '\\Huge'} \\scshape ${formatBulletLatex(personal.fullName || 'Jake Ryan')}} \\\\ \\vspace{1pt}
     \\small ${headerLine}
 \\end{center}
 `;

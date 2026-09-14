@@ -8,7 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=3.4.1">
+  <link rel="stylesheet" href="style.css?v=3.4.2">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
@@ -21,7 +21,7 @@
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v3.4</span></h1>
+        <h1>Jake's Resume Builder <span class="version-tag">v3.4.2</span></h1>
         <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
       </div>
     </div>
@@ -76,6 +76,32 @@
         <span id="autosave-label">Saved</span>
       </div>
 
+      <!-- Global Rich Text Formatting Toolbar in Top Bar -->
+      <div class="top-format-toolbar" id="top-format-toolbar" title="Global text formatting: select any text in any field & click to style">
+        <span class="format-toolbar-label">Format:</span>
+        <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold Selection (Ctrl+B)"><strong>B</strong></button>
+        <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic Selection (Ctrl+I)"><em>I</em></button>
+        <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter Selection (Ctrl+H)">🖍️ Highlight</button>
+        <div class="format-tool-color-group">
+          <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Color Selection">🎨 Color ▾</button>
+          <div class="format-color-palette" style="display: none;">
+            <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
+            <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
+            <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
+            <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
+            <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
+            <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
+          </div>
+        </div>
+        <div class="format-tool-size-group">
+          <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Font Size Selection">🗚 Size ▾</button>
+          <div class="format-size-palette" style="display: none;">
+            <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
+            <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Action Buttons -->
       <div class="action-buttons">
         <button id="btn-upload-resume" class="btn btn-upload" onclick="openUploadModal()" title="Upload existing resume (PDF, .tex, .txt, or .json) to auto-fill">
@@ -128,6 +154,31 @@
           <button type="button" class="chip-btn" onclick="scrollToSection('sec-honors')">🏆 Honors</button>
         </div>
         <div class="quick-tools-right">
+          <!-- Global Sticky Formatting Toolbar in Editor Nav -->
+          <div class="global-format-toolbar" title="Global text formatting: select any text in any field & click to style">
+            <span class="format-toolbar-label">Format:</span>
+            <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold Selection (Ctrl+B)"><strong>B</strong></button>
+            <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic Selection (Ctrl+I)"><em>I</em></button>
+            <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter Selection (Ctrl+H)">🖍️ Highlight</button>
+            <div class="format-tool-color-group">
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Color Selection">🎨 Color ▾</button>
+              <div class="format-color-palette" style="display: none;">
+                <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
+                <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
+                <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
+                <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
+                <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
+                <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
+              </div>
+            </div>
+            <div class="format-tool-size-group">
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Font Size Selection">🗚 Size ▾</button>
+              <div class="format-size-palette" style="display: none;">
+                <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
+                <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
+              </div>
+            </div>
+          </div>
           <button id="btn-toggle-all" class="chip-btn" title="Expand or Collapse All Cards">Collapse All</button>
         </div>
       </nav>
@@ -276,30 +327,6 @@
                   <span>Summary / Objective Text (2-3 concise ATS lines recommended)</span>
                   <span id="intro-char-count" style="font-weight: 400; color: var(--text-muted); font-size: 0.7rem;">0 chars</span>
                 </label>
-                <!-- Mini Formatting Toolbar -->
-                <div class="format-toolbar">
-                  <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold', null, 'inp-intro-text')" title="Bold (Ctrl+B)"><strong>B</strong></button>
-                  <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic', null, 'inp-intro-text')" title="Italic (Ctrl+I)"><em>I</em></button>
-                  <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight', null, 'inp-intro-text')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
-                  <div class="format-tool-color-group">
-                    <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
-                    <div class="format-color-palette" style="display: none;">
-                      <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue', 'inp-intro-text')" title="Royal Blue"></button>
-                      <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy', 'inp-intro-text')" title="Navy Blue"></button>
-                      <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald', 'inp-intro-text')" title="Emerald (+Metrics)"></button>
-                      <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple', 'inp-intro-text')" title="Purple"></button>
-                      <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson', 'inp-intro-text')" title="Crimson"></button>
-                      <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber', 'inp-intro-text')" title="Amber"></button>
-                    </div>
-                  </div>
-                  <div class="format-tool-size-group">
-                    <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
-                    <div class="format-size-palette" style="display: none;">
-                      <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small', 'inp-intro-text')">Small</button>
-                      <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large', 'inp-intro-text')">Large</button>
-                    </div>
-                  </div>
-                </div>
               </div>
               <textarea id="inp-intro-text" class="form-control" rows="3" placeholder="Dynamic, results-driven B.Tech Computer Science undergraduate with strong foundation in Data Structures, Algorithms, and Full Stack Development..." oninput="updateIntroductionText(this.value)"></textarea>
             </div>
@@ -332,31 +359,6 @@
             </div>
           </div>
           <div class="section-body">
-            <!-- Formatting Toolbar -->
-            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
-              <span class="format-toolbar-label">Format Text:</span>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
-              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
-              <div class="format-tool-color-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
-                <div class="format-color-palette" style="display: none;">
-                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
-                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
-                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
-                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
-                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
-                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
-                </div>
-              </div>
-              <div class="format-tool-size-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
-                <div class="format-size-palette" style="display: none;">
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
-                </div>
-              </div>
-            </div>
             <div id="education-list"></div>
           </div>
         </div>
@@ -389,31 +391,6 @@
               <button type="button" class="verb-chip" onclick="insertActionVerb('Implemented')">+ Implemented</button>
               <button type="button" class="verb-chip" onclick="insertActionVerb('Benchmarked')">+ Benchmarked</button>
             </div>
-            <!-- Bullet Formatting Toolbar -->
-            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
-              <span class="format-toolbar-label">Format Bullets:</span>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
-              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
-              <div class="format-tool-color-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
-                <div class="format-color-palette" style="display: none;">
-                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
-                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
-                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
-                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
-                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
-                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
-                </div>
-              </div>
-              <div class="format-tool-size-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
-                <div class="format-size-palette" style="display: none;">
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
-                </div>
-              </div>
-            </div>
             <div id="experience-list"></div>
           </div>
         </div>
@@ -437,31 +414,6 @@
             </div>
           </div>
           <div class="section-body">
-            <!-- Bullet Formatting Toolbar -->
-            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
-              <span class="format-toolbar-label">Format Bullets:</span>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
-              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
-              <div class="format-tool-color-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
-                <div class="format-color-palette" style="display: none;">
-                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
-                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
-                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
-                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
-                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
-                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
-                </div>
-              </div>
-              <div class="format-tool-size-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
-                <div class="format-size-palette" style="display: none;">
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
-                </div>
-              </div>
-            </div>
             <div id="projects-list"></div>
           </div>
         </div>
@@ -547,31 +499,6 @@
             </div>
           </div>
           <div class="section-body">
-            <!-- Formatting Toolbar -->
-            <div class="format-toolbar" style="margin-bottom: 0.65rem;">
-              <span class="format-toolbar-label">Format Bullets:</span>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
-              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter (Ctrl+H)">🖍️ Highlight</button>
-              <div class="format-tool-color-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Text Color">🎨 Color ▾</button>
-                <div class="format-color-palette" style="display: none;">
-                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
-                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
-                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
-                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
-                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
-                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
-                </div>
-              </div>
-              <div class="format-tool-size-group">
-                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Text Size">🗚 Size ▾</button>
-                <div class="format-size-palette" style="display: none;">
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
-                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
-                </div>
-              </div>
-            </div>
             <div id="achievements-list"></div>
           </div>
         </div>
@@ -919,10 +846,10 @@
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v3.4.1) -->
+  <!-- Scripts (Cache-Busted v3.4.2) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=3.4.1"></script>
-  <script src="parser.js?v=3.4.1"></script>
-  <script src="app.js?v=3.4.1"></script>
+  <script src="template.js?v=3.4.2"></script>
+  <script src="parser.js?v=3.4.2"></script>
+  <script src="app.js?v=3.4.2"></script>
 </body>
 </html>
