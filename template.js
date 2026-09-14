@@ -714,17 +714,17 @@ const BTECH_PRESETS = {
   jake: {
     personal: {
       fullName: 'Jake Ryan',
-      tagline: '',
+      tagline: 'Software Engineering | Cloud Computing & Distributed Backend Systems',
       phone: '123-456-7890',
       email: 'jake@su.edu',
       linkedin: 'https://linkedin.com/in/jake',
       linkedinDisplay: 'LinkedIn',
       github: 'https://github.com/jake',
       githubDisplay: 'GitHub',
-      leetcode: '',
-      leetcodeDisplay: '',
-      portfolio: '',
-      portfolioDisplay: ''
+      leetcode: 'https://leetcode.com/u/jake_ryan',
+      leetcodeDisplay: 'LeetCode',
+      portfolio: 'https://jake-ryan.dev',
+      portfolioDisplay: 'Portfolio'
     },
     education: [
       {
@@ -732,15 +732,15 @@ const BTECH_PRESETS = {
         location: 'Georgetown, TX',
         degree: 'Bachelor of Arts in Computer Science, Minor in Business',
         dates: 'Aug. 2018 -- May 2021',
-        gpa: '',
-        coursework: ''
+        gpa: '3.85 / 4.0',
+        coursework: 'Data Structures, Algorithms, Software Engineering, Database Systems, Computer Networks'
       },
       {
         institution: 'Blinn College',
         location: 'Bryan, TX',
         degree: "Associate's in Liberal Arts",
         dates: 'Aug. 2014 -- May 2018',
-        gpa: '',
+        gpa: '3.90 / 4.0',
         coursework: ''
       }
     ],
@@ -751,9 +751,8 @@ const BTECH_PRESETS = {
         location: 'College Station, TX',
         dates: 'June 2020 -- Present',
         bullets: [
-          'Developed a REST API using FastAPI and PostgreSQL to store data from learning management systems',
-          'Developed a full-stack web application using Flask, React, PostgreSQL and Docker to analyze GitHub data',
-          'Explored ways to visualize GitHub collaboration in a classroom setting'
+          'Developed a REST API using FastAPI and PostgreSQL to store data with automated schema migrations.',
+          'Built a full-stack analytics application using Flask, React, and Docker to visualize GitHub commit patterns.'
         ]
       },
       {
@@ -762,9 +761,8 @@ const BTECH_PRESETS = {
         location: 'Georgetown, TX',
         dates: 'Sep. 2018 -- Present',
         bullets: [
-          'Communicate with managers to set up campus computers used on campus',
-          'Assess and troubleshoot computer problems brought by students, faculty and staff',
-          'Maintain upkeep of computers, classroom equipment, and 200 printers across campus'
+          'Configured and maintained computer lab workstations, audio-visual equipment, and 200 network printers.',
+          'Troubleshot hardware, software, and local area network connectivity issues for 1,500+ campus users.'
         ]
       },
       {
@@ -773,60 +771,89 @@ const BTECH_PRESETS = {
         location: 'Georgetown, TX',
         dates: 'May 2019 -- July 2019',
         bullets: [
-          'Explored methods to generate video game dungeons based off of The Legend of Zelda',
-          'Developed a game in Java to test the generated dungeons',
-          'Contributed 50K+ lines of code to an established codebase via Git',
-          'Conducted a human subject study to determine which video game dungeon generation technique is enjoyable',
-          'Wrote an 8-page paper and gave multiple presentations on-campus',
-          'Presented virtually to the World Conference on Computational Intelligence'
+          'Explored procedural generation algorithms to synthesize interactive 2D video game dungeons.',
+          'Conducted an empirical user study; co-authored an 8-page paper presented at IEEE WCCI Conference.'
         ]
       }
     ],
     projects: [
       {
-        title: 'Gitlytics',
+        title: 'Gitlytics: Developer Collaboration Platform',
         techStack: 'Python, Flask, React, PostgreSQL, Docker',
         dates: 'June 2020 -- Present',
-        liveUrl: '',
-        liveLabel: '',
-        githubUrl: '',
-        githubLabel: '',
+        liveUrl: 'https://gitlytics.app',
+        liveLabel: 'Live Demo',
+        githubUrl: 'https://github.com/jake/gitlytics',
+        githubLabel: 'GitHub',
         bullets: [
-          'Developed a full-stack web application using with Flask serving a REST API with React as the frontend',
-          'Implemented GitHub OAuth to get data from user’s repositories',
-          'Visualized GitHub data to show collaboration',
-          'Used Celery and Redis for asynchronous tasks'
+          'Developed a full-stack web application with Flask REST API and React to evaluate team velocity and commit cadence.',
+          'Implemented secure GitHub OAuth 2.0 flow; integrated Celery and Redis for distributed background tasks.',
+          'Visualized repository commit networks and code frequency patterns using interactive D3.js graphics.'
         ]
       },
       {
-        title: 'Simple Paintball',
-        techStack: 'Spigot API, Java, Maven, TravisCI, Git',
+        title: 'Simple Paintball: Minecraft Server Engine',
+        techStack: 'Java, Spigot API, Maven, TravisCI, Git',
         dates: 'May 2018 -- May 2020',
         liveUrl: '',
         liveLabel: '',
-        githubUrl: '',
-        githubLabel: '',
+        githubUrl: 'https://github.com/jake/simple-paintball',
+        githubLabel: 'GitHub',
         bullets: [
-          'Developed a Minecraft server plugin to entertain kids during free time for a previous job',
-          'Published plugin to websites gaining 2K+ downloads and an average 4.5/5-star review',
-          'Implemented continuous delivery using TravisCI to build the plugin upon new a release',
-          'Collaborated with Minecraft server administrators to suggest features and get feedback about the plugin'
+          'Developed a multi-threaded game plugin in Java supporting 2,000+ players with real-time scoreboards.',
+          'Published plugin to open-source repositories gaining 25K+ downloads with a 4.5/5.0-star community rating.',
+          'Implemented continuous delivery using TravisCI and Maven to automate unit test execution and packaging.'
         ]
       }
     ],
     introduction: {
       enabled: false,
-      text: 'Dedicated Computer Science student with practical experience in full stack software development, system design, and algorithms. Proven track record in developing high-throughput web applications and open-source software.'
+      text: 'Dedicated Computer Science graduate with strong foundation in full stack software development, distributed systems, and algorithms. Proven track record in developing high-throughput web applications and open-source software.'
     },
-    sectionOrder: ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'],
+    sectionOrder: ['education', 'experience', 'projects', 'skills', 'certifications', 'achievements'],
     skills: [
-      { category: 'Languages', items: 'Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R' },
-      { category: 'Frameworks', items: 'React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI' },
-      { category: 'Developer Tools', items: 'Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse' },
-      { category: 'Libraries', items: 'pandas, NumPy, Matplotlib' }
+      { category: 'Languages', items: 'Java, Python, C/C++, SQL (PostgreSQL), JavaScript, TypeScript, HTML/CSS, R, Bash' },
+      { category: 'Frameworks & Runtimes', items: 'React, Node.js, Flask, FastAPI, Express.js, JUnit, WordPress, Material-UI' },
+      { category: 'Developer Tools', items: 'Git, GitHub, Docker, TravisCI, Google Cloud Platform, AWS (EC2, S3), VS Code, Linux' },
+      { category: 'Libraries & Systems', items: 'pandas, NumPy, Matplotlib, Celery, Redis, D3.js' },
+      { category: 'Core CS Competencies', items: 'Data Structures & Algorithms, Object-Oriented Design, Database Systems, Computer Networks' }
     ],
-    certifications: [],
-    achievements: []
+    certifications: [
+      {
+        name: 'AWS Certified Cloud Practitioner',
+        issuer: 'Amazon Web Services',
+        date: 'Issued June 2021',
+        credentialId: 'AWS-CCP-192847',
+        url: 'https://aws.amazon.com/verification'
+      },
+      {
+        name: 'Oracle Certified Associate, Java SE 8 Programmer',
+        issuer: 'Oracle',
+        date: 'Issued Jan 2020',
+        credentialId: 'OCA-JP-847291',
+        url: 'https://catalog-education.oracle.com'
+      }
+    ],
+    achievements: [
+      {
+        title: 'IEEE WCCI 2020 Research Presenter',
+        description: 'Co-authored peer-reviewed research paper on dungeon procedural generation presented at World Conference on Computational Intelligence',
+        url: '',
+        linkLabel: ''
+      },
+      {
+        title: 'Dean’s Academic Excellence List',
+        description: 'Southwestern University (Honored 6 consecutive semesters for cumulative GPA above 3.80)',
+        url: '',
+        linkLabel: ''
+      },
+      {
+        title: 'Texas A&M Hackathon 2nd Place Winner',
+        description: 'Engineered an automated student grading workflow tool supporting 300+ students in 24 hours',
+        url: '',
+        linkLabel: ''
+      }
+    ]
   },
 
   sde: {
