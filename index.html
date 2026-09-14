@@ -195,6 +195,9 @@
           <button type="button" class="order-chip-btn" id="btn-order-experienced" onclick="setSectionOrderPreset('experienced')" title="Experience → Projects → Skills → Education">💼 Experienced</button>
           <button type="button" class="order-chip-btn" id="btn-order-skillsFirst" onclick="setSectionOrderPreset('skillsFirst')" title="Skills → Projects → Experience → Education">⚡ Skills First</button>
         </div>
+        <button type="button" class="btn btn-sm btn-primary" onclick="addCustomSection()" title="Add a custom section anywhere in the resume" style="margin-left: auto; display: flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 0.8rem;">
+          <span>+ Add Custom Section</span>
+        </button>
       </div>
 
       <!-- Placement Tip Banner -->
@@ -232,6 +235,11 @@
               <label for="inp-phone">Phone Number</label>
               <input type="text" id="inp-phone" class="form-control" placeholder="123-456-7890">
             </div>
+          </div>
+          <div class="form-group">
+            <label for="inp-tagline">Headline / Core Keywords / Target Role (Optional)</label>
+            <input type="text" id="inp-tagline" class="form-control" placeholder="e.g. Distributed Systems | Cloud Infrastructure | High-Throughput Microservices">
+            <span class="field-hint" style="font-size: 0.73rem; color: var(--text-muted); display: block; margin-top: 3px;">Displays right beneath your name — ideal for ATS keywords, target job title, or specialization.</span>
           </div>
           <div class="form-group">
             <label for="inp-email">Email Address</label>
@@ -846,10 +854,10 @@
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v3.4.2) -->
+  <!-- Scripts (Cache-Busted v3.4.3) -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=3.4.2"></script>
-  <script src="parser.js?v=3.4.2"></script>
-  <script src="app.js?v=3.4.2"></script>
+  <script src="template.js?v=3.4.3"></script>
+  <script src="parser.js?v=3.4.3"></script>
+  <script src="app.js?v=3.4.3"></script>
 </body>
 </html>

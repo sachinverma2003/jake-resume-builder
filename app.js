@@ -11,6 +11,12 @@ if (!resumeState.sectionOrder) {
 if (!resumeState.introduction) {
   resumeState.introduction = { enabled: false, text: '' };
 }
+if (!resumeState.customSections) {
+  resumeState.customSections = [];
+}
+if (!resumeState.personal.tagline) {
+  resumeState.personal.tagline = '';
+}
 if (typeof normalizeSkills === 'function') {
   resumeState.skills = normalizeSkills(resumeState.skills);
 }
@@ -200,6 +206,12 @@ function initProfiles() {
     }
     if (!resumeState.introduction) {
       resumeState.introduction = { enabled: false, text: '' };
+    }
+    if (!resumeState.customSections) {
+      resumeState.customSections = [];
+    }
+    if (resumeState.personal && !resumeState.personal.tagline) {
+      resumeState.personal.tagline = '';
     }
     if (typeof normalizeSkills === 'function') {
       resumeState.skills = normalizeSkills(resumeState.skills);
@@ -477,6 +489,8 @@ function populateFormFromState() {
 
   // Personal Info
   document.getElementById('inp-name').value = resumeState.personal.fullName || '';
+  const inpTagline = document.getElementById('inp-tagline');
+  if (inpTagline) inpTagline.value = resumeState.personal.tagline || '';
   document.getElementById('inp-phone').value = resumeState.personal.phone || '';
   document.getElementById('inp-email').value = resumeState.personal.email || '';
   document.getElementById('inp-linkedin').value = resumeState.personal.linkedin || '';
@@ -505,6 +519,9 @@ function populateFormFromState() {
   renderProjectsList();
   renderCertificationsList();
   renderAchievementsList();
+
+  // Render Dynamic Custom Sections
+  renderCustomSectionsList();
 
   // Reorder Form Section Cards in DOM
   reorderFormSectionCards();
@@ -629,6 +646,7 @@ function setupEventListeners() {
   // Personal Info Inputs
   const personalInputs = [
     { id: 'inp-name', key: 'fullName' },
+    { id: 'inp-tagline', key: 'tagline' },
     { id: 'inp-phone', key: 'phone' },
     { id: 'inp-email', key: 'email' },
     { id: 'inp-linkedin', key: 'linkedin', testId: 'test-linkedin' },
@@ -841,6 +859,7 @@ function renderVisualResume() {
   let html = `
     <header class="res-header">
       <div class="${nameClass}" data-jump-target="inp-name" title="Click to edit Full Name">${formatBulletHtml(personal.fullName || 'Jake Ryan')}</div>
+      ${personal.tagline ? `<div class="res-tagline" data-jump-target="inp-tagline" title="Click to edit Headline / Keywords">${formatBulletHtml(personal.tagline)}</div>` : ''}
       <div class="res-contacts">
         ${contactsHtml.join(' <span class="res-sep">|</span> ')}
       </div>
@@ -866,6 +885,12 @@ function renderVisualResume() {
   order.forEach(secKey => {
     if (visualGenerators[secKey]) {
       html += visualGenerators[secKey]();
+    } else if (secKey.startsWith('custom_') || secKey.startsWith('sec-custom_')) {
+      const cId = secKey.replace(/^sec-/, '');
+      const customSec = (resumeState.customSections || []).find(cs => cs.id === cId || cs.id === secKey);
+      if (customSec) {
+        html += renderCustomSectionVisual(customSec);
+      }
     }
   });
 
@@ -944,6 +969,11 @@ function renderExperienceVisual(experience) {
           <span class="res-location" data-jump-target="exp-${idx}-location" title="Click to edit Location">${formatBulletHtml(exp.location)}</span>
         </div>
         <ul class="res-bullets">
+          ${(exp.subsections || []).filter(s => (s.label && s.label.trim()) || (s.text && s.text.trim())).map((s, sIdx) => `
+            <li class="res-subsection-item" data-jump-target="exp-${idx}-sub-${sIdx}-label" title="Click to edit Sub-section">
+              ${s.label && s.label.trim() ? `<strong class="res-bold">${formatBulletHtml(s.label.trim())}:</strong> ` : ''}<span>${formatBulletHtml(s.text || '')}</span>
+            </li>
+          `).join('')}
           ${exp.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="exp-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
         </ul>
       </div>
@@ -979,6 +1009,11 @@ function renderProjectsVisual(projects) {
           <span class="res-dates" data-jump-target="proj-${idx}-dates" title="Click to edit Dates">${formatBulletHtml(proj.dates)}</span>
         </div>
         <ul class="res-bullets">
+          ${(proj.subsections || []).filter(s => (s.label && s.label.trim()) || (s.text && s.text.trim())).map((s, sIdx) => `
+            <li class="res-subsection-item" data-jump-target="proj-${idx}-sub-${sIdx}-label" title="Click to edit Sub-section">
+              ${s.label && s.label.trim() ? `<strong class="res-bold">${formatBulletHtml(s.label.trim())}:</strong> ` : ''}<span>${formatBulletHtml(s.text || '')}</span>
+            </li>
+          `).join('')}
           ${proj.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="proj-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
         </ul>
       </div>
@@ -1730,6 +1765,227 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+function smartApplyFormat(val, selStart, selEnd, formatType, customValue = null) {
+  let start = selStart;
+  let end = selEnd;
+  let selectedText = val.substring(start, end);
+
+  // If no selection, check if cursor is inside an existing tag
+  if (start === end) {
+    const tagPatterns = [
+      { type: 'highlight', regex: /==([^=\n]+)==/g },
+      { type: 'bold', regex: /\*\*([^*\n]+)\*\*/g },
+      { type: 'italic', regex: /(?<!\*)\*([^*\n]+)\*(?!\*)/g },
+      { type: 'color_or_size', regex: /\[([^\]\n]+)\]\{([^}\n]+)\}/g }
+    ];
+
+    for (const { type, regex } of tagPatterns) {
+      let match;
+      while ((match = regex.exec(val)) !== null) {
+        const matchStart = match.index;
+        const matchEnd = match.index + match[0].length;
+        if (start >= matchStart && start <= matchEnd) {
+          start = matchStart;
+          end = matchEnd;
+          selectedText = val.substring(start, end);
+          break;
+        }
+      }
+      if (start !== end) break;
+    }
+  }
+
+  // 1. Highlight toggle
+  if (formatType === 'highlight') {
+    if (selectedText.startsWith('==') && selectedText.endsWith('==') && selectedText.length >= 4) {
+      const unwrapped = selectedText.slice(2, -2);
+      return {
+        newVal: val.substring(0, start) + unwrapped + val.substring(end),
+        newStart: start,
+        newEnd: start + unwrapped.length,
+        action: 'removed highlight'
+      };
+    }
+    if (start >= 2 && val.substring(start - 2, start) === '==' && val.substring(end, end + 2) === '==') {
+      return {
+        newVal: val.substring(0, start - 2) + selectedText + val.substring(end + 2),
+        newStart: start - 2,
+        newEnd: start - 2 + selectedText.length,
+        action: 'removed highlight'
+      };
+    }
+  }
+
+  // 2. Bold toggle
+  if (formatType === 'bold') {
+    if (selectedText.startsWith('**') && selectedText.endsWith('**') && selectedText.length >= 4) {
+      const unwrapped = selectedText.slice(2, -2);
+      return {
+        newVal: val.substring(0, start) + unwrapped + val.substring(end),
+        newStart: start,
+        newEnd: start + unwrapped.length,
+        action: 'removed bold'
+      };
+    }
+    if (start >= 2 && val.substring(start - 2, start) === '**' && val.substring(end, end + 2) === '**') {
+      return {
+        newVal: val.substring(0, start - 2) + selectedText + val.substring(end + 2),
+        newStart: start - 2,
+        newEnd: start - 2 + selectedText.length,
+        action: 'removed bold'
+      };
+    }
+  }
+
+  // 3. Italic toggle
+  if (formatType === 'italic') {
+    if (selectedText.startsWith('*') && selectedText.endsWith('*') && !selectedText.startsWith('**') && selectedText.length >= 2) {
+      const unwrapped = selectedText.slice(1, -1);
+      return {
+        newVal: val.substring(0, start) + unwrapped + val.substring(end),
+        newStart: start,
+        newEnd: start + unwrapped.length,
+        action: 'removed italic'
+      };
+    }
+    if (start >= 1 && val.substring(start - 1, start) === '*' && val.substring(end, end + 1) === '*' && val.substring(start - 2, start) !== '**') {
+      return {
+        newVal: val.substring(0, start - 1) + selectedText + val.substring(end + 1),
+        newStart: start - 1,
+        newEnd: start - 1 + selectedText.length,
+        action: 'removed italic'
+      };
+    }
+  }
+
+  // 4. Color & Size: [inner]{spec}
+  // Case A: When selection is the entire [text]{spec} block:
+  const directColorSize = selectedText.match(/^\[([^\]\n]+)\]\{([^}\n]+)\}$/);
+  if (directColorSize) {
+    const innerText = directColorSize[1];
+    const existingSpec = directColorSize[2];
+
+    if (formatType === 'color') {
+      const newCol = customValue || 'emerald';
+      if (existingSpec === newCol) {
+        return {
+          newVal: val.substring(0, start) + innerText + val.substring(end),
+          newStart: start,
+          newEnd: start + innerText.length,
+          action: 'removed color'
+        };
+      }
+      const replacement = `[${innerText}]{${newCol}}`;
+      return {
+        newVal: val.substring(0, start) + replacement + val.substring(end),
+        newStart: start,
+        newEnd: start + replacement.length,
+        action: 'updated color'
+      };
+    }
+
+    if (formatType === 'size') {
+      const newSz = customValue || 'small';
+      const targetSpec = `size:${newSz}`;
+      if (existingSpec === targetSpec || existingSpec === newSz) {
+        return {
+          newVal: val.substring(0, start) + innerText + val.substring(end),
+          newStart: start,
+          newEnd: start + innerText.length,
+          action: 'removed size'
+        };
+      }
+      const replacement = `[${innerText}]{size:${newSz}}`;
+      return {
+        newVal: val.substring(0, start) + replacement + val.substring(end),
+        newStart: start,
+        newEnd: start + replacement.length,
+        action: 'updated size'
+      };
+    }
+  }
+
+  // Case B: When selection is inside [selection]{spec}:
+  if (start >= 1 && val.substring(start - 1, start) === '[' && val.substring(end).startsWith(']{')) {
+    const specEndIndex = val.indexOf('}', end + 2);
+    if (specEndIndex !== -1) {
+      const fullEnd = specEndIndex + 1;
+      const existingSpec = val.substring(end + 2, specEndIndex);
+      const innerText = selectedText;
+
+      if (formatType === 'color') {
+        const newCol = customValue || 'emerald';
+        if (existingSpec === newCol) {
+          return {
+            newVal: val.substring(0, start - 1) + innerText + val.substring(fullEnd),
+            newStart: start - 1,
+            newEnd: start - 1 + innerText.length,
+            action: 'removed color'
+          };
+        }
+        const replacement = `[${innerText}]{${newCol}}`;
+        return {
+          newVal: val.substring(0, start - 1) + replacement + val.substring(fullEnd),
+          newStart: start - 1,
+          newEnd: start - 1 + replacement.length,
+          action: 'updated color'
+        };
+      }
+
+      if (formatType === 'size') {
+        const newSz = customValue || 'small';
+        const targetSpec = `size:${newSz}`;
+        if (existingSpec === targetSpec || existingSpec === newSz) {
+          return {
+            newVal: val.substring(0, start - 1) + innerText + val.substring(fullEnd),
+            newStart: start - 1,
+            newEnd: start - 1 + innerText.length,
+            action: 'removed size'
+          };
+        }
+        const replacement = `[${innerText}]{size:${newSz}}`;
+        return {
+          newVal: val.substring(0, start - 1) + replacement + val.substring(fullEnd),
+          newStart: start - 1,
+          newEnd: start - 1 + replacement.length,
+          action: 'updated size'
+        };
+      }
+    }
+  }
+
+  // 5. Fresh formatting
+  const textToWrap = selectedText || (formatType === 'highlight' ? 'highlighted text' : formatType === 'color' ? 'colored text' : formatType === 'bold' ? 'bold text' : 'text');
+  let replacement = '';
+  if (formatType === 'bold') replacement = `**${textToWrap}**`;
+  else if (formatType === 'italic') replacement = `*${textToWrap}*`;
+  else if (formatType === 'highlight') replacement = `==${textToWrap}==`;
+  else if (formatType === 'color') replacement = `[${textToWrap}]{${customValue || 'emerald'}}`;
+  else if (formatType === 'size') replacement = `[${textToWrap}]{size:${customValue || 'small'}}`;
+
+  let innerStart = start;
+  let innerEnd = start + replacement.length;
+  if (!selectedText) {
+    if (formatType === 'bold' || formatType === 'highlight') {
+      innerStart = start + 2;
+      innerEnd = innerStart + textToWrap.length;
+    } else if (formatType === 'italic') {
+      innerStart = start + 1;
+      innerEnd = innerStart + textToWrap.length;
+    } else if (formatType === 'color' || formatType === 'size') {
+      innerStart = start + 1;
+      innerEnd = innerStart + textToWrap.length;
+    }
+  }
+
+  return {
+    newVal: val.substring(0, start) + replacement + val.substring(end),
+    newStart: innerStart,
+    newEnd: innerEnd,
+    action: `applied ${formatType}`
+  };
+}
+
 function applyTextFormat(formatType, customValue = null, explicitTarget = null) {
   let targetInput = explicitTarget || (
     (document.activeElement && document.activeElement.matches && document.activeElement.matches('input[type="text"], textarea'))
@@ -1744,58 +2000,19 @@ function applyTextFormat(formatType, customValue = null, explicitTarget = null) 
   const start = targetInput.selectionStart !== undefined ? targetInput.selectionStart : targetInput.value.length;
   const end = targetInput.selectionEnd !== undefined ? targetInput.selectionEnd : targetInput.value.length;
   const val = targetInput.value;
-  const selectedText = val.substring(start, end);
-  const textToWrap = selectedText || (formatType === 'highlight' ? 'highlighted text' : formatType === 'color' ? 'colored text' : formatType === 'bold' ? 'bold text' : 'text');
 
-  let replacement = '';
-  if (formatType === 'bold') {
-    replacement = `**${textToWrap}**`;
-  } else if (formatType === 'italic') {
-    replacement = `*${textToWrap}*`;
-  } else if (formatType === 'highlight') {
-    replacement = `==${textToWrap}==`;
-  } else if (formatType === 'color') {
-    const col = customValue || 'emerald';
-    replacement = `[${textToWrap}]{${col}}`;
-  } else if (formatType === 'size') {
-    const sz = customValue || 'small';
-    replacement = `[${textToWrap}]{size:${sz}}`;
-  }
+  const res = smartApplyFormat(val, start, end, formatType, customValue);
+  targetInput.value = res.newVal;
 
-  const before = val.substring(0, start);
-  const after = val.substring(end);
-  targetInput.value = before + replacement + after;
-
-  if (!selectedText) {
-    // Select placeholder so user can immediately type over it
-    let innerStart = start;
-    let innerEnd = start + textToWrap.length;
-    if (formatType === 'bold') {
-      innerStart = start + 2;
-      innerEnd = innerStart + textToWrap.length;
-    } else if (formatType === 'italic') {
-      innerStart = start + 1;
-      innerEnd = innerStart + textToWrap.length;
-    } else if (formatType === 'highlight') {
-      innerStart = start + 2;
-      innerEnd = innerStart + textToWrap.length;
-    } else if (formatType === 'color' || formatType === 'size') {
-      innerStart = start + 1;
-      innerEnd = innerStart + textToWrap.length;
-    }
-    targetInput.focus();
-    targetInput.setSelectionRange(innerStart, innerEnd);
-  } else {
-    const newCursorPos = start + replacement.length;
-    targetInput.focus();
-    targetInput.setSelectionRange(newCursorPos, newCursorPos);
-  }
+  targetInput.focus();
+  targetInput.setSelectionRange(res.newStart, res.newEnd);
 
   targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-  showToast(`Applied ${formatType} formatting`);
+  showToast(res.action.charAt(0).toUpperCase() + res.action.slice(1));
 
   closeAllFormattingPalettes();
 }
+window.smartApplyFormat = smartApplyFormat;
 window.applyTextFormat = applyTextFormat;
 
 function toggleColorPalette(btnEl) {
@@ -2396,12 +2613,33 @@ function renderExperienceList() {
           <input type="text" id="exp-${idx}-location" class="form-control" value="${escapeHtml(exp.location)}" oninput="updateExpField(${idx}, 'location', this.value)">
         </div>
       </div>
+      <div class="form-group subsection-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label style="margin-bottom: 0; font-weight: 600; font-size: 0.82rem;">Sub-sections / Highlights (e.g. Core Tech, Focus Area)</label>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="addExpSubsection(${idx})">+ Add Sub-section</button>
+        </div>
+        <div class="subsection-list" id="exp-subsections-${idx}"></div>
+      </div>
       <div class="form-group">
         <label>Bullet Points <button class="btn btn-sm btn-secondary" onclick="addExpBullet(${idx})">+ Add Bullet</button></label>
         <div class="bullet-list" id="exp-bullets-${idx}"></div>
       </div>
     `;
     container.appendChild(item);
+
+    const expSubContainer = item.querySelector(`#exp-subsections-${idx}`);
+    if (exp.subsections && exp.subsections.length > 0) {
+      exp.subsections.forEach((sub, sIdx) => {
+        const subRow = document.createElement('div');
+        subRow.className = 'subsection-item-row';
+        subRow.innerHTML = `
+          <input type="text" id="exp-${idx}-sub-${sIdx}-label" class="form-control subsection-label-input" value="${escapeHtml(sub.label || '')}" placeholder="Heading (e.g. Tech Stack)" oninput="updateExpSubsection(${idx}, ${sIdx}, 'label', this.value)">
+          <input type="text" id="exp-${idx}-sub-${sIdx}-text" class="form-control subsection-text-input" value="${escapeHtml(sub.text || '')}" placeholder="Details / keywords" oninput="updateExpSubsection(${idx}, ${sIdx}, 'text', this.value)">
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeExpSubsection(${idx}, ${sIdx})" title="Remove sub-section">&times;</button>
+        `;
+        expSubContainer.appendChild(subRow);
+      });
+    }
 
     const bulletsContainer = item.querySelector(`#exp-bullets-${idx}`);
     exp.bullets.forEach((bullet, bIdx) => {
@@ -2443,6 +2681,33 @@ function removeExpBullet(expIdx, bIdx) {
   renderExperienceList();
   updatePreviews();
 }
+
+function addExpSubsection(expIdx) {
+  if (!resumeState.experience[expIdx].subsections) {
+    resumeState.experience[expIdx].subsections = [];
+  }
+  resumeState.experience[expIdx].subsections.push({ label: 'Key Technologies', text: '' });
+  renderExperienceList();
+  updatePreviews();
+}
+window.addExpSubsection = addExpSubsection;
+
+function removeExpSubsection(expIdx, sIdx) {
+  if (resumeState.experience[expIdx].subsections) {
+    resumeState.experience[expIdx].subsections.splice(sIdx, 1);
+    renderExperienceList();
+    updatePreviews();
+  }
+}
+window.removeExpSubsection = removeExpSubsection;
+
+function updateExpSubsection(expIdx, sIdx, field, val) {
+  if (resumeState.experience[expIdx].subsections && resumeState.experience[expIdx].subsections[sIdx]) {
+    resumeState.experience[expIdx].subsections[sIdx][field] = val;
+    updatePreviews();
+  }
+}
+window.updateExpSubsection = updateExpSubsection;
 
 function addExperience() {
   resumeState.experience.push({
@@ -2519,12 +2784,33 @@ function renderProjectsList() {
           <input type="text" id="proj-${idx}-liveLabel" class="form-control" value="${escapeHtml(proj.liveLabel || 'Live Demo')}" oninput="updateProjField(${idx}, 'liveLabel', this.value)">
         </div>
       </div>
+      <div class="form-group subsection-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label style="margin-bottom: 0; font-weight: 600; font-size: 0.82rem;">Sub-sections / Tech Stack Highlights</label>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="addProjSubsection(${idx})">+ Add Sub-section</button>
+        </div>
+        <div class="subsection-list" id="proj-subsections-${idx}"></div>
+      </div>
       <div class="form-group">
         <label>Bullet Points <button class="btn btn-sm btn-secondary" onclick="addProjBullet(${idx})">+ Add Bullet</button></label>
         <div class="bullet-list" id="proj-bullets-${idx}"></div>
       </div>
     `;
     container.appendChild(item);
+
+    const projSubContainer = item.querySelector(`#proj-subsections-${idx}`);
+    if (proj.subsections && proj.subsections.length > 0) {
+      proj.subsections.forEach((sub, sIdx) => {
+        const subRow = document.createElement('div');
+        subRow.className = 'subsection-item-row';
+        subRow.innerHTML = `
+          <input type="text" id="proj-${idx}-sub-${sIdx}-label" class="form-control subsection-label-input" value="${escapeHtml(sub.label || '')}" placeholder="Heading (e.g. Core Tech)" oninput="updateProjSubsection(${idx}, ${sIdx}, 'label', this.value)">
+          <input type="text" id="proj-${idx}-sub-${sIdx}-text" class="form-control subsection-text-input" value="${escapeHtml(sub.text || '')}" placeholder="Details / keywords" oninput="updateProjSubsection(${idx}, ${sIdx}, 'text', this.value)">
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeProjSubsection(${idx}, ${sIdx})" title="Remove sub-section">&times;</button>
+        `;
+        projSubContainer.appendChild(subRow);
+      });
+    }
 
     const bulletsContainer = item.querySelector(`#proj-bullets-${idx}`);
     proj.bullets.forEach((bullet, bIdx) => {
@@ -2566,6 +2852,33 @@ function removeProjBullet(projIdx, bIdx) {
   renderProjectsList();
   updatePreviews();
 }
+
+function addProjSubsection(projIdx) {
+  if (!resumeState.projects[projIdx].subsections) {
+    resumeState.projects[projIdx].subsections = [];
+  }
+  resumeState.projects[projIdx].subsections.push({ label: 'Key Technologies', text: '' });
+  renderProjectsList();
+  updatePreviews();
+}
+window.addProjSubsection = addProjSubsection;
+
+function removeProjSubsection(projIdx, sIdx) {
+  if (resumeState.projects[projIdx].subsections) {
+    resumeState.projects[projIdx].subsections.splice(sIdx, 1);
+    renderProjectsList();
+    updatePreviews();
+  }
+}
+window.removeProjSubsection = removeProjSubsection;
+
+function updateProjSubsection(projIdx, sIdx, field, val) {
+  if (resumeState.projects[projIdx].subsections && resumeState.projects[projIdx].subsections[sIdx]) {
+    resumeState.projects[projIdx].subsections[sIdx][field] = val;
+    updatePreviews();
+  }
+}
+window.updateProjSubsection = updateProjSubsection;
 
 function addProject() {
   resumeState.projects.push({
@@ -2869,7 +3182,13 @@ function moveSection(sectionKey, direction) {
   // Clear active state on preset buttons if custom order
   document.querySelectorAll('.order-chip-btn').forEach(btn => btn.classList.remove('active'));
 
-  const secTitle = SECTION_METADATA[sectionKey]?.title || sectionKey;
+  let secTitle = SECTION_METADATA[sectionKey]?.title;
+  if (!secTitle && (sectionKey.startsWith('custom_') || sectionKey.startsWith('sec-custom_'))) {
+    const cId = sectionKey.replace(/^sec-/, '');
+    const c = (resumeState.customSections || []).find(cs => cs.id === cId || cs.id === sectionKey);
+    if (c) secTitle = c.title;
+  }
+  secTitle = secTitle || sectionKey;
   showToast(`Moved ${secTitle} ${direction < 0 ? '↑ Up' : '↓ Down'}`);
 }
 window.moveSection = moveSection;
@@ -2883,7 +3202,8 @@ function setSectionOrderPreset(presetKey) {
   };
 
   if (presets[presetKey]) {
-    resumeState.sectionOrder = [...presets[presetKey]];
+    const currentCustoms = (resumeState.sectionOrder || []).filter(k => k.startsWith('custom_'));
+    resumeState.sectionOrder = [...presets[presetKey], ...currentCustoms];
 
     // Update active button state
     document.querySelectorAll('.order-chip-btn').forEach(btn => btn.classList.remove('active'));
@@ -2904,9 +3224,15 @@ function reorderFormSectionCards() {
   const order = resumeState.sectionOrder || ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
 
   order.forEach((secKey, index) => {
+    let card = null;
     const meta = SECTION_METADATA[secKey];
-    if (!meta) return;
-    const card = document.getElementById(meta.id);
+    if (meta) {
+      card = document.getElementById(meta.id);
+    } else if (secKey.startsWith('custom_') || secKey.startsWith('sec-custom_')) {
+      const cId = secKey.replace(/^sec-/, '');
+      card = document.getElementById(`sec-${cId}`);
+    }
+
     if (card) {
       container.appendChild(card);
       // Update badge number
@@ -2937,6 +3263,13 @@ function updateQuickNavChips(order) {
     if (meta) {
       const label = meta.shortTitle ? `${meta.icon} ${meta.shortTitle}` : `${meta.icon} ${meta.title.split(' ')[0]}`;
       chips.push({ id: meta.id, label });
+    } else if (secKey.startsWith('custom_') || secKey.startsWith('sec-custom_')) {
+      const cId = secKey.replace(/^sec-/, '');
+      const c = (resumeState.customSections || []).find(cs => cs.id === cId || cs.id === secKey);
+      if (c) {
+        const shortName = c.title.split(' ')[0] || 'Custom';
+        chips.push({ id: `sec-${c.id}`, label: `📌 ${escapeHtml(shortName)}` });
+      }
     }
   });
 
@@ -2952,6 +3285,327 @@ function scrollToSection(secId) {
     el.classList.remove('collapsed');
   }
 }
+
+/* ==========================================================================
+   Dynamic Custom Sections Management
+   ========================================================================== */
+
+function renderCustomSectionVisual(customSec) {
+  if (!customSec || !customSec.title || !customSec.title.trim()) return '';
+  const title = customSec.title.trim();
+  const cId = customSec.id;
+
+  let html = `
+    <section class="res-section" id="res-section-${cId}">
+      ${getSectionTitleHtml(title, `sec-${cId}`)}
+  `;
+
+  if (customSec.items && customSec.items.length > 0) {
+    const hasSubheadings = customSec.items.some(item => item.title || item.subtitle || item.dates || item.location);
+
+    if (hasSubheadings) {
+      customSec.items.forEach((item, idx) => {
+        html += `
+          <div class="res-subheading">
+            <div class="res-row-between">
+              <span class="res-bold" data-jump-target="custom-${cId}-item-${idx}-title">${formatBulletHtml(item.title || '')}</span>
+              <span class="res-dates" data-jump-target="custom-${cId}-item-${idx}-dates">${formatBulletHtml(item.dates || '')}</span>
+            </div>
+            <div class="res-row-between">
+              <span class="res-italic" data-jump-target="custom-${cId}-item-${idx}-subtitle">${formatBulletHtml(item.subtitle || '')}</span>
+              <span class="res-location" data-jump-target="custom-${cId}-item-${idx}-location">${formatBulletHtml(item.location || '')}</span>
+            </div>
+            ${item.bullets && item.bullets.length > 0 ? `
+              <ul class="res-bullets">
+                ${item.bullets.filter(b => b && b.trim()).map((b, bIdx) => `<li data-jump-target="custom-${cId}-item-${idx}-bullet-${bIdx}">${formatBulletHtml(b)}</li>`).join('')}
+              </ul>
+            ` : ''}
+          </div>
+        `;
+      });
+    } else {
+      html += `<ul class="res-bullets">`;
+      customSec.items.forEach((item, idx) => {
+        if (item.bullets && item.bullets.length > 0) {
+          item.bullets.forEach((b, bIdx) => {
+            if (b && b.trim()) {
+              html += `<li data-jump-target="custom-${cId}-item-${idx}-bullet-${bIdx}">${formatBulletHtml(b)}</li>`;
+            }
+          });
+        }
+      });
+      html += `</ul>`;
+    }
+  }
+
+  html += `</section>`;
+  return html;
+}
+
+function renderCustomSectionsList() {
+  const container = document.getElementById('reorderable-sections-container');
+  if (!container) return;
+
+  if (!resumeState.customSections) {
+    resumeState.customSections = [];
+  }
+
+  // Remove any stale custom section cards from DOM that are no longer in state
+  container.querySelectorAll('.section-card[data-is-custom="true"]').forEach(card => {
+    const key = card.getAttribute('data-section-key');
+    if (!resumeState.customSections.some(cs => cs.id === key)) {
+      card.remove();
+    }
+  });
+
+  resumeState.customSections.forEach((c) => {
+    let card = document.getElementById(`sec-${c.id}`);
+    if (!card) {
+      card = document.createElement('div');
+      card.id = `sec-${c.id}`;
+      card.className = 'section-card';
+      card.dataset.sectionKey = c.id;
+      card.dataset.isCustom = 'true';
+      container.appendChild(card);
+    }
+
+    card.innerHTML = `
+      <div class="section-header">
+        <div class="section-title">
+          <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+          <span class="section-order-badge">?</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <input type="text" class="custom-section-title-input" value="${escapeHtml(c.title)}" placeholder="Section Title (e.g. Certifications, Leadership)" oninput="updateCustomSectionTitle('${c.id}', this.value)" onclick="event.stopPropagation()">
+        </div>
+        <div class="section-header-actions" onclick="event.stopPropagation()">
+          <div class="section-reorder-group">
+            <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('${c.id}', -1)" title="Move Section Up">↑</button>
+            <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('${c.id}', 1)" title="Move Section Down">↓</button>
+          </div>
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeCustomSection('${c.id}')">Delete Section</button>
+          <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="custom-items-list" id="custom-items-${c.id}"></div>
+        <button type="button" class="btn btn-secondary btn-block" style="margin-top: 10px;" onclick="addCustomSectionItem('${c.id}')">+ Add Entry to ${escapeHtml(c.title || 'Section')}</button>
+      </div>
+    `;
+
+    // Reattach accordion header click listener
+    const header = card.querySelector('.section-header');
+    header.addEventListener('click', () => {
+      card.classList.toggle('collapsed');
+    });
+
+    const itemsContainer = card.querySelector(`#custom-items-${c.id}`);
+    (c.items || []).forEach((item, itmIdx) => {
+      const itmEl = document.createElement('div');
+      itmEl.className = 'repeatable-item';
+      itmEl.dataset.index = itmIdx;
+
+      itmEl.innerHTML = `
+        <div class="repeatable-item-header">
+          <span class="repeatable-item-title">
+            <span class="item-drag-handle" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>
+            Entry #${itmIdx + 1}
+          </span>
+          <div class="reorder-group">
+            <button type="button" class="btn btn-sm btn-secondary btn-icon" onclick="moveCustomItem('${c.id}', ${itmIdx}, -1)" ${itmIdx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
+            <button type="button" class="btn btn-sm btn-secondary btn-icon" onclick="moveCustomItem('${c.id}', ${itmIdx}, 1)" ${itmIdx === c.items.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeCustomSectionItem('${c.id}', ${itmIdx})">Remove</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Title / Heading</label>
+            <input type="text" id="custom-${c.id}-item-${itmIdx}-title" class="form-control" value="${escapeHtml(item.title || '')}" placeholder="e.g. AWS Certified Solutions Architect or Team Lead" oninput="updateCustomItemField('${c.id}', ${itmIdx}, 'title', this.value)">
+          </div>
+          <div class="form-group">
+            <label>Dates / Duration (Optional)</label>
+            <input type="text" id="custom-${c.id}-item-${itmIdx}-dates" class="form-control" value="${escapeHtml(item.dates || '')}" placeholder="e.g. 2024 or May 2023 -- Present" oninput="updateCustomItemField('${c.id}', ${itmIdx}, 'dates', this.value)">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Organization / Subtitle (Optional)</label>
+            <input type="text" id="custom-${c.id}-item-${itmIdx}-subtitle" class="form-control" value="${escapeHtml(item.subtitle || '')}" placeholder="e.g. Amazon Web Services or Open Source" oninput="updateCustomItemField('${c.id}', ${itmIdx}, 'subtitle', this.value)">
+          </div>
+          <div class="form-group">
+            <label>Location (Optional)</label>
+            <input type="text" id="custom-${c.id}-item-${itmIdx}-location" class="form-control" value="${escapeHtml(item.location || '')}" placeholder="e.g. Seattle, WA or Remote" oninput="updateCustomItemField('${c.id}', ${itmIdx}, 'location', this.value)">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Bullet Points / Details <button type="button" class="btn btn-sm btn-secondary" onclick="addCustomItemBullet('${c.id}', ${itmIdx})">+ Add Bullet</button></label>
+          <div class="bullet-list" id="custom-${c.id}-item-${itmIdx}-bullets"></div>
+        </div>
+      `;
+      itemsContainer.appendChild(itmEl);
+
+      const bulletsContainer = itmEl.querySelector(`#custom-${c.id}-item-${itmIdx}-bullets`);
+      (item.bullets || []).forEach((bullet, bIdx) => {
+        const bItem = document.createElement('div');
+        bItem.className = 'bullet-item';
+        bItem.innerHTML = `
+          <span class="bullet-indicator">&bull;</span>
+          <input type="text" id="custom-${c.id}-item-${itmIdx}-bullet-${bIdx}" class="form-control" value="${escapeHtml(bullet)}" placeholder="Key highlight or summary description" oninput="updateCustomItemBullet('${c.id}', ${itmIdx}, ${bIdx}, this.value)">
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeCustomItemBullet('${c.id}', ${itmIdx}, ${bIdx})">&times;</button>
+        `;
+        bulletsContainer.appendChild(bItem);
+      });
+    });
+  });
+}
+
+function addCustomSection(customTitle = '') {
+  let title = customTitle;
+  if (!title) {
+    title = prompt('Enter the title for your new section (e.g. Certifications & Licenses, Leadership & Activities, Publications):', 'Certifications & Activities');
+  }
+  if (!title || !title.trim()) return;
+  title = title.trim();
+
+  if (!resumeState.customSections) {
+    resumeState.customSections = [];
+  }
+  if (!resumeState.sectionOrder) {
+    resumeState.sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
+  }
+
+  const newId = 'custom_' + Date.now();
+  const newSection = {
+    id: newId,
+    title: title,
+    items: [
+      {
+        title: title + ' Item #1',
+        subtitle: 'Organization / Issuer',
+        dates: '2024',
+        location: '',
+        bullets: ['Key achievement, certification verification link, or highlight']
+      }
+    ]
+  };
+
+  resumeState.customSections.push(newSection);
+  resumeState.sectionOrder.push(newId);
+
+  renderCustomSectionsList();
+  reorderFormSectionCards();
+  updatePreviews();
+  scheduleAutoSave();
+  showToast(`Added custom section: "${title}"`);
+
+  setTimeout(() => {
+    scrollToSection(`sec-${newId}`);
+  }, 100);
+}
+window.addCustomSection = addCustomSection;
+window.promptAddCustomSection = addCustomSection;
+
+function removeCustomSection(customId) {
+  if (!confirm('Are you sure you want to remove this custom section?')) return;
+  if (resumeState.customSections) {
+    resumeState.customSections = resumeState.customSections.filter(c => c.id !== customId);
+  }
+  if (resumeState.sectionOrder) {
+    resumeState.sectionOrder = resumeState.sectionOrder.filter(s => s !== customId && s !== `sec-${customId}`);
+  }
+  const el = document.getElementById(`sec-${customId}`);
+  if (el) el.remove();
+
+  renderCustomSectionsList();
+  reorderFormSectionCards();
+  updatePreviews();
+  scheduleAutoSave();
+  showToast('Removed custom section');
+}
+window.removeCustomSection = removeCustomSection;
+
+function updateCustomSectionTitle(customId, title) {
+  if (!resumeState.customSections) return;
+  const c = resumeState.customSections.find(sec => sec.id === customId);
+  if (c) {
+    c.title = title;
+    updateQuickNavChips(resumeState.sectionOrder);
+    updatePreviews();
+  }
+}
+window.updateCustomSectionTitle = updateCustomSectionTitle;
+
+function addCustomSectionItem(customId) {
+  const c = (resumeState.customSections || []).find(sec => sec.id === customId);
+  if (!c) return;
+  if (!c.items) c.items = [];
+  c.items.push({
+    title: '',
+    subtitle: '',
+    dates: '',
+    location: '',
+    bullets: ['']
+  });
+  renderCustomSectionsList();
+  updatePreviews();
+}
+window.addCustomSectionItem = addCustomSectionItem;
+
+function removeCustomSectionItem(customId, itemIdx) {
+  const c = (resumeState.customSections || []).find(sec => sec.id === customId);
+  if (!c || !c.items) return;
+  c.items.splice(itemIdx, 1);
+  renderCustomSectionsList();
+  updatePreviews();
+}
+window.removeCustomSectionItem = removeCustomSectionItem;
+
+function moveCustomItem(customId, itemIdx, direction) {
+  const c = (resumeState.customSections || []).find(sec => sec.id === customId);
+  if (!c || !c.items) return;
+  const targetIdx = itemIdx + direction;
+  if (targetIdx < 0 || targetIdx >= c.items.length) return;
+  const temp = c.items[itemIdx];
+  c.items[itemIdx] = c.items[targetIdx];
+  c.items[targetIdx] = temp;
+  renderCustomSectionsList();
+  updatePreviews();
+}
+window.moveCustomItem = moveCustomItem;
+
+function updateCustomItemField(customId, itemIdx, field, val) {
+  const c = (resumeState.customSections || []).find(sec => sec.id === customId);
+  if (!c || !c.items || !c.items[itemIdx]) return;
+  c.items[itemIdx][field] = val;
+  updatePreviews();
+}
+window.updateCustomItemField = updateCustomItemField;
+
+function addCustomItemBullet(customId, itemIdx) {
+  const c = (resumeState.customSections || []).find(sec => sec.id === customId);
+  if (!c || !c.items || !c.items[itemIdx]) return;
+  if (!c.items[itemIdx].bullets) c.items[itemIdx].bullets = [];
+  c.items[itemIdx].bullets.push('');
+  renderCustomSectionsList();
+  updatePreviews();
+}
+window.addCustomItemBullet = addCustomItemBullet;
+
+function removeCustomItemBullet(customId, itemIdx, bIdx) {
+  const c = (resumeState.customSections || []).find(sec => sec.id === customId);
+  if (!c || !c.items || !c.items[itemIdx] || !c.items[itemIdx].bullets) return;
+  c.items[itemIdx].bullets.splice(bIdx, 1);
+  renderCustomSectionsList();
+  updatePreviews();
+}
+window.removeCustomItemBullet = removeCustomItemBullet;
+
+function updateCustomItemBullet(customId, itemIdx, bIdx, val) {
+  const c = (resumeState.customSections || []).find(sec => sec.id === customId);
+  if (!c || !c.items || !c.items[itemIdx] || !c.items[itemIdx].bullets) return;
+  c.items[itemIdx].bullets[bIdx] = val;
+  updatePreviews();
+}
+window.updateCustomItemBullet = updateCustomItemBullet;
 
 /* ==========================================================================
    Introduction / Summary Section Management
@@ -3495,8 +4149,27 @@ window.updateSectionAccentColor = updateSectionAccentColor;
 window.openTypographyModal = openTypographyModal;
 window.closeTypographyModal = closeTypographyModal;
 window.applyTextFormat = applyTextFormat;
+window.smartApplyFormat = smartApplyFormat;
 window.toggleColorPalette = toggleColorPalette;
 window.toggleSizePalette = toggleSizePalette;
 
-
-
+// Subsections & Custom Sections Exports
+window.addProjSubsection = addProjSubsection;
+window.removeProjSubsection = removeProjSubsection;
+window.updateProjSubsection = updateProjSubsection;
+window.addExpSubsection = addExpSubsection;
+window.removeExpSubsection = removeExpSubsection;
+window.updateExpSubsection = updateExpSubsection;
+window.addCustomSection = addCustomSection;
+window.promptAddCustomSection = addCustomSection;
+window.removeCustomSection = removeCustomSection;
+window.updateCustomSectionTitle = updateCustomSectionTitle;
+window.addCustomSectionItem = addCustomSectionItem;
+window.removeCustomSectionItem = removeCustomSectionItem;
+window.moveCustomItem = moveCustomItem;
+window.updateCustomItemField = updateCustomItemField;
+window.addCustomItemBullet = addCustomItemBullet;
+window.removeCustomItemBullet = removeCustomItemBullet;
+window.updateCustomItemBullet = updateCustomItemBullet;
+window.renderCustomSectionsList = renderCustomSectionsList;
+window.renderCustomSectionVisual = renderCustomSectionVisual;

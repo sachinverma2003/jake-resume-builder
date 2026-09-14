@@ -260,6 +260,14 @@ function generateExperienceLatex(experience) {
   let latex = `\n%-----------EXPERIENCE-----------\n\\section{Experience}\n  \\resumeSubHeadingListStart\n`;
   experience.forEach(exp => {
     latex += `    \\resumeSubheading\n      {${formatBulletLatex(exp.role)}}{${formatBulletLatex(exp.dates)}}\n      {${formatBulletLatex(exp.company)}}{${formatBulletLatex(exp.location)}}\n      \\resumeItemListStart\n`;
+    if (exp.subsections && exp.subsections.length > 0) {
+      exp.subsections.forEach(sub => {
+        if ((sub.label && sub.label.trim()) || (sub.text && sub.text.trim())) {
+          const lbl = sub.label && sub.label.trim() ? `\\textbf{${formatBulletLatex(sub.label.trim())}}: ` : '';
+          latex += `        \\resumeItem{${lbl}${formatBulletLatex(sub.text || '')}}\n`;
+        }
+      });
+    }
     if (exp.bullets && exp.bullets.length > 0) {
       exp.bullets.forEach(bullet => {
         if (bullet.trim()) {
@@ -290,6 +298,14 @@ function generateProjectsLatex(projects) {
     }
 
     latex += `      \\resumeProjectHeading\n          {${titlePart}}{${formatBulletLatex(proj.dates)}}\n          \\resumeItemListStart\n`;
+    if (proj.subsections && proj.subsections.length > 0) {
+      proj.subsections.forEach(sub => {
+        if ((sub.label && sub.label.trim()) || (sub.text && sub.text.trim())) {
+          const lbl = sub.label && sub.label.trim() ? `\\textbf{${formatBulletLatex(sub.label.trim())}}: ` : '';
+          latex += `            \\resumeItem{${lbl}${formatBulletLatex(sub.text || '')}}\n`;
+        }
+      });
+    }
     if (proj.bullets && proj.bullets.length > 0) {
       proj.bullets.forEach(bullet => {
         if (bullet.trim()) {
@@ -386,6 +402,55 @@ function generateAchievementsLatex(achievements, showAchievements = true) {
     latex += `    \\resumeItem{${line}}\n`;
   });
   latex += ` \\resumeItemListEnd\n`;
+  return latex;
+}
+
+// 7. Custom Dynamic Section LaTeX
+function generateCustomSectionLatex(customSec) {
+  if (!customSec || !customSec.title || !customSec.title.trim()) return '';
+  const title = customSec.title.trim();
+  let latex = `\n%-----------${title.toUpperCase()}-----------\n\\section{${formatBulletLatex(title)}}\n`;
+
+  if (!customSec.items || customSec.items.length === 0) return latex;
+
+  const hasSubheadings = customSec.items.some(item => item.title || item.subtitle || item.dates || item.location);
+
+  if (hasSubheadings) {
+    latex += `  \\resumeSubHeadingListStart\n`;
+    customSec.items.forEach(item => {
+      const itmTitle = item.title ? formatBulletLatex(item.title) : '';
+      const itmDates = item.dates ? formatBulletLatex(item.dates) : '';
+      const itmSub = item.subtitle ? formatBulletLatex(item.subtitle) : '';
+      const itmLoc = item.location ? formatBulletLatex(item.location) : '';
+
+      if (itmTitle || itmDates || itmSub || itmLoc) {
+        latex += `    \\resumeSubheading\n      {${itmTitle}}{${itmDates}}\n      {${itmSub}}{${itmLoc}}\n`;
+      }
+      if (item.bullets && item.bullets.length > 0) {
+        const activeBullets = item.bullets.filter(b => b && b.trim());
+        if (activeBullets.length > 0) {
+          latex += `      \\resumeItemListStart\n`;
+          activeBullets.forEach(b => {
+            latex += `        \\resumeItem{${formatBulletLatex(b)}}\n`;
+          });
+          latex += `      \\resumeItemListEnd\n`;
+        }
+      }
+    });
+    latex += `  \\resumeSubHeadingListEnd\n`;
+  } else {
+    latex += `  \\resumeItemListStart\n`;
+    customSec.items.forEach(item => {
+      if (item.bullets && item.bullets.length > 0) {
+        item.bullets.forEach(b => {
+          if (b && b.trim()) {
+            latex += `    \\resumeItem{${formatBulletLatex(b)}}\n`;
+          }
+        });
+      }
+    });
+    latex += `  \\resumeItemListEnd\n`;
+  }
   return latex;
 }
 
@@ -492,15 +557,25 @@ function generateLatexCode(resumeData, options = {}) {
 \\usepackage[empty]{fullpage}
 \\usepackage{titlesec}
 \\usepackage{marvosym}
-\\usepackage[dvipsnames,table]{xcolor}
+\\usepackage[usenames,dvipsnames]{color}
 \\usepackage{verbatim}
 \\usepackage{enumitem}
 \\usepackage[hidelinks]{hyperref}
 \\usepackage{fancyhdr}
 \\usepackage[english]{babel}
 \\usepackage{tabularx}
+\\usepackage{xcolor}
 \\input{glyphtounicode}
 
+% Custom Color Definitions for Highlighting & Typography
+\\definecolor{hlgold}{HTML}{FEF08A}
+\\definecolor{clrred}{HTML}{DC2626}
+\\definecolor{clrblue}{HTML}{2563EB}
+\\definecolor{clremerald}{HTML}{059669}
+\\definecolor{clrpurple}{HTML}{7C3AED}
+\\definecolor{clramber}{HTML}{D97706}
+\\definecolor{clrglow}{HTML}{38BDF8}
+\\definecolor{clrslate}{HTML}{475569}
 
 %----------FONT OPTIONS----------
 % sans-serif
@@ -530,7 +605,7 @@ ${marginAdjustments}
 
 % Sections formatting
 \\titleformat{\\section}{
-  \\vspace{-4pt}\\scshape\\raggedright${(options && options.sectionHeaderSize) ? `\\${options.sectionHeaderSize}` : '\\large'}
+  \\vspace{${options.sectionSpacing || '-4pt'}}\\scshape\\raggedright\\${(options && options.sectionHeaderSize) ? options.sectionHeaderSize : 'large'}${accentHex ? `\\color[HTML]{${accentHex}}` : ''}
 }{}{0em}{}[${titleruleColorCmd}\\titlerule \\vspace{-5pt}]
 
 % Ensure that generate pdf is machine readable/ATS parsable
@@ -584,7 +659,7 @@ ${marginAdjustments}
 %----------HEADING----------
 \\begin{center}
     \\textbf{${(options && options.nameSize) ? `\\${options.nameSize}` : '\\Huge'} \\scshape ${formatBulletLatex(personal.fullName || 'Jake Ryan')}} \\\\ \\vspace{1pt}
-    \\small ${headerLine}
+    ${personal.tagline ? `\\small \\textit{${formatBulletLatex(personal.tagline)}} \\\\ \\vspace{1pt}\n    ` : ''}\\small ${headerLine}
 \\end{center}
 `;
 
@@ -607,6 +682,12 @@ ${marginAdjustments}
   order.forEach(secKey => {
     if (sectionGenerators[secKey]) {
       latex += sectionGenerators[secKey]();
+    } else if (secKey.startsWith('custom_') || secKey.startsWith('sec-custom_')) {
+      const cId = secKey.replace(/^sec-/, '');
+      const customSec = (resumeData.customSections || []).find(cs => cs.id === cId || cs.id === secKey);
+      if (customSec) {
+        latex += generateCustomSectionLatex(customSec);
+      }
     }
   });
 
@@ -628,6 +709,7 @@ const BTECH_PRESETS = {
   jake: {
     personal: {
       fullName: 'Jake Ryan',
+      tagline: '',
       phone: '123-456-7890',
       email: 'jake@su.edu',
       linkedin: 'https://linkedin.com/in/jake',
@@ -745,6 +827,7 @@ const BTECH_PRESETS = {
   sde: {
     personal: {
       fullName: 'Aarav Sharma',
+      tagline: 'Distributed Systems | Cloud Infrastructure | High-Throughput Microservices',
       phone: '+91 98765 43210',
       email: 'aarav.sharma@gmail.com',
       linkedin: 'https://linkedin.com/in/aarav-sharma-dev',
@@ -854,6 +937,7 @@ const BTECH_PRESETS = {
   aiml: {
     personal: {
       fullName: 'Priya Iyer',
+      tagline: 'Applied Machine Learning | Deep Learning & LLMs | Distributed Inference',
       phone: '+91 91234 56789',
       email: 'priya.iyer@gmail.com',
       linkedin: 'https://linkedin.com/in/priya-iyer-ai',
@@ -951,6 +1035,7 @@ const BTECH_PRESETS = {
   fresher: {
     personal: {
       fullName: 'Rohan Verma',
+      tagline: 'Aspiring Software Development Engineer | Data Structures & Algorithms',
       phone: '+91 98111 22334',
       email: 'rohan.verma.cse@gmail.com',
       linkedin: 'https://linkedin.com/in/rohanverma-dev',
@@ -1070,6 +1155,7 @@ if (typeof window !== 'undefined') {
   window.createLatexHref = createLatexHref;
   window.normalizeSkills = normalizeSkills;
   window.generateIntroductionLatex = generateIntroductionLatex;
+  window.generateCustomSectionLatex = generateCustomSectionLatex;
   window.generateLatexCode = generateLatexCode;
   window.BTECH_PRESETS = BTECH_PRESETS;
   window.PRESET_COLORS = PRESET_COLORS;
@@ -1089,6 +1175,7 @@ if (typeof module !== 'undefined' && module.exports) {
     createLatexHref,
     normalizeSkills,
     generateIntroductionLatex,
+    generateCustomSectionLatex,
     generateLatexCode,
     BTECH_PRESETS,
     PRESET_COLORS,

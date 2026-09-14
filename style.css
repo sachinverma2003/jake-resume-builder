@@ -2542,3 +2542,88 @@ mark.res-hl {
     height: 700px;
   }
 }
+
+/* ==========================================================================
+   Header Tagline / Keywords & Sub-sections Styling (v3.4.3)
+   ========================================================================== */
+.res-tagline {
+  font-size: 0.86rem;
+  font-style: italic;
+  color: #374151;
+  letter-spacing: 0.015em;
+  margin-top: 1px;
+  margin-bottom: 3px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  border-radius: 3px;
+  padding: 1px 6px;
+  display: block;
+}
+.res-tagline:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--primary-color, #6366f1);
+}
+
+.subsection-group {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border-color, #e5e7eb);
+  border-radius: 8px;
+}
+.subsection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.subsection-item-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.subsection-label-input {
+  max-width: 170px;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.subsection-text-input {
+  flex: 1;
+  font-size: 0.82rem;
+}
+
+.custom-section-title-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 2px 8px;
+  margin-left: 6px;
+  transition: all 0.15s ease;
+  max-width: 260px;
+}
+.custom-section-title-input:hover {
+  border-color: var(--border-color);
+  background: var(--bg-surface);
+}
+.custom-section-title-input:focus {
+  border-color: var(--primary-color, #6366f1);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+.res-subsection-item {
+  margin-bottom: 2px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+.res-subsection-item:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
