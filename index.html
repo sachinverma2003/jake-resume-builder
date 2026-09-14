@@ -8,574 +8,649 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=3.4.3">
+  <link rel="stylesheet" href="style.css?v=3.5.0">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
-  <!-- Top Header Navigation (Sticky) -->
+  <!-- ═══════════════════════════════════════════════════
+       TOP BAR — Ultra-minimal: Brand | Tab Switcher | Actions
+       ═══════════════════════════════════════════════════ -->
   <header class="header-bar">
+
+    <!-- Left: Brand -->
     <div class="brand-wrapper">
       <div class="brand-icon">
         <span>&Sigma;</span>
       </div>
       <div class="brand-text">
-        <h1>Jake's Resume Builder <span class="version-tag">v3.4.3</span></h1>
-        <span>LaTeX ATS Engine &bull; Jake Gutierrez Standard</span>
+        <h1>Jake's Resume <span class="version-tag">v3.5</span></h1>
+        <span>Forge Studio &bull; LaTeX ATS Engine</span>
       </div>
     </div>
 
-    <div class="header-controls">
-      <!-- Layout View Mode Selector -->
-      <div class="view-mode-group">
-        <button id="btn-view-split" class="view-btn active" title="Split Screen 50/50">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-          Split
-        </button>
-        <button id="btn-view-form" class="view-btn" title="Editor Full Screen">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          Form Only
-        </button>
-        <button id="btn-view-preview" class="view-btn" title="Resume Preview Full Screen">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          Resume Only
-        </button>
-      </div>
+    <!-- Center: 3-Tab View Switcher -->
+    <div class="view-tab-switcher">
+      <button id="btn-view-split" class="view-tab active" title="Editor + Preview (Split)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+        Editor
+      </button>
+      <button id="btn-view-preview" class="view-tab" title="Resume Preview Full Screen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Preview
+      </button>
+      <button id="btn-view-form" class="view-tab" title="Editor Focus Mode">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Focus
+      </button>
+      <div class="view-tab-indicator"></div>
+    </div>
 
-      <!-- Multi-Resume Profile Selector -->
-      <div class="profile-selector-group">
-        <label for="profile-select">Profile:</label>
-        <select id="profile-select" class="profile-select" title="Switch active resume profile" onchange="handleProfileSelectChange(this.value)">
-          <!-- Populated dynamically by app.js -->
-        </select>
-        <button id="btn-manage-profiles" class="btn-profile-manage" onclick="openProfilesModal()" title="Manage Resume Profiles (Create, Duplicate, Rename, Delete)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Profiles
-        </button>
-        <button id="btn-styling-modal" class="btn-profile-manage" onclick="openTypographyModal()" title="Customize Fonts, Sizes & Accent Colors">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-          Style &amp; Fonts
-        </button>
-      </div>
-
-      <!-- Preset Switcher -->
-      <div class="preset-selector-group">
-        <label for="preset-select">Preset:</label>
-        <select id="preset-select" class="preset-select">
-          <option value="jake" selected>Jake Ryan (Original Standard Template)</option>
-          <option value="sde">SDE / Full Stack Profile (NIT Trichy)</option>
-          <option value="aiml">AI / ML &amp; Data Science (IIT Kharagpur)</option>
-          <option value="fresher">Fresher / Campus Placements (VIT)</option>
-        </select>
-      </div>
-
-      <!-- Auto-Save Status Badge -->
+    <!-- Right: Actions -->
+    <div class="header-actions">
+      <!-- Autosave Badge -->
       <div id="autosave-status" class="autosave-indicator" title="Your edits are continuously auto-saved to your browser. You can close this tab and return anytime.">
         <span class="autosave-dot"></span>
         <span id="autosave-label">Saved</span>
       </div>
 
-      <!-- Global Rich Text Formatting Toolbar in Top Bar -->
-      <div class="top-format-toolbar" id="top-format-toolbar" title="Global text formatting: select any text in any field & click to style">
-        <span class="format-toolbar-label">Format:</span>
-        <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold Selection (Ctrl+B)"><strong>B</strong></button>
-        <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic Selection (Ctrl+I)"><em>I</em></button>
-        <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter Selection (Ctrl+H)">🖍️ Highlight</button>
-        <div class="format-tool-color-group">
-          <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Color Selection">🎨 Color ▾</button>
-          <div class="format-color-palette" style="display: none;">
-            <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
-            <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
-            <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
-            <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
-            <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
-            <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
-          </div>
-        </div>
-        <div class="format-tool-size-group">
-          <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Font Size Selection">🗚 Size ▾</button>
-          <div class="format-size-palette" style="display: none;">
-            <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
-            <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
-          </div>
+      <!-- Upload Resume -->
+      <button id="btn-upload-resume" class="btn btn-upload" onclick="openUploadModal()" title="Upload existing resume (PDF, .tex, .txt, or .json) to auto-fill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Upload
+      </button>
+
+      <!-- More Actions Dropdown -->
+      <div class="more-actions-wrapper">
+        <button class="btn btn-ghost more-actions-trigger" id="btn-more-actions" onclick="toggleMoreActionsMenu()" title="More Actions">
+          More
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </button>
+        <div class="more-actions-menu" id="more-actions-menu">
+          <button class="more-action-item" id="btn-export-backup" onclick="exportResumeBackupJson()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Backup JSON
+          </button>
+          <button class="more-action-item" id="btn-reset-draft" onclick="resetToDefaultDraft()" title="Reset all changes and reload default template">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+            Reset Draft
+          </button>
+          <div class="more-action-divider"></div>
+          <button class="more-action-item" id="btn-copy-latex" title="Copy clean LaTeX code">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy LaTeX
+          </button>
+          <button class="more-action-item" id="btn-download-tex" title="Download .tex file">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Download .tex
+          </button>
+          <div class="more-action-divider"></div>
+          <button class="more-action-item" id="btn-styling-modal" onclick="openTypographyModal()" title="Customize Fonts, Sizes &amp; Accent Colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            Style &amp; Fonts
+          </button>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="action-buttons">
-        <button id="btn-upload-resume" class="btn btn-upload" onclick="openUploadModal()" title="Upload existing resume (PDF, .tex, .txt, or .json) to auto-fill">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-          Upload Resume
-        </button>
-        <button id="btn-export-backup" class="btn btn-secondary btn-backup" onclick="exportResumeBackupJson()" title="Download a JSON backup of your resume to restore anytime on any device">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-          Backup
-        </button>
-        <button id="btn-reset-draft" class="btn btn-ghost" onclick="resetToDefaultDraft()" title="Reset all changes and reload default template">
-          ↺ Reset
-        </button>
-        <button id="btn-copy-latex" class="btn btn-secondary" title="Copy clean LaTeX code">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy LaTeX
-        </button>
-        <button id="btn-download-tex" class="btn btn-primary" title="Download .tex file">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Download .tex
-        </button>
-        <button id="btn-open-overleaf" class="btn btn-overleaf" title="Compile directly on Overleaf in 1-click">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-          Open in Overleaf
-        </button>
-        <button id="btn-print-pdf" class="btn btn-emerald" title="Download clean 1-page PDF directly (No browser headers, URLs, or timestamps)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Export PDF
-        </button>
-      </div>
+      <!-- Primary CTAs -->
+      <button id="btn-open-overleaf" class="btn btn-overleaf" title="Compile directly on Overleaf in 1-click">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+        Overleaf
+      </button>
+      <button id="btn-print-pdf" class="btn btn-pdf-cta" title="Download clean 1-page PDF directly">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export PDF
+      </button>
     </div>
+
   </header>
 
-  <!-- Main Container -->
-  <main id="app-container" class="app-container view-split">
-    
-    <!-- LEFT PANE: Form Builder -->
-    <aside id="form-pane" class="form-pane">
+  <!-- ═══════════════════════════════════════════════════
+       APP SHELL — Sidebar + Main (Editor + Preview)
+       ═══════════════════════════════════════════════════ -->
+  <div class="app-shell">
 
-      <!-- Sticky Quick-Navigation Bar -->
-      <nav class="form-quick-nav">
-        <div class="quick-nav-chips">
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-header')">👤 Header</button>
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-intro')">📝 Intro</button>
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-education')">🎓 Education</button>
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-experience')">💼 Experience</button>
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-projects')">🚀 Projects</button>
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-skills')">⚡ Skills</button>
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-certs')">📜 Certs</button>
-          <button type="button" class="chip-btn" onclick="scrollToSection('sec-honors')">🏆 Honors</button>
-        </div>
-        <div class="quick-tools-right">
-          <!-- Global Sticky Formatting Toolbar in Editor Nav -->
-          <div class="global-format-toolbar" title="Global text formatting: select any text in any field & click to style">
-            <span class="format-toolbar-label">Format:</span>
-            <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold Selection (Ctrl+B)"><strong>B</strong></button>
-            <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic Selection (Ctrl+I)"><em>I</em></button>
-            <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlighter Selection (Ctrl+H)">🖍️ Highlight</button>
-            <div class="format-tool-color-group">
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Color Selection">🎨 Color ▾</button>
-              <div class="format-color-palette" style="display: none;">
-                <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
-                <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
-                <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald (+Metrics)"></button>
-                <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
-                <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
-                <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
-              </div>
-            </div>
-            <div class="format-tool-size-group">
-              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Font Size Selection">🗚 Size ▾</button>
-              <div class="format-size-palette" style="display: none;">
-                <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
-                <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
-              </div>
-            </div>
+    <!-- ─────────────────────────────────────────────────
+         NAV SIDEBAR — Progress + Section Steps + Profile
+         ───────────────────────────────────────────────── -->
+    <nav class="nav-sidebar" id="nav-sidebar">
+
+      <!-- Completion Ring -->
+      <div class="sidebar-progress-section">
+        <div class="sidebar-ring-wrapper">
+          <svg class="progress-ring-svg" viewBox="0 0 80 80">
+            <circle class="ring-track" cx="40" cy="40" r="32"/>
+            <circle class="ring-fill" id="sidebar-ring-fill" cx="40" cy="40" r="32"/>
+          </svg>
+          <div class="ring-center-label">
+            <span id="sidebar-progress-pct">0</span><small>%</small>
+            <span class="ring-label-sub">Complete</span>
           </div>
-          <button id="btn-toggle-all" class="chip-btn" title="Expand or Collapse All Cards">Collapse All</button>
         </div>
-      </nav>
+      </div>
 
-      <!-- Section Sequence Reorder Bar -->
-      <div class="section-sequence-bar">
-        <div class="sequence-bar-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 15 12 20 17 15"></polyline><polyline points="7 9 12 4 17 9"></polyline></svg>
-          <span>Section Order:</span>
-        </div>
-        <div class="sequence-preset-chips">
-          <button type="button" class="order-chip-btn active" id="btn-order-standard" onclick="setSectionOrderPreset('standard')" title="Education → Experience → Projects → Skills">🎓 Standard</button>
-          <button type="button" class="order-chip-btn" id="btn-order-fresher" onclick="setSectionOrderPreset('fresher')" title="Education → Skills → Projects → Experience">🚀 Fresher</button>
-          <button type="button" class="order-chip-btn" id="btn-order-experienced" onclick="setSectionOrderPreset('experienced')" title="Experience → Projects → Skills → Education">💼 Experienced</button>
-          <button type="button" class="order-chip-btn" id="btn-order-skillsFirst" onclick="setSectionOrderPreset('skillsFirst')" title="Skills → Projects → Experience → Education">⚡ Skills First</button>
-        </div>
-        <button type="button" class="btn btn-sm btn-primary" onclick="addCustomSection()" title="Add a custom section anywhere in the resume" style="margin-left: auto; display: flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 0.8rem;">
-          <span>+ Add Custom Section</span>
+      <!-- Section Steps -->
+      <div class="sidebar-steps" id="sidebar-steps">
+        <button class="sidebar-step" id="step-personal" onclick="scrollToSection('sec-header')" title="Personal &amp; Contact Links">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">👤</span>
+          <span class="step-label">Personal</span>
         </button>
+        <button class="sidebar-step" id="step-intro" onclick="scrollToSection('sec-intro')" title="Introduction / Summary">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">📝</span>
+          <span class="step-label">Introduction</span>
+        </button>
+        <button class="sidebar-step" id="step-education" onclick="scrollToSection('sec-education')" title="Education">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">🎓</span>
+          <span class="step-label">Education</span>
+        </button>
+        <button class="sidebar-step" id="step-experience" onclick="scrollToSection('sec-experience')" title="Experience &amp; Internships">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">💼</span>
+          <span class="step-label">Experience</span>
+        </button>
+        <button class="sidebar-step" id="step-projects" onclick="scrollToSection('sec-projects')" title="Technical Projects">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">🚀</span>
+          <span class="step-label">Projects</span>
+        </button>
+        <button class="sidebar-step" id="step-skills" onclick="scrollToSection('sec-skills')" title="Technical Skills">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">⚡</span>
+          <span class="step-label">Skills</span>
+        </button>
+        <button class="sidebar-step" id="step-certs" onclick="scrollToSection('sec-certs')" title="Certifications">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">📜</span>
+          <span class="step-label">Certs</span>
+        </button>
+        <button class="sidebar-step" id="step-honors" onclick="scrollToSection('sec-honors')" title="Honors &amp; Achievements">
+          <span class="step-status-dot"></span>
+          <span class="step-icon">🏆</span>
+          <span class="step-label">Honors</span>
+        </button>
+        <!-- Custom section steps injected by JS via updateSidebarSteps() -->
+        <div id="sidebar-custom-steps"></div>
       </div>
 
-      <!-- Placement Tip Banner -->
-      <div class="tip-pill">
-        <strong>💡 Jake Gutierrez Template:</strong> Single-column ATS format with 0.5-inch margins and Computer Modern typography. Bullets use the STAR method. All links generate valid <code>\href{...}</code> syntax with automatic character escaping.
-      </div>
+      <!-- Sidebar Bottom Zone -->
+      <div class="sidebar-bottom">
+        <!-- Add Custom Section -->
+        <button class="sidebar-add-btn" onclick="addCustomSection()" title="Add a custom section anywhere in the resume">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Section
+        </button>
 
-      <!-- 1. Personal Info & Links -->
-      <div id="sec-header" class="section-card">
-        <div class="section-header">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            Personal &amp; Contact Links
+        <!-- Profile Selector -->
+        <div class="sidebar-profile-group">
+          <div class="sidebar-profile-row">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <select id="profile-select" class="profile-select" title="Switch active resume profile" onchange="handleProfileSelectChange(this.value)">
+              <!-- Populated dynamically by app.js -->
+            </select>
           </div>
-          <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <button id="btn-manage-profiles" class="sidebar-manage-btn" onclick="openProfilesModal()" title="Manage Resume Profiles">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Manage
+          </button>
         </div>
-        <div class="section-body">
-          <div class="grid-2">
-            <div class="form-group">
-              <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                <label for="inp-name">Full Name</label>
-                <div class="font-size-picker-mini" title="Candidate Name Font Size on Resume">
-                  <span style="font-size: 0.72rem; color: var(--text-muted); margin-right: 4px;">Size:</span>
-                  <select id="opt-name-size" class="form-select-inline" onchange="updateNameFontSize(this.value)">
-                    <option value="Huge" selected>Huge (24pt)</option>
-                    <option value="huge">Large (20pt)</option>
-                    <option value="LARGE">Medium (17pt)</option>
-                    <option value="Large">Compact (14pt)</option>
-                  </select>
+      </div>
+
+    </nav>
+
+    <!-- ─────────────────────────────────────────────────
+         MAIN CONTAINER — Editor + Splitter + Preview
+         ───────────────────────────────────────────────── -->
+    <main id="app-container" class="app-container view-split">
+
+      <!-- ──────────────────────────────────
+           LEFT PANE: Form Editor
+           ────────────────────────────────── -->
+      <aside id="form-pane" class="form-pane">
+
+        <!-- Editor Sub-Header: Preset + Section Order -->
+        <div class="editor-sub-header">
+          <!-- Preset Switcher -->
+          <div class="preset-selector-group">
+            <label for="preset-select">Preset:</label>
+            <select id="preset-select" class="preset-select">
+              <option value="jake" selected>Jake Ryan (Original)</option>
+              <option value="sde">SDE / Full Stack (NIT Trichy)</option>
+              <option value="aiml">AI / ML &amp; Data Science (IIT KGP)</option>
+              <option value="fresher">Fresher / Campus (VIT)</option>
+            </select>
+          </div>
+
+          <!-- Section Order Bar -->
+          <div class="section-sequence-bar">
+            <div class="sequence-bar-label">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 15 12 20 17 15"></polyline><polyline points="7 9 12 4 17 9"></polyline></svg>
+              <span>Order:</span>
+            </div>
+            <div class="sequence-preset-chips">
+              <button type="button" class="order-chip-btn active" id="btn-order-standard" onclick="setSectionOrderPreset('standard')" title="Education → Experience → Projects → Skills">🎓 Standard</button>
+              <button type="button" class="order-chip-btn" id="btn-order-fresher" onclick="setSectionOrderPreset('fresher')" title="Education → Skills → Projects → Experience">🚀 Fresher</button>
+              <button type="button" class="order-chip-btn" id="btn-order-experienced" onclick="setSectionOrderPreset('experienced')" title="Experience → Projects → Skills → Education">💼 Experienced</button>
+              <button type="button" class="order-chip-btn" id="btn-order-skillsFirst" onclick="setSectionOrderPreset('skillsFirst')" title="Skills → Projects → Experience → Education">⚡ Skills First</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sticky Quick Navigation + Format Toolbar -->
+        <nav class="form-quick-nav">
+          <div class="quick-nav-chips">
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-header')">👤 Header</button>
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-intro')">📝 Intro</button>
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-education')">🎓 Education</button>
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-experience')">💼 Experience</button>
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-projects')">🚀 Projects</button>
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-skills')">⚡ Skills</button>
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-certs')">📜 Certs</button>
+            <button type="button" class="chip-btn" onclick="scrollToSection('sec-honors')">🏆 Honors</button>
+          </div>
+          <div class="quick-tools-right">
+            <!-- Single Format Toolbar Instance -->
+            <div class="global-format-toolbar" title="Global text formatting: select any text in any field &amp; click to style">
+              <span class="format-toolbar-label">Format:</span>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('bold')" title="Bold Selection (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('italic')" title="Italic Selection (Ctrl+I)"><em>I</em></button>
+              <button type="button" class="format-tool-btn format-tool-hl" onmousedown="event.preventDefault()" onclick="applyTextFormat('highlight')" title="Highlight (Ctrl+H)">🖍️ HL</button>
+              <div class="format-tool-color-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleColorPalette(this)" title="Color Selection">🎨 ▾</button>
+                <div class="format-color-palette" style="display: none;">
+                  <button type="button" class="color-dot" style="background:#2563eb;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'blue')" title="Royal Blue"></button>
+                  <button type="button" class="color-dot" style="background:#1e40af;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'navy')" title="Navy Blue"></button>
+                  <button type="button" class="color-dot" style="background:#059669;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'emerald')" title="Emerald"></button>
+                  <button type="button" class="color-dot" style="background:#7c3aed;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'purple')" title="Purple"></button>
+                  <button type="button" class="color-dot" style="background:#dc2626;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'crimson')" title="Crimson Red"></button>
+                  <button type="button" class="color-dot" style="background:#d97706;" onmousedown="event.preventDefault()" onclick="applyTextFormat('color', 'amber')" title="Amber Orange"></button>
                 </div>
               </div>
-              <input type="text" id="inp-name" class="form-control" placeholder="Jake Ryan">
+              <div class="format-tool-size-group">
+                <button type="button" class="format-tool-btn" onmousedown="event.preventDefault()" onclick="toggleSizePalette(this)" title="Font Size">Aa ▾</button>
+                <div class="format-size-palette" style="display: none;">
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'small')">Small</button>
+                  <button type="button" class="size-btn" onmousedown="event.preventDefault()" onclick="applyTextFormat('size', 'large')">Large</button>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="inp-phone">Phone Number</label>
-              <input type="text" id="inp-phone" class="form-control" placeholder="123-456-7890">
-            </div>
+            <button id="btn-toggle-all" class="chip-btn" title="Expand or Collapse All Cards">Collapse All</button>
           </div>
-          <div class="form-group">
-            <label for="inp-tagline">Headline / Core Keywords / Target Role (Optional)</label>
-            <input type="text" id="inp-tagline" class="form-control" placeholder="e.g. Distributed Systems | Cloud Infrastructure | High-Throughput Microservices">
-            <span class="field-hint" style="font-size: 0.73rem; color: var(--text-muted); display: block; margin-top: 3px;">Displays right beneath your name — ideal for ATS keywords, target job title, or specialization.</span>
-          </div>
-          <div class="form-group">
-            <label for="inp-email">Email Address</label>
-            <input type="email" id="inp-email" class="form-control" placeholder="jake@su.edu">
-          </div>
+        </nav>
 
-          <div class="grid-2">
-            <div class="form-group">
-              <label for="inp-linkedin">LinkedIn Profile URL</label>
-              <div class="input-with-action">
-                <input type="url" id="inp-linkedin" class="form-control" placeholder="https://linkedin.com/in/jake">
-                <a id="test-linkedin" href="#" target="_blank" class="test-link-btn" style="display:none;">Test ↗</a>
+        <!-- Placement Tip Banner -->
+        <div class="tip-pill">
+          <strong>💡 Jake Gutierrez Template:</strong> Single-column ATS format with 0.5-inch margins and Computer Modern typography. Bullets use the STAR method. All links generate valid <code>\href{...}</code> syntax with automatic character escaping.
+        </div>
+
+        <!-- ── 1. Personal Info & Links ── -->
+        <div id="sec-header" class="section-card section-accent-personal">
+          <div class="section-header">
+            <div class="section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Personal &amp; Contact Links
+            </div>
+            <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+          <div class="section-body">
+            <div class="grid-2">
+              <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                  <label for="inp-name">Full Name</label>
+                  <div class="font-size-picker-mini" title="Candidate Name Font Size on Resume">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-right: 4px;">Size:</span>
+                    <select id="opt-name-size" class="form-select-inline" onchange="updateNameFontSize(this.value)">
+                      <option value="Huge" selected>Huge (24pt)</option>
+                      <option value="huge">Large (20pt)</option>
+                      <option value="LARGE">Medium (17pt)</option>
+                      <option value="Large">Compact (14pt)</option>
+                    </select>
+                  </div>
+                </div>
+                <input type="text" id="inp-name" class="form-control" placeholder="Jake Ryan">
+              </div>
+              <div class="form-group">
+                <label for="inp-phone">Phone Number</label>
+                <input type="text" id="inp-phone" class="form-control" placeholder="123-456-7890">
               </div>
             </div>
             <div class="form-group">
-              <label for="inp-linkedin-display">LinkedIn Display Text</label>
-              <input type="text" id="inp-linkedin-display" class="form-control" placeholder="LinkedIn">
+              <label for="inp-tagline">Headline / Core Keywords / Target Role (Optional)</label>
+              <input type="text" id="inp-tagline" class="form-control" placeholder="e.g. Distributed Systems | Cloud Infrastructure | High-Throughput Microservices">
+              <span class="field-hint" style="font-size: 0.73rem; color: var(--text-muted); display: block; margin-top: 3px;">Displays right beneath your name — ideal for ATS keywords, target job title, or specialization.</span>
             </div>
-          </div>
-
-          <div class="grid-2">
             <div class="form-group">
-              <label for="inp-github">GitHub Profile URL</label>
-              <div class="input-with-action">
-                <input type="url" id="inp-github" class="form-control" placeholder="https://github.com/jake">
-                <a id="test-github" href="#" target="_blank" class="test-link-btn" style="display:none;">Test ↗</a>
+              <label for="inp-email">Email Address</label>
+              <input type="email" id="inp-email" class="form-control" placeholder="jake@su.edu">
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="inp-linkedin">LinkedIn Profile URL</label>
+                <div class="input-with-action">
+                  <input type="url" id="inp-linkedin" class="form-control" placeholder="https://linkedin.com/in/jake">
+                  <a id="test-linkedin" href="#" target="_blank" class="test-link-btn" style="display:none;">Test ↗</a>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="inp-linkedin-display">LinkedIn Display Text</label>
+                <input type="text" id="inp-linkedin-display" class="form-control" placeholder="LinkedIn">
               </div>
             </div>
-            <div class="form-group">
-              <label for="inp-github-display">GitHub Display Text</label>
-              <input type="text" id="inp-github-display" class="form-control" placeholder="GitHub">
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="inp-github">GitHub Profile URL</label>
+                <div class="input-with-action">
+                  <input type="url" id="inp-github" class="form-control" placeholder="https://github.com/jake">
+                  <a id="test-github" href="#" target="_blank" class="test-link-btn" style="display:none;">Test ↗</a>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="inp-github-display">GitHub Display Text</label>
+                <input type="text" id="inp-github-display" class="form-control" placeholder="GitHub">
+              </div>
             </div>
-          </div>
-
-          <div class="grid-2">
-            <div class="form-group">
-              <label for="inp-leetcode">Coding Profile (LeetCode/Codeforces/Portfolio)</label>
-              <input type="url" id="inp-leetcode" class="form-control" placeholder="https://leetcode.com/jake">
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="inp-leetcode">Coding Profile (LeetCode/Codeforces/Portfolio)</label>
+                <input type="url" id="inp-leetcode" class="form-control" placeholder="https://leetcode.com/jake">
+              </div>
+              <div class="form-group">
+                <label for="inp-leetcode-display">Coding Display Text</label>
+                <input type="text" id="inp-leetcode-display" class="form-control" placeholder="LeetCode">
+              </div>
             </div>
-            <div class="form-group">
-              <label for="inp-leetcode-display">Coding Display Text</label>
-              <input type="text" id="inp-leetcode-display" class="form-control" placeholder="LeetCode">
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div class="form-group">
-              <label for="inp-portfolio">Portfolio / Personal Website (Optional)</label>
-              <input type="url" id="inp-portfolio" class="form-control" placeholder="https://jakeryan.dev">
-            </div>
-            <div class="form-group">
-              <label for="inp-portfolio-display">Portfolio Display Text</label>
-              <input type="text" id="inp-portfolio-display" class="form-control" placeholder="Portfolio">
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="inp-portfolio">Portfolio / Personal Website (Optional)</label>
+                <input type="url" id="inp-portfolio" class="form-control" placeholder="https://jakeryan.dev">
+              </div>
+              <div class="form-group">
+                <label for="inp-portfolio-display">Portfolio Display Text</label>
+                <input type="text" id="inp-portfolio-display" class="form-control" placeholder="Portfolio">
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Reorderable Sections Container -->
+        <div id="reorderable-sections-container">
+
+          <!-- 1. Introduction / Summary -->
+          <div id="sec-intro" class="section-card section-accent-intro" data-section-key="introduction">
+            <div class="section-header">
+              <div class="section-title">
+                <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+                <span class="section-order-badge">1</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                Introduction / Summary (Optional)
+              </div>
+              <div class="section-header-actions" onclick="event.stopPropagation()">
+                <div class="section-reorder-group">
+                  <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('introduction', -1)" title="Move Section Up">↑</button>
+                  <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('introduction', 1)" title="Move Section Down">↓</button>
+                </div>
+                <button type="button" id="btn-toggle-intro" class="btn btn-sm btn-danger" onclick="toggleIntroductionSection()">Remove Section</button>
+                <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="quick-intro-chips">
+                <span class="chips-label">Quick Templates:</span>
+                <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('sde')">💻 SDE / Full Stack</button>
+                <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('aiml')">🤖 AI / ML</button>
+                <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('fresher')">🎓 Fresher / Campus</button>
+                <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('clear')">🧹 Clear</button>
+              </div>
+              <div class="form-group" id="intro-form-group">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px;">
+                  <label for="inp-intro-text">
+                    <span>Summary / Objective Text (2-3 concise ATS lines recommended)</span>
+                    <span id="intro-char-count" style="font-weight: 400; color: var(--text-muted); font-size: 0.7rem;">0 chars</span>
+                  </label>
+                </div>
+                <textarea id="inp-intro-text" class="form-control" rows="3" placeholder="Dynamic, results-driven B.Tech Computer Science undergraduate..." oninput="updateIntroductionText(this.value)"></textarea>
+              </div>
+              <div id="intro-hidden-notice" style="display: none; padding: 0.8rem; text-align: center; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.3); border-radius: var(--radius-sm); margin-top: 0.5rem;">
+                <span style="color: #f87171; font-size: 0.8rem; font-weight: 600;">Introduction section is currently hidden / removed from resume.</span>
+                <div style="margin-top: 0.4rem;">
+                  <button type="button" class="btn btn-sm btn-primary" onclick="toggleIntroductionSection(true)">+ Enable Introduction</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Education -->
+          <div id="sec-education" class="section-card section-accent-education" data-section-key="education">
+            <div class="section-header">
+              <div class="section-title">
+                <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+                <span class="section-order-badge">1</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+                Education
+              </div>
+              <div class="section-header-actions" onclick="event.stopPropagation()">
+                <div class="section-reorder-group">
+                  <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('education', -1)" title="Move Section Up">↑</button>
+                  <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('education', 1)" title="Move Section Down">↓</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="addEducation();">+ Add School</button>
+                <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="section-body">
+              <div id="education-list"></div>
+            </div>
+          </div>
+
+          <!-- 3. Work Experience / Internships -->
+          <div id="sec-experience" class="section-card section-accent-experience" data-section-key="experience">
+            <div class="section-header">
+              <div class="section-title">
+                <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+                <span class="section-order-badge">2</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                Experience &amp; Internships
+              </div>
+              <div class="section-header-actions" onclick="event.stopPropagation()">
+                <div class="section-reorder-group">
+                  <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('experience', -1)" title="Move Section Up">↑</button>
+                  <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('experience', 1)" title="Move Section Down">↓</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="addExperience();">+ Add Role</button>
+                <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="action-verbs-bar">
+                <span class="action-verbs-label">Action Verbs:</span>
+                <button type="button" class="verb-chip" onclick="insertActionVerb('Engineered')">+ Engineered</button>
+                <button type="button" class="verb-chip" onclick="insertActionVerb('Architected')">+ Architected</button>
+                <button type="button" class="verb-chip" onclick="insertActionVerb('Optimized')">+ Optimized</button>
+                <button type="button" class="verb-chip" onclick="insertActionVerb('Spearheaded')">+ Spearheaded</button>
+                <button type="button" class="verb-chip" onclick="insertActionVerb('Implemented')">+ Implemented</button>
+                <button type="button" class="verb-chip" onclick="insertActionVerb('Benchmarked')">+ Benchmarked</button>
+              </div>
+              <div id="experience-list"></div>
+            </div>
+          </div>
+
+          <!-- 4. Projects -->
+          <div id="sec-projects" class="section-card section-accent-projects" data-section-key="projects">
+            <div class="section-header">
+              <div class="section-title">
+                <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+                <span class="section-order-badge">3</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                Technical &amp; Academic Projects
+              </div>
+              <div class="section-header-actions" onclick="event.stopPropagation()">
+                <div class="section-reorder-group">
+                  <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('projects', -1)" title="Move Section Up">↑</button>
+                  <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('projects', 1)" title="Move Section Down">↓</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="addProject();">+ Add Project</button>
+                <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="section-body">
+              <div id="projects-list"></div>
+            </div>
+          </div>
+
+          <!-- 5. Technical Skills -->
+          <div id="sec-skills" class="section-card section-accent-skills" data-section-key="skills">
+            <div class="section-header">
+              <div class="section-title">
+                <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+                <span class="section-order-badge">4</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                Technical Skills
+              </div>
+              <div class="section-header-actions" onclick="event.stopPropagation()">
+                <div class="section-reorder-group">
+                  <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('skills', -1)" title="Move Section Up">↑</button>
+                  <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('skills', 1)" title="Move Section Down">↓</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="addSkillCategory();">+ Add Category</button>
+                <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="quick-skills-chips">
+                <span class="chips-label">Quick Add:</span>
+                <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Languages', 'Java, Python, C/C++, SQL, JavaScript')">+ Languages</button>
+                <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Frameworks', 'React, Node.js, Express, Spring Boot')">+ Frameworks</button>
+                <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Cloud &amp; DevOps', 'AWS (EC2, S3), Docker, Kubernetes, CI/CD, Git')">+ Cloud &amp; DevOps</button>
+                <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Databases', 'PostgreSQL, MySQL, MongoDB, Redis')">+ Databases</button>
+                <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('AI &amp; Machine Learning', 'PyTorch, TensorFlow, scikit-learn, OpenCV')">+ AI &amp; ML</button>
+                <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Core CS Coursework', 'DSA, DBMS, Operating Systems, Networks, OOPs')">+ Core CS</button>
+              </div>
+              <div id="skills-list"></div>
+              <button type="button" class="btn btn-outline btn-full-width" onclick="addSkillCategory()" style="margin-top: 0.6rem;">
+                + Add Custom Skill Category
+              </button>
+            </div>
+          </div>
+
+          <!-- 6. Certifications -->
+          <div id="sec-certs" class="section-card collapsed" data-section-key="certifications">
+            <div class="section-header">
+              <div class="section-title">
+                <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+                <span class="section-order-badge">5</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+                Certifications (Optional)
+              </div>
+              <div class="section-header-actions" onclick="event.stopPropagation()">
+                <div class="section-reorder-group">
+                  <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('certifications', -1)" title="Move Section Up">↑</button>
+                  <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('certifications', 1)" title="Move Section Down">↓</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="addCertification();">+ Add Cert</button>
+                <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="section-body">
+              <div id="certifications-list"></div>
+            </div>
+          </div>
+
+          <!-- 7. Honors & Achievements -->
+          <div id="sec-honors" class="section-card collapsed" data-section-key="achievements">
+            <div class="section-header">
+              <div class="section-title">
+                <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
+                <span class="section-order-badge">6</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 6 14.5 10.5 19.5 11.2 16 14.5 17 19.5 12 17 7 19.5 8 14.5 4.5 11.2 9.5 10.5 12 6"></polygon></svg>
+                Honors &amp; Achievements (Optional)
+              </div>
+              <div class="section-header-actions" onclick="event.stopPropagation()">
+                <div class="section-reorder-group">
+                  <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('achievements', -1)" title="Move Section Up">↑</button>
+                  <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('achievements', 1)" title="Move Section Down">↓</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="addAchievement();">+ Add Honor</button>
+                <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="section-body">
+              <div id="achievements-list"></div>
+            </div>
+          </div>
+
+        </div> <!-- /reorderable-sections-container -->
+
+        <div style="height: 60px;"></div>
+      </aside>
+
+      <!-- DRAGGABLE SPLITTER DIVIDER -->
+      <div id="drag-splitter" class="drag-splitter" role="separator" aria-orientation="vertical" title="Drag to resize panels (Double-click to reset 50/50)">
+        <div class="drag-splitter-handle"></div>
       </div>
 
-      <!-- Reorderable Sections Container -->
-      <div id="reorderable-sections-container">
+      <!-- ──────────────────────────────────
+           RIGHT PANE: Dual Preview
+           ────────────────────────────────── -->
+      <section id="preview-pane" class="preview-pane">
 
-        <!-- 1. Introduction / Professional Summary (Optional) -->
-        <div id="sec-intro" class="section-card" data-section-key="introduction">
-          <div class="section-header">
-            <div class="section-title">
-              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
-              <span class="section-order-badge">1</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              Introduction / Summary (Optional)
-            </div>
-            <div class="section-header-actions" onclick="event.stopPropagation()">
-              <div class="section-reorder-group">
-                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('introduction', -1)" title="Move Section Up">↑</button>
-                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('introduction', 1)" title="Move Section Down">↓</button>
-              </div>
-              <button type="button" id="btn-toggle-intro" class="btn btn-sm btn-danger" onclick="toggleIntroductionSection()">Remove Section</button>
-              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-          </div>
-          <div class="section-body">
-            <!-- Quick Introduction Templates -->
-            <div class="quick-intro-chips">
-              <span class="chips-label">Quick Templates:</span>
-              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('sde')">💻 SDE / Full Stack</button>
-              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('aiml')">🤖 AI / ML</button>
-              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('fresher')">🎓 Fresher / Campus</button>
-              <button type="button" class="chip-add-btn" onclick="applyIntroTemplate('clear')">🧹 Clear</button>
-            </div>
-
-            <div class="form-group" id="intro-form-group">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px;">
-                <label for="inp-intro-text">
-                  <span>Summary / Objective Text (2-3 concise ATS lines recommended)</span>
-                  <span id="intro-char-count" style="font-weight: 400; color: var(--text-muted); font-size: 0.7rem;">0 chars</span>
-                </label>
-              </div>
-              <textarea id="inp-intro-text" class="form-control" rows="3" placeholder="Dynamic, results-driven B.Tech Computer Science undergraduate with strong foundation in Data Structures, Algorithms, and Full Stack Development..." oninput="updateIntroductionText(this.value)"></textarea>
-            </div>
-
-            <div id="intro-hidden-notice" style="display: none; padding: 0.8rem; text-align: center; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.3); border-radius: var(--radius-sm); margin-top: 0.5rem;">
-              <span style="color: #f87171; font-size: 0.8rem; font-weight: 600;">Introduction section is currently hidden / removed from resume.</span>
-              <div style="margin-top: 0.4rem;">
-                <button type="button" class="btn btn-sm btn-primary" onclick="toggleIntroductionSection(true)">+ Enable Introduction</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2. Education -->
-        <div id="sec-education" class="section-card" data-section-key="education">
-          <div class="section-header">
-            <div class="section-title">
-              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
-              <span class="section-order-badge">1</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-              Education
-            </div>
-            <div class="section-header-actions" onclick="event.stopPropagation()">
-              <div class="section-reorder-group">
-                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('education', -1)" title="Move Section Up">↑</button>
-                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('education', 1)" title="Move Section Down">↓</button>
-              </div>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="addEducation();">+ Add School</button>
-              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-          </div>
-          <div class="section-body">
-            <div id="education-list"></div>
-          </div>
-        </div>
-
-        <!-- 3. Work Experience / Internships -->
-        <div id="sec-experience" class="section-card" data-section-key="experience">
-          <div class="section-header">
-            <div class="section-title">
-              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
-              <span class="section-order-badge">2</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-              Experience &amp; Internships
-            </div>
-            <div class="section-header-actions" onclick="event.stopPropagation()">
-              <div class="section-reorder-group">
-                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('experience', -1)" title="Move Section Up">↑</button>
-                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('experience', 1)" title="Move Section Down">↓</button>
-              </div>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="addExperience();">+ Add Role</button>
-              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-          </div>
-          <div class="section-body">
-            <div class="action-verbs-bar">
-              <span class="action-verbs-label">Action Verbs:</span>
-              <button type="button" class="verb-chip" onclick="insertActionVerb('Engineered')">+ Engineered</button>
-              <button type="button" class="verb-chip" onclick="insertActionVerb('Architected')">+ Architected</button>
-              <button type="button" class="verb-chip" onclick="insertActionVerb('Optimized')">+ Optimized</button>
-              <button type="button" class="verb-chip" onclick="insertActionVerb('Spearheaded')">+ Spearheaded</button>
-              <button type="button" class="verb-chip" onclick="insertActionVerb('Implemented')">+ Implemented</button>
-              <button type="button" class="verb-chip" onclick="insertActionVerb('Benchmarked')">+ Benchmarked</button>
-            </div>
-            <div id="experience-list"></div>
-          </div>
-        </div>
-
-        <!-- 4. Projects -->
-        <div id="sec-projects" class="section-card" data-section-key="projects">
-          <div class="section-header">
-            <div class="section-title">
-              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
-              <span class="section-order-badge">3</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-              Technical &amp; Academic Projects
-            </div>
-            <div class="section-header-actions" onclick="event.stopPropagation()">
-              <div class="section-reorder-group">
-                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('projects', -1)" title="Move Section Up">↑</button>
-                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('projects', 1)" title="Move Section Down">↓</button>
-              </div>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="addProject();">+ Add Project</button>
-              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-          </div>
-          <div class="section-body">
-            <div id="projects-list"></div>
-          </div>
-        </div>
-
-        <!-- 5. Technical Skills -->
-        <div id="sec-skills" class="section-card" data-section-key="skills">
-          <div class="section-header">
-            <div class="section-title">
-              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
-              <span class="section-order-badge">4</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              Technical Skills
-            </div>
-            <div class="section-header-actions" onclick="event.stopPropagation()">
-              <div class="section-reorder-group">
-                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('skills', -1)" title="Move Section Up">↑</button>
-                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('skills', 1)" title="Move Section Down">↓</button>
-              </div>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="addSkillCategory();">+ Add Category</button>
-              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-          </div>
-          <div class="section-body">
-            <!-- Quick Add Category Chips -->
-            <div class="quick-skills-chips">
-              <span class="chips-label">Quick Add:</span>
-              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Languages', 'Java, Python, C/C++, SQL, JavaScript')">+ Languages</button>
-              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Frameworks', 'React, Node.js, Express, Spring Boot')">+ Frameworks</button>
-              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Cloud & DevOps', 'AWS (EC2, S3), Docker, Kubernetes, CI/CD, Git')">+ Cloud &amp; DevOps</button>
-              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Databases', 'PostgreSQL, MySQL, MongoDB, Redis')">+ Databases</button>
-              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('AI & Machine Learning', 'PyTorch, TensorFlow, scikit-learn, OpenCV')">+ AI &amp; ML</button>
-              <button type="button" class="chip-add-btn" onclick="quickAddSkillCategory('Core CS Coursework', 'DSA, DBMS, Operating Systems, Networks, OOPs')">+ Core CS</button>
-            </div>
-
-            <!-- Dynamic Skill Categories List -->
-            <div id="skills-list"></div>
-
-            <button type="button" class="btn btn-outline btn-full-width" onclick="addSkillCategory()" style="margin-top: 0.6rem;">
-              + Add Custom Skill Category
+        <!-- Preview Toolbar -->
+        <div class="preview-toolbar">
+          <!-- Tab Switcher -->
+          <div class="preview-tabs">
+            <button id="tab-visual" class="tab-btn active">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              Visual Resume
+            </button>
+            <button id="tab-latex" class="tab-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              LaTeX Code
             </button>
           </div>
-        </div>
-
-        <!-- 6. Certifications (with Clickable Links) -->
-        <div id="sec-certs" class="section-card collapsed" data-section-key="certifications">
-          <div class="section-header">
-            <div class="section-title">
-              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
-              <span class="section-order-badge">5</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
-              Certifications (Optional)
+          <!-- Controls -->
+          <div class="preview-controls">
+            <button id="btn-autofit" class="btn btn-sm btn-amber" onclick="autoFitToOnePage()" title="Smart Auto-Fit" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+              ⚡ Auto-Fit
+            </button>
+            <div id="page-counter-badge" class="page-counter-badge">
+              ✓ 1 Page &bull; ATS Compliant
             </div>
-            <div class="section-header-actions" onclick="event.stopPropagation()">
-              <div class="section-reorder-group">
-                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('certifications', -1)" title="Move Section Up">↑</button>
-                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('certifications', 1)" title="Move Section Down">↓</button>
-              </div>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="addCertification();">+ Add Cert</button>
-              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            <div class="zoom-controls">
+              <button id="zoom-out" class="zoom-btn" title="Zoom Out">&minus;</button>
+              <span id="zoom-label" class="zoom-label">85%</span>
+              <button id="zoom-in" class="zoom-btn" title="Zoom In">&plus;</button>
+              <button id="zoom-reset" class="zoom-btn" title="Fit Window">Fit</button>
             </div>
           </div>
-          <div class="section-body">
-            <div id="certifications-list"></div>
+        </div>
+
+        <!-- Tab 1: Visual Resume Preview -->
+        <div id="visual-preview-area" class="preview-scroll-area">
+          <div id="visual-resume" class="resume-paper">
+            <!-- Dynamic Content rendered by app.js -->
           </div>
         </div>
 
-        <!-- 7. Honors & Achievements -->
-        <div id="sec-honors" class="section-card collapsed" data-section-key="achievements">
-          <div class="section-header">
-            <div class="section-title">
-              <span class="section-drag-handle" draggable="true" title="Drag to reorder section" onclick="event.stopPropagation()">⋮⋮</span>
-              <span class="section-order-badge">6</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 6 14.5 10.5 19.5 11.2 16 14.5 17 19.5 12 17 7 19.5 8 14.5 4.5 11.2 9.5 10.5 12 6"></polygon></svg>
-              Honors &amp; Achievements (Optional)
-            </div>
-            <div class="section-header-actions" onclick="event.stopPropagation()">
-              <div class="section-reorder-group">
-                <button type="button" class="btn-order-arrow btn-order-up" onclick="moveSection('achievements', -1)" title="Move Section Up">↑</button>
-                <button type="button" class="btn-order-arrow btn-order-down" onclick="moveSection('achievements', 1)" title="Move Section Down">↓</button>
-              </div>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="addAchievement();">+ Add Honor</button>
-              <svg class="section-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
+        <!-- Tab 2: LaTeX Code Output -->
+        <div id="latex-view-container" class="latex-view-container">
+          <div class="latex-code-header">
+            <span>LaTeX Document Source (Compliant with Overleaf pdflatex)</span>
+            <span style="color: var(--accent-cyan);">Jake Gutierrez Template</span>
           </div>
-          <div class="section-body">
-            <div id="achievements-list"></div>
-          </div>
+          <pre id="latex-code-output" class="latex-code-area"></pre>
         </div>
 
-      </div> <!-- /reorderable-sections-container -->
+      </section>
 
-      <div style="height: 40px;"></div>
-    </aside>
+    </main><!-- /app-container -->
 
-    <!-- DRAGGABLE SPLITTER DIVIDER -->
-    <div id="drag-splitter" class="drag-splitter" role="separator" aria-orientation="vertical" title="Drag to resize panels (Double-click to reset 50/50)">
-      <div class="drag-splitter-handle"></div>
-    </div>
+  </div><!-- /app-shell -->
 
-    <!-- RIGHT PANE: Dual Preview -->
-    <section id="preview-pane" class="preview-pane">
-      
-      <!-- Toolbar -->
-      <div class="preview-toolbar">
-        <!-- Tab Switcher -->
-        <div class="preview-tabs">
-          <button id="tab-visual" class="tab-btn active">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            Visual Resume (1 Page)
-          </button>
-          <button id="tab-latex" class="tab-btn">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-            LaTeX Code (.tex)
-          </button>
-        </div>
-
-        <!-- Controls & Badge -->
-        <div class="preview-controls">
-          <button id="btn-autofit" class="btn btn-sm btn-amber" onclick="autoFitToOnePage()" title="Smart Auto-fits spacing dynamically to fit 1 page while looking completely full" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
-            ⚡ Smart Auto-Fit
-          </button>
-
-          <div id="page-counter-badge" class="page-counter-badge">
-            ✓ 1 Page &bull; ATS Compliant
-          </div>
-
-          <div class="zoom-controls">
-            <button id="zoom-out" class="zoom-btn" title="Zoom Out">&minus;</button>
-            <span id="zoom-label" class="zoom-label">85%</span>
-            <button id="zoom-in" class="zoom-btn" title="Zoom In">&plus;</button>
-            <button id="zoom-reset" class="zoom-btn" title="Fit Window">Fit</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 1: Visual Resume Preview Area (Scrollable) -->
-      <div id="visual-preview-area" class="preview-scroll-area">
-        <div id="visual-resume" class="resume-paper">
-          <!-- Dynamic Content rendered by app.js matching Jake Ryan template -->
-        </div>
-      </div>
-
-      <!-- Tab 2: LaTeX Code Output Container -->
-      <div id="latex-view-container" class="latex-view-container">
-        <div class="latex-code-header">
-          <span>LaTeX Document Source (Compliant with Overleaf pdflatex)</span>
-          <span style="color: var(--accent-cyan);">Jake Gutierrez Template</span>
-        </div>
-        <pre id="latex-code-output" class="latex-code-area"></pre>
-      </div>
-
-    </section>
-
-  </main>
+  <!-- ═══════════════════════════════════════════════════
+       MODALS (All unchanged)
+       ═══════════════════════════════════════════════════ -->
 
   <!-- Resume Upload & Auto-Extraction Modal -->
   <div id="upload-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
@@ -587,19 +662,14 @@
         </div>
         <button type="button" class="modal-close-btn" onclick="closeUploadModal()">&times;</button>
       </div>
-
       <div class="modal-body">
         <p class="modal-subtitle">
           Upload your existing resume (PDF, LaTeX <code>.tex</code>, <code>.txt</code>, or <code>.json</code> backup) to automatically extract your details and populate the Jake Gutierrez template. <em>(100% private, processed locally on your device).</em>
         </p>
-
-        <!-- Tabs: Upload File vs Paste Text -->
         <div class="modal-tabs">
           <button type="button" id="tab-btn-file" class="modal-tab-btn active" onclick="switchUploadTab('file')">📁 Upload Document (PDF / .tex / .txt / .json)</button>
           <button type="button" id="tab-btn-paste" class="modal-tab-btn" onclick="switchUploadTab('paste')">📋 Paste Resume Text</button>
         </div>
-
-        <!-- Tab 1: File Dropzone -->
         <div id="tab-content-file" class="modal-tab-content active">
           <div id="dropzone" class="dropzone-area" onclick="triggerFileInput()">
             <input type="file" id="resume-file-input" accept=".pdf,.tex,.txt,.json" style="display: none;" onchange="handleFileSelected(event)">
@@ -612,24 +682,18 @@
             </div>
           </div>
         </div>
-
-        <!-- Tab 2: Paste Text Area -->
         <div id="tab-content-paste" class="modal-tab-content">
           <textarea id="paste-resume-textarea" class="modal-textarea" rows="7" placeholder="Paste your entire resume text here (Ctrl+A &rarr; Ctrl+C from LinkedIn, Word, Canva, or Google Docs)..."></textarea>
           <button type="button" class="btn btn-primary btn-full-width" style="margin-top: 0.65rem;" onclick="handlePasteExtraction()">
             ⚡ Extract Details from Pasted Text
           </button>
         </div>
-
-        <!-- Parsing Progress Animation -->
         <div id="parse-progress-container" style="display: none;">
           <div class="parse-spinner-wrapper">
             <div class="parse-spinner"></div>
             <span id="parse-progress-label">Extracting text from document...</span>
           </div>
         </div>
-
-        <!-- Extraction Results Preview Review Box -->
         <div id="parse-results-container" style="display: none;">
           <div class="parse-summary-card">
             <div class="summary-header">
@@ -637,7 +701,7 @@
               <strong id="summary-name" class="summary-candidate-name">Candidate Name</strong>
             </div>
             <div id="summary-badges" class="summary-badges-grid">
-              <!-- Dynamic badges e.g. 🎓 2 Degrees, 💼 2 Work Exp, 🚀 3 Projects -->
+              <!-- Dynamic badges -->
             </div>
             <div class="summary-actions">
               <button type="button" class="btn btn-emerald btn-lg" onclick="applyExtractedResume(false)">
@@ -649,12 +713,11 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
 
-  <!-- 1-Page Overflow Warning Modal for Download -->
+  <!-- 1-Page Overflow Warning Modal -->
   <div id="download-warning-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
     <div class="modal-dialog" style="max-width: 520px;" onclick="event.stopPropagation()">
       <div class="modal-header" style="background: rgba(245, 158, 11, 0.12); border-bottom: 1px solid rgba(245, 158, 11, 0.3);">
@@ -685,7 +748,7 @@
     </div>
   </div>
 
-  <!-- Trim Lines Guidance Modal (When content cannot be auto-fitted or user wants suggestions) -->
+  <!-- Trim Lines Guidance Modal -->
   <div id="trim-lines-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
     <div class="modal-dialog" style="max-width: 560px;" onclick="event.stopPropagation()">
       <div class="modal-header" style="background: rgba(239, 68, 68, 0.12); border-bottom: 1px solid rgba(239, 68, 68, 0.3);">
@@ -703,20 +766,14 @@
             Even with maximum ATS-safe spacing compaction, there is too much text. To maintain readable font sizes and professional margins, please delete or shorten approximately <strong id="trim-lines-needed-text" style="color: #ef4444;">3 line(s)</strong>.
           </p>
         </div>
-
         <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 18px;">
           <h4 style="font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px;">
             Recommended Ways to Save Line(s):
           </h4>
-          <ul id="trim-recommendations-list" style="font-size: 13px; line-height: 1.6; color: var(--text-primary); padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 8px;">
-            <!-- Populated dynamically based on user's resume content -->
-          </ul>
+          <ul id="trim-recommendations-list" style="font-size: 13px; line-height: 1.6; color: var(--text-primary); padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 8px;"></ul>
         </div>
-
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button type="button" class="btn btn-secondary" onclick="closeTrimLinesModal()">
-            Got It, I'll Edit Content
-          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeTrimLinesModal()">Got It, I'll Edit Content</button>
           <button type="button" class="btn btn-emerald" onclick="closeTrimLinesModal(); document.getElementById('sec-experience').scrollIntoView({ behavior: 'smooth' });">
             Jump to Content Editor &rarr;
           </button>
@@ -739,24 +796,14 @@
         <p class="modal-subtitle" style="margin-bottom: 1rem;">
           Manage multiple tailored resumes for different roles (e.g. SDE Backend, AI/ML, DevOps, Research). All profiles are stored privately and safely in your browser.
         </p>
-
-        <!-- New Profile Quick Bar -->
         <div class="profile-create-bar">
           <input type="text" id="inp-new-profile-name" class="form-control" placeholder="New Profile Name (e.g. Resume - FinTech SDE)">
           <div class="profile-create-actions">
-            <button type="button" class="btn btn-primary" onclick="handleCreateNewProfile(false)">
-              + New Blank
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="handleCreateNewProfile(true)" title="Clone current active resume into new profile">
-              📑 Clone Current
-            </button>
+            <button type="button" class="btn btn-primary" onclick="handleCreateNewProfile(false)">+ New Blank</button>
+            <button type="button" class="btn btn-secondary" onclick="handleCreateNewProfile(true)" title="Clone current active resume into new profile">📑 Clone Current</button>
           </div>
         </div>
-
-        <!-- Profiles List Container -->
-        <div id="profiles-list-container" class="profiles-list-container">
-          <!-- Populated dynamically by app.js -->
-        </div>
+        <div id="profiles-list-container" class="profiles-list-container"></div>
       </div>
     </div>
   </div>
@@ -775,9 +822,7 @@
         <p class="modal-subtitle" style="margin-bottom: 1.25rem;">
           Customize the scale and visual hierarchy of your resume. Changes are rendered instantly in both the visual preview and LaTeX document.
         </p>
-
         <div class="typography-grid">
-          <!-- Name Size -->
           <div class="form-group">
             <label class="form-label" for="modal-opt-name-size">Candidate Name Size</label>
             <select id="modal-opt-name-size" class="form-control" onchange="updateNameFontSize(this.value)">
@@ -788,8 +833,6 @@
             </select>
             <span class="form-help">Sets the visual weight and header prominence of your name.</span>
           </div>
-
-          <!-- Section Headers Size -->
           <div class="form-group">
             <label class="form-label" for="modal-opt-sec-size">Section Headers Size</label>
             <select id="modal-opt-sec-size" class="form-control" onchange="updateSectionHeaderSize(this.value)">
@@ -797,10 +840,8 @@
               <option value="normalsize">Medium (\normalsize)</option>
               <option value="small">Compact (\small)</option>
             </select>
-            <span class="form-help">Controls the font scale of section titles (Education, Experience, etc.).</span>
+            <span class="form-help">Controls the font scale of section titles.</span>
           </div>
-
-          <!-- Base Body Font Size -->
           <div class="form-group">
             <label class="form-label" for="modal-opt-body-size">Document Body Font Size</label>
             <select id="modal-opt-body-size" class="form-control" onchange="updateBodyFontSize(this.value)">
@@ -810,8 +851,6 @@
             </select>
             <span class="form-help">Base LaTeX document point size.</span>
           </div>
-
-          <!-- Section Divider Accent Color -->
           <div class="form-group">
             <label class="form-label" for="modal-opt-sec-color">Section Accent Rule Color</label>
             <select id="modal-opt-sec-color" class="form-control" onchange="updateSectionAccentColor(this.value)">
@@ -824,8 +863,6 @@
             <span class="form-help">Accent color for horizontal section divider rules.</span>
           </div>
         </div>
-
-        <!-- Formatting Cheatsheet Box -->
         <div class="formatting-cheatsheet-card">
           <div class="cheatsheet-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
@@ -840,7 +877,6 @@
             <div class="cheatsheet-item"><code>[Note]{small}</code> &rarr; <span style="font-size:0.85em; opacity:0.8;">Note</span></div>
           </div>
         </div>
-
         <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
           <button type="button" class="btn btn-primary" onclick="closeTypographyModal()">Done</button>
         </div>
@@ -848,16 +884,17 @@
     </div>
   </div>
 
-  <!-- Toast Notification Container -->
+  <!-- Toast Notification -->
   <div id="toast-notice" class="toast-notice">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-emerald);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
     <span id="toast-message">Action Successful!</span>
   </div>
 
-  <!-- Scripts (Cache-Busted v3.4.3) -->
+  <!-- Scripts -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=3.4.3"></script>
-  <script src="parser.js?v=3.4.3"></script>
-  <script src="app.js?v=3.4.3"></script>
+  <script src="template.js?v=3.5.0"></script>
+  <script src="parser.js?v=3.5.0"></script>
+  <script src="app.js?v=3.5.0"></script>
+
 </body>
 </html>

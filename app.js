@@ -4326,3 +4326,102 @@ window.removeCustomItemBullet = removeCustomItemBullet;
 window.updateCustomItemBullet = updateCustomItemBullet;
 window.renderCustomSectionsList = renderCustomSectionsList;
 window.renderCustomSectionVisual = renderCustomSectionVisual;
+
+/* ==========================================================================
+   FORGE STUDIO — More Actions Dropdown Toggle
+   ========================================================================== */
+function toggleMoreActionsMenu() {
+  const menu = document.getElementById('more-actions-menu');
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    menu.classList.remove('open');
+  } else {
+    menu.classList.add('open');
+    const closeOutside = (e) => {
+      const trigger = document.getElementById('btn-more-actions');
+      if (!menu.contains(e.target) && !(trigger && trigger.contains(e.target))) {
+        menu.classList.remove('open');
+        document.removeEventListener('click', closeOutside, true);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeOutside, true), 10);
+  }
+}
+window.toggleMoreActionsMenu = toggleMoreActionsMenu;
+
+/* ==========================================================================
+   FORGE STUDIO — Sidebar Progress Ring & Step Tracker
+   ========================================================================== */
+function updateSidebarProgress() {
+  try {
+    const s = resumeState;
+    let filled = 0;
+    let total = 0;
+    total += 3;
+    if (s.personal && s.personal.fullName && s.personal.fullName.trim()) filled++;
+    if (s.personal && s.personal.email && s.personal.email.trim()) filled++;
+    if (s.personal && s.personal.phone && s.personal.phone.trim()) filled++;
+    total += 1;
+    const hasEdu = s.education && s.education.length > 0 && s.education[0].school && s.education[0].school.trim();
+    if (hasEdu) filled++;
+    total += 1;
+    const hasExp = s.experience && s.experience.length > 0 && s.experience[0].company && s.experience[0].company.trim();
+    if (hasExp) filled++;
+    total += 1;
+    const hasProj = s.projects && s.projects.length > 0 && s.projects[0].name && s.projects[0].name.trim();
+    if (hasProj) filled++;
+    total += 1;
+    const hasSkills = s.skills && s.skills.length > 0 && s.skills[0].category && s.skills[0].category.trim();
+    if (hasSkills) filled++;
+    total += 1;
+    if ((s.personal && s.personal.github && s.personal.github.trim()) ||
+        (s.personal && s.personal.linkedin && s.personal.linkedin.trim())) filled++;
+
+    const pct = Math.round((filled / total) * 100);
+    const pctEl = document.getElementById('sidebar-progress-pct');
+    if (pctEl) pctEl.textContent = pct;
+    const ringFill = document.getElementById('sidebar-ring-fill');
+    if (ringFill) {
+      const circumference = 201;
+      const offset = (circumference - (pct / 100) * circumference).toFixed(1);
+      ringFill.style.strokeDashoffset = offset;
+      ringFill.style.stroke = pct >= 80 ? '#10b981' : '#6366f1';
+    }
+    const stepMap = {
+      'step-personal':   !!(s.personal && s.personal.fullName && s.personal.fullName.trim()),
+      'step-intro':      !!(s.introduction && s.introduction.enabled && s.introduction.text && s.introduction.text.trim()),
+      'step-education':  !!hasEdu,
+      'step-experience': !!hasExp,
+      'step-projects':   !!hasProj,
+      'step-skills':     !!hasSkills,
+      'step-certs':      !!(s.certifications && s.certifications.length > 0),
+      'step-honors':     !!(s.achievements && s.achievements.length > 0),
+    };
+    Object.entries(stepMap).forEach(([id, isDone]) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('done', isDone);
+    });
+  } catch(e) {}
+}
+window.updateSidebarProgress = updateSidebarProgress;
+
+function updateSidebarActiveStep(sectionId) {
+  const map = {
+    'sec-header':'step-personal','sec-intro':'step-intro','sec-education':'step-education',
+    'sec-experience':'step-experience','sec-projects':'step-projects','sec-skills':'step-skills',
+    'sec-certs':'step-certs','sec-honors':'step-honors'
+  };
+  document.querySelectorAll('.sidebar-step').forEach(el => el.classList.remove('active'));
+  const target = map[sectionId];
+  if (target) { const el = document.getElementById(target); if (el) el.classList.add('active'); }
+}
+window.updateSidebarActiveStep = updateSidebarActiveStep;
+
+const _origScroll = window.scrollToSection;
+window.scrollToSection = function(id) { if(_origScroll) _origScroll(id); updateSidebarActiveStep(id); };
+
+const _origPreviews = window.updatePreviews;
+window.updatePreviews = function(s) { if(_origPreviews) _origPreviews(s); updateSidebarProgress(); };
+
+document.addEventListener('DOMContentLoaded', () => { setTimeout(updateSidebarProgress, 500); });

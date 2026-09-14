@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Jake's Resume LaTeX Builder - Studio CSS
-   Modern Dark Studio + Exact Jake Gutierrez LaTeX Paper Typography
+   Jake's Resume LaTeX Builder - Forge Studio CSS v3.5
+   3-Panel Layout: Nav Sidebar + Editor + Preview
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap');
@@ -49,11 +49,20 @@
   --paper-link: #000000;
 
   /* Sizing */
-  --header-height: 64px;
+  --header-height: 52px;
+  --sidebar-width: 220px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
   --transition-fast: 0.15s ease;
+
+  /* Section Accent Colors */
+  --accent-personal: rgba(99, 102, 241, 0.18);
+  --accent-intro: rgba(6, 182, 212, 0.15);
+  --accent-education: rgba(59, 130, 246, 0.15);
+  --accent-experience: rgba(245, 158, 11, 0.15);
+  --accent-projects: rgba(16, 185, 129, 0.15);
+  --accent-skills: rgba(168, 85, 247, 0.15);
 }
 
 * {
@@ -103,19 +112,20 @@ html, body {
 .header-bar {
   position: sticky;
   top: 0;
+  height: var(--header-height);
   min-height: var(--header-height);
-  height: auto;
-  background: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(9, 13, 22, 0.98);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.45rem 1.25rem;
+  padding: 0 1.2rem;
   z-index: 200;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.5);
+  gap: 1rem;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .brand-wrapper {
@@ -497,46 +507,67 @@ html, body {
 }
 
 /* ==========================================================================
-   Main Application Layout
+   Main Application Layout — 3-Panel (Sidebar + Editor + Preview)
    ========================================================================== */
+
+/* App Shell: sidebar + main container side by side */
+.app-shell {
+  display: flex;
+  height: calc(100vh - var(--header-height));
+  overflow: hidden;
+}
+
+/* App Container is the 2-panel (editor + preview) — fills remaining width */
 .app-container {
   display: flex;
-  min-height: calc(100vh - var(--header-height));
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Mode 1: Split View (Default) */
 .app-container.view-split .form-pane {
   width: 48%;
-  height: calc(100vh - var(--header-height));
+  height: 100%;
   overflow-y: scroll;
 }
 .app-container.view-split .preview-pane {
   width: 52%;
-  height: calc(100vh - var(--header-height));
+  height: 100%;
   display: flex;
 }
 
-/* Mode 2: Form Only */
+/* Mode 2: Focus / Form Only */
 .app-container.view-form-only .form-pane {
   width: 100%;
-  max-width: 900px;
+  max-width: 860px;
   margin: 0 auto;
-  height: auto;
-  overflow-y: visible;
+  height: 100%;
+  overflow-y: scroll;
 }
 .app-container.view-form-only .preview-pane {
   display: none !important;
 }
+.app-container.view-form-only #drag-splitter {
+  display: none !important;
+}
 
-/* Mode 3: Preview Only */
+/* Mode 3: Preview Only — hide sidebar + editor */
 .app-container.view-preview-only .form-pane {
+  display: none !important;
+}
+.app-container.view-preview-only #drag-splitter {
   display: none !important;
 }
 .app-container.view-preview-only .preview-pane {
   width: 100%;
-  height: calc(100vh - var(--header-height));
+  height: 100%;
   display: flex;
+}
+/* Also hide sidebar in preview-only */
+.app-shell:has(#app-container.view-preview-only) .nav-sidebar {
+  display: none;
 }
 
 /* Draggable Splitter Divider */
@@ -2630,3 +2661,509 @@ mark.res-hl {
   background: rgba(99, 102, 241, 0.08);
 }
 
+/* ==========================================================================
+   FORGE STUDIO — Nav Sidebar
+   ========================================================================== */
+.nav-sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: #080c14;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 50;
+}
+
+/* ── Progress Ring ── */
+.sidebar-progress-section {
+  padding: 1.1rem 0.75rem 0.85rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: center;
+}
+.sidebar-ring-wrapper {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.progress-ring-svg {
+  width: 88px;
+  height: 88px;
+  transform: rotate(-90deg);
+  position: absolute;
+  top: 0; left: 0;
+}
+.ring-track {
+  fill: none;
+  stroke: rgba(99,102,241,0.12);
+  stroke-width: 6;
+}
+.ring-fill {
+  fill: none;
+  stroke: #6366f1;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 201;
+  stroke-dashoffset: 201;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 6px rgba(99,102,241,0.6));
+}
+.ring-center-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.ring-center-label span:first-child {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #a5b4fc;
+  line-height: 1;
+}
+.ring-center-label small {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ring-label-sub {
+  font-size: 0.6rem !important;
+  color: var(--text-muted) !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 1px;
+}
+
+/* ── Section Steps ── */
+.sidebar-steps {
+  flex: 1;
+  padding: 0.6rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sidebar-step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.sidebar-step:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-primary);
+  border-left-color: rgba(99,102,241,0.4);
+}
+.sidebar-step.active {
+  background: rgba(99,102,241,0.1);
+  color: #a5b4fc;
+  border-left-color: #6366f1;
+  font-weight: 600;
+}
+.step-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-muted);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+.sidebar-step.done .step-status-dot {
+  background: var(--accent-emerald);
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 6px rgba(16,185,129,0.6);
+}
+.sidebar-step.active .step-status-dot {
+  background: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 0 6px rgba(99,102,241,0.7);
+}
+.step-icon {
+  font-size: 0.85rem;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.step-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Sidebar Bottom ── */
+.sidebar-bottom {
+  padding: 0.75rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.sidebar-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  background: transparent;
+  border: 1.5px dashed rgba(99,102,241,0.35);
+  border-radius: var(--radius-sm);
+  color: #818cf8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.sidebar-add-btn:hover {
+  background: rgba(99,102,241,0.1);
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+.sidebar-profile-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.sidebar-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.5rem;
+}
+.sidebar-profile-row svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.sidebar-profile-row .profile-select {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.73rem;
+  color: #a5b4fc;
+  max-width: none;
+}
+.sidebar-manage-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.5rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+.sidebar-manage-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* ==========================================================================
+   FORGE STUDIO — View Tab Switcher (Header Center)
+   ========================================================================== */
+.view-tab-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 3px;
+  position: relative;
+}
+.view-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.32rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+.view-tab:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.06);
+}
+.view-tab.active {
+  background: #6366f1;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(99,102,241,0.45), 0 2px 6px rgba(0,0,0,0.3);
+}
+/* Hide old view-btn styles from conflicting */
+.view-mode-group { display: none; }
+.view-tab-indicator { display: none; }
+
+/* ==========================================================================
+   FORGE STUDIO — Header Actions (Right Zone)
+   ========================================================================== */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* More Actions Dropdown */
+.more-actions-wrapper {
+  position: relative;
+}
+.more-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.more-actions-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 5px;
+  min-width: 185px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  z-index: 500;
+  animation: menuFadeIn 0.14s ease;
+}
+.more-actions-menu.open {
+  display: flex;
+  flex-direction: column;
+}
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.more-action-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.7rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+.more-action-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.more-action-item svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.more-action-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  margin: 3px 0;
+}
+
+/* PDF CTA Button */
+.btn-pdf-cta {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 0 14px rgba(99,102,241,0.45);
+  font-weight: 700;
+}
+.btn-pdf-cta:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(99,102,241,0.6);
+}
+
+/* ==========================================================================
+   FORGE STUDIO — Editor Sub-Header (Preset + Section Order)
+   ========================================================================== */
+.editor-sub-header {
+  padding: 0.6rem 1rem;
+  background: rgba(255,255,255,0.015);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.editor-sub-header .preset-selector-group {
+  background: transparent;
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+}
+.editor-sub-header .section-sequence-bar {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  gap: 0.4rem;
+}
+
+/* ==========================================================================
+   FORGE STUDIO — Section Accent Colors (Left border glow per section)
+   ========================================================================== */
+.section-accent-personal {
+  border-left: 3px solid rgba(99,102,241,0.55) !important;
+}
+.section-accent-intro {
+  border-left: 3px solid rgba(6,182,212,0.55) !important;
+}
+.section-accent-education {
+  border-left: 3px solid rgba(59,130,246,0.55) !important;
+}
+.section-accent-experience {
+  border-left: 3px solid rgba(245,158,11,0.55) !important;
+}
+.section-accent-projects {
+  border-left: 3px solid rgba(16,185,129,0.55) !important;
+}
+.section-accent-skills {
+  border-left: 3px solid rgba(168,85,247,0.55) !important;
+}
+
+/* Focus glow on section card with accent */
+.section-accent-personal:focus-within { border-left-color: #6366f1 !important; box-shadow: -2px 0 12px rgba(99,102,241,0.2); }
+.section-accent-intro:focus-within    { border-left-color: #06b6d4 !important; box-shadow: -2px 0 12px rgba(6,182,212,0.2); }
+.section-accent-education:focus-within{ border-left-color: #3b82f6 !important; box-shadow: -2px 0 12px rgba(59,130,246,0.2); }
+.section-accent-experience:focus-within{border-left-color: #f59e0b !important; box-shadow: -2px 0 12px rgba(245,158,11,0.2); }
+.section-accent-projects:focus-within { border-left-color: #10b981 !important; box-shadow: -2px 0 12px rgba(16,185,129,0.2); }
+.section-accent-skills:focus-within   { border-left-color: #a855f7 !important; box-shadow: -2px 0 12px rgba(168,85,247,0.2); }
+
+/* ==========================================================================
+   FORGE STUDIO — Form Pane & Editor
+   ========================================================================== */
+.form-pane {
+  padding: 0;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-main);
+  scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+/* Content inside form pane gets padding */
+.form-pane .tip-pill,
+.form-pane .section-card,
+.form-pane #reorderable-sections-container {
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+.form-pane .tip-pill {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+/* Override form-quick-nav to have padding */
+.form-quick-nav {
+  padding: 0.45rem 1rem 0.6rem 1rem;
+  position: sticky;
+  top: 0;
+}
+/* Section cards spacing */
+.form-pane .section-card {
+  margin-bottom: 0.85rem;
+}
+
+/* Scrollable area for section content */
+.app-container.view-split .form-pane,
+.app-container.view-form-only .form-pane {
+  overflow-y: scroll;
+}
+
+/* ==========================================================================
+   FORGE STUDIO — Preview Pane Enhancements
+   ========================================================================== */
+.preview-scroll-area {
+  background: #080c18;
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(99,102,241,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(6,182,212,0.03) 0%, transparent 50%);
+}
+.resume-paper {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06),
+    0 20px 60px rgba(0,0,0,0.8),
+    0 4px 16px rgba(0,0,0,0.6) !important;
+}
+
+/* ==========================================================================
+   FORGE STUDIO — Responsive (Mobile Stacking)
+   ========================================================================== */
+@media (max-width: 900px) {
+  .nav-sidebar {
+    display: none;
+  }
+  .app-shell {
+    flex-direction: column;
+    height: auto;
+  }
+  .app-container {
+    height: auto;
+    flex-direction: column;
+  }
+  .app-container.view-split .form-pane,
+  .app-container.view-split .preview-pane {
+    width: 100%;
+    height: auto;
+  }
+  .preview-scroll-area {
+    height: 600px;
+  }
+  .header-bar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 0.5rem 1rem;
+  }
+  .view-tab-switcher {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  .header-actions {
+    gap: 0.35rem;
+  }
+}
