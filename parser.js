@@ -25,6 +25,131 @@
     achievements: /^(?:honors\s*(?:&|and)\s*achievements|achievements|honors|awards\s*(?:&|and)\s*achievements|awards|accomplishments|extracurricular\s+activities)\b/i
   };
 
+  // Unified robust date matching patterns across Education, Experience, Projects, Certifications
+  const MONTH_NAMES = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[a-z]*\\.?';
+  const YEAR_DIGITS = '\\b(?:19|20)\\d{2}\\b';
+  const SINGLE_DATE_PATTERN = `(?:${MONTH_NAMES}\\s*\\d{4}|${YEAR_DIGITS})`;
+  const DATE_RANGE_PATTERN = `(?:${SINGLE_DATE_PATTERN}\\s*(?:--|-|to|–|—|\\s)\\s*(?:${SINGLE_DATE_PATTERN}|Present|Current|Expected\\s*\\d{4})|${SINGLE_DATE_PATTERN})`;
+  const DATE_RANGE_REGEX = new RegExp(DATE_RANGE_PATTERN, 'i');
+
+  function extractDateFromLine(line) {
+    if (!line) return { dates: '', remaining: '' };
+    const match = line.match(DATE_RANGE_REGEX);
+    if (match) {
+      let dates = match[0].trim();
+      const twoDates = dates.match(new RegExp(`^(${SINGLE_DATE_PATTERN})\\s+(${SINGLE_DATE_PATTERN})$`, 'i'));
+      if (twoDates) {
+        dates = `${twoDates[1]} -- ${twoDates[2]}`;
+      }
+      const remaining = line.replace(match[0], '').trim();
+      return { dates, remaining };
+    }
+    return { dates: '', remaining: line };
+  }
+
+  function extractOrgLocation(line) {
+    if (!line) return { main: '', location: '' };
+    if (line.includes('|')) {
+      const p = line.split('|').map(s => s.trim()).filter(Boolean);
+      return { main: p[0] || '', location: p.slice(1).join(', ') };
+    }
+    const orgMatch = line.match(/^(.*?\b(?:University|College|School|Institute|Academy|Corp|Inc|LLC|Ltd|Company|Technologies|niketan))\s+([A-Za-z0-9.\-\s]+,\s*(?:[A-Z]{2}|[A-Za-z]+))$/i);
+    if (orgMatch) {
+      return { main: orgMatch[1].trim(), location: orgMatch[2].trim() };
+    }
+    const cityMatch = line.match(/\s+([A-Za-z0-9.\-]+\s+[A-Za-z0-9.\-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)|[A-Za-z0-9.\-]+,\s*(?:[A-Z]{2}|[A-Za-z]+))$/i);
+    if (cityMatch) {
+      return { main: line.slice(0, cityMatch.index).trim(), location: cityMatch[1].trim() };
+    }
+    return { main: line, location: '' };
+  }
+
+  /**
+   * In-browser OCR fallback using Tesseract.js
+   * Automatically triggered when a PDF is a flat image without a selectable text layer.
+   */
+  async function performPdfOcr(pdfDoc, progressCallback) {
+    if (typeof Tesseract === 'undefined') {
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        if (progressCallback) progressCallback('Initializing OCR recognition engine...');
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Tesseract.js engine from CDN'));
+          document.head.appendChild(script);
+        });
+      } else {
+        throw new Error('Tesseract OCR engine is not loaded');
+      }
+    }
+
+    if (typeof Tesseract === 'undefined' || !Tesseract.createWorker) {
+      throw new Error('Tesseract OCR engine could not be initialized');
+    }
+
+    const ocrLines = [];
+    const ocrLinks = [];
+    const numPages = pdfDoc.numPages;
+
+    const worker = await Tesseract.createWorker('eng', 1, {
+      logger: m => {
+        if (progressCallback && m.status === 'recognizing text') {
+          const pct = Math.round((m.progress || 0) * 100);
+          progressCallback(`Running Smart OCR (${pct}%)...`);
+        }
+      }
+    });
+
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      if (progressCallback) progressCallback(`Rendering page ${pageNum} for OCR...`);
+      const page = await pdfDoc.getPage(pageNum);
+
+      try {
+        const annots = await page.getAnnotations();
+        if (Array.isArray(annots)) {
+          annots.forEach(a => {
+            const u = a.url || a.unsafeUrl || (a.action && a.action.uri);
+            if (u && !ocrLinks.includes(u)) ocrLinks.push(u);
+          });
+        }
+      } catch (e) {}
+
+      const viewport = page.getViewport({ scale: 2.5 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+      if (progressCallback) progressCallback(`Reading page ${pageNum} with Smart OCR...`);
+      const ret = await worker.recognize(canvas);
+      if (ret && ret.data && ret.data.text) {
+        ocrLines.push(ret.data.text);
+      }
+    }
+
+    await worker.terminate();
+
+    let rawOcrText = ocrLines.join('\n');
+
+    // Post-process OCR text:
+    rawOcrText = rawOcrText
+      .replace(/^[ \t]*E[dpo0][uv][cso]a[tli1]{1,2}[i1l][o0]n.*$/gmi, 'EDUCATION')
+      .replace(/^[ \t]*Exp[eé]r[i1]ence.*$/gmi, 'EXPERIENCE')
+      .replace(/^[ \t]*Pr[o0]j[eé]cts?.*$/gmi, 'PROJECTS')
+      .replace(/^[ \t]*(?:Technical\s+)?Skills?.*$/gmi, 'TECHNICAL SKILLS')
+      .replace(/^[ \t]*Certif[i1]cat[i1]ons?.*$/gmi, 'CERTIFICATIONS')
+      .replace(/^[ \t]*Ach[i1]evements?.*$/gmi, 'ACHIEVEMENTS');
+
+    rawOcrText = rawOcrText.replace(/^[ \t]*[®©oe•*·\u2022\u25cf\u25cb\u25e6\u2219]\s+/gmi, '• ');
+
+    return {
+      text: rawOcrText,
+      links: ocrLinks
+    };
+  }
+
   /**
    * Main Parser Entry Points
    */
@@ -50,10 +175,17 @@
       const linkUrls = (Array.isArray(extractedLinks) ? extractedLinks : [])
         .map(l => (typeof l === 'string' ? l : (l && l.url ? l.url : ''))).filter(Boolean);
 
-      // Normalize line breaks and clean whitespace
+      // Normalize line breaks, clean whitespace, and normalize OCR bullet/header artifacts
       const lines = rawText
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n')
+        .replace(/^[ \t]*[®©oe•*·\u2022\u25cf\u25cb\u25e6\u2219]\s+/gmi, '• ')
+        .replace(/^[ \t]*E[dpo0][uv][cso]a[tli1]{1,2}[i1l][o0]n.*$/gmi, 'EDUCATION')
+        .replace(/^[ \t]*Exp[eé]r[i1]ence.*$/gmi, 'EXPERIENCE')
+        .replace(/^[ \t]*Pr[o0]j[eé]cts?.*$/gmi, 'PROJECTS')
+        .replace(/^[ \t]*(?:Technical\s+)?Skills?.*$/gmi, 'TECHNICAL SKILLS')
+        .replace(/^[ \t]*Certif[i1]cat[i1]ons?.*$/gmi, 'CERTIFICATIONS')
+        .replace(/^[ \t]*Ach[i1]evements?.*$/gmi, 'ACHIEVEMENTS')
         .split('\n')
         .map(l => l.trim())
         .filter(l => l.length > 0);
@@ -191,6 +323,72 @@
      * and returns structured text + all hyperlink destinations.
      */
     extractTextFromPdf: async function (pdfDataBuffer, progressCallback) {
+      function decodeResumePayload(str) {
+        if (!str || typeof str !== 'string') return null;
+        const clean = str.trim();
+        // 1. Try Base64 decoding
+        try {
+          let byteStr = '';
+          if (typeof atob === 'function') {
+            byteStr = atob(clean);
+          } else if (typeof Buffer !== 'undefined') {
+            byteStr = Buffer.from(clean, 'base64').toString('binary');
+          }
+          if (byteStr && byteStr.length > 0) {
+            const percentStr = Array.from(byteStr).map(c => {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join('');
+            const decoded = JSON.parse(decodeURIComponent(percentStr));
+            if (decoded && typeof decoded === 'object') return decoded;
+          }
+        } catch (b64Err) {}
+
+        // 2. Try URI-percent decoding
+        try {
+          const decoded = JSON.parse(decodeURIComponent(clean));
+          if (decoded && typeof decoded === 'object') return decoded;
+        } catch (uriErr) {}
+
+        // 3. Try raw JSON parse
+        try {
+          const decoded = JSON.parse(clean);
+          if (decoded && typeof decoded === 'object') return decoded;
+        } catch (rawErr) {}
+
+        return null;
+      }
+
+      // 0. Instant lossless check on raw binary buffer for embedded Jake resume state
+      try {
+        let rawStr = '';
+        if (typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(pdfDataBuffer)) {
+          rawStr = pdfDataBuffer.toString('latin1');
+        } else if (pdfDataBuffer instanceof ArrayBuffer) {
+          const u8 = new Uint8Array(pdfDataBuffer);
+          const decoder = new TextDecoder('latin1');
+          rawStr = decoder.decode(u8);
+        } else if (pdfDataBuffer && pdfDataBuffer.buffer instanceof ArrayBuffer) {
+          const decoder = new TextDecoder('latin1');
+          rawStr = decoder.decode(pdfDataBuffer);
+        }
+
+        const match = rawStr.match(/JAKE_RESUME_DATA:([A-Za-z0-9+/=%_\-.~]+)/);
+        if (match && match[1]) {
+          const parsedState = decodeResumePayload(match[1]);
+          if (parsedState && (parsedState.personal || parsedState.education || parsedState.experience)) {
+            if (progressCallback) progressCallback('100% Exact Jake Resume Data detected!');
+            return {
+              isEmbeddedPayload: true,
+              embeddedState: parsedState,
+              text: '',
+              links: []
+            };
+          }
+        }
+      } catch (bufCheckErr) {
+        console.warn('Raw buffer metadata check note:', bufCheckErr);
+      }
+
       if (typeof pdfjsLib === 'undefined') {
         throw new Error('PDF.js library is not loaded. Please ensure pdf.min.js is included.');
       }
@@ -204,6 +402,31 @@
       if (progressCallback) progressCallback('Loading PDF document...');
 
       const pdf = await loadingTask.promise;
+
+      // Check PDF.js getMetadata for embedded payload
+      try {
+        const meta = await pdf.getMetadata().catch(() => null);
+        if (meta && meta.info) {
+          const candidate = meta.info.Keywords || meta.info.Subject;
+          if (candidate && candidate.includes('JAKE_RESUME_DATA:')) {
+            const match = candidate.match(/JAKE_RESUME_DATA:([A-Za-z0-9+/=%_\-.~]+)/);
+            if (match && match[1]) {
+              const parsedState = decodeResumePayload(match[1]);
+              if (parsedState && (parsedState.personal || parsedState.education || parsedState.experience)) {
+                return {
+                  isEmbeddedPayload: true,
+                  embeddedState: parsedState,
+                  text: '',
+                  links: []
+                };
+              }
+            }
+          }
+        }
+      } catch (metaErr) {
+        console.warn('PDF.js metadata check note:', metaErr);
+      }
+
       const numPages = pdf.numPages;
       let fullTextLines = [];
       const extractedLinks = [];
@@ -288,6 +511,27 @@
       }
 
       const textResult = fullTextLines.join('\n');
+
+      if (textResult.trim().length === 0) {
+        if (progressCallback) progressCallback('Image PDF detected. Running Smart OCR...');
+        try {
+          const ocrResult = await performPdfOcr(pdf, progressCallback);
+          if (ocrResult && ocrResult.text && ocrResult.text.trim().length > 0) {
+            return {
+              text: ocrResult.text,
+              links: extractedLinks.concat(ocrResult.links || []),
+              isOcrExtraction: true,
+              toString: function () { return this.text; }
+            };
+          }
+        } catch (ocrErr) {
+          console.error('OCR Fallback error:', ocrErr);
+          throw new Error('This PDF has no selectable text layer and OCR scanning could not read the text (' + (ocrErr.message || ocrErr) + '). Please use the Backup JSON or paste your text directly into the "Paste Plain Text" tab.');
+        }
+
+        throw new Error('This PDF appears to be a blank or unreadable image. Please use the Backup JSON or paste your text directly into the "Paste Plain Text" tab.');
+      }
+
       return {
         text: textResult,
         links: extractedLinks,
@@ -488,14 +732,36 @@
     }
 
     // Extract Candidate Name from top 5 lines
-    const ignoreNames = /^(?:resume|curriculum\s+vitae|cv|contact|personal|profile|page\s+\d+|phone|email|linkedin|leetcode|github)$/i;
+    const ignoreNames = /^(?:resume|curriculum\s+vitae|cv|contact|personal|profile|page\s+\d+|phone|email|linkedin|leetcode|github|education|experience|projects|skills|technical\s+skills)$/i;
     for (let i = 0; i < Math.min(lines.length, 5); i++) {
       const line = lines[i].replace(/[|•,;].*$/, '').trim();
-      // Name candidate: 2 to 4 words, alphabetic, no @ or digits, reasonable length
-      if (line.length >= 3 && line.length <= 40 && !ignoreNames.test(line) && !line.includes('@') && !/\d/.test(line)) {
+      // Name candidate: 2 to 4 words, alphabetic, no @ or digits, reasonable length, not an institution
+      if (line.length >= 3 && line.length <= 40 && !ignoreNames.test(line) && !line.includes('@') && !/\d/.test(line) && !/\b(?:university|college|school|institute|academy|technologies|corporation|solutions|services)\b/i.test(line)) {
         // Strip titles like "Mr.", "Ms.", "Dr."
         personal.fullName = line.replace(/^(?:mr\.|ms\.|mrs\.|dr\.)\s+/i, '').trim();
         break;
+      }
+    }
+
+    // Fallback Candidate Name inference if missing, corrupted, or matching an ignored header
+    const isBadName = !personal.fullName || 
+                      ignoreNames.test(personal.fullName.trim()) ||
+                      personal.fullName.length < 3;
+    if (isBadName) {
+      let inferred = '';
+      if (personal.linkedin) {
+        const m = personal.linkedin.match(/in\/([a-zA-Z0-9_-]+)/i);
+        if (m) {
+          let handle = m[1].replace(/-(?:[0-9a-f]{6,}|[0-9]{5,}|[a-z0-9]{8,})$/i, '');
+          inferred = handle.replace(/[-_.]+/g, ' ').trim();
+        }
+      }
+      if (!inferred && personal.email) {
+        const prefix = personal.email.split('@')[0];
+        inferred = prefix.replace(/\d+/g, '').replace(/[._-]+/g, ' ').trim();
+      }
+      if (inferred) {
+        personal.fullName = inferred.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       }
     }
 
@@ -508,66 +774,69 @@
   function parseEducation(lines) {
     if (!lines || lines.length === 0) return [];
     const education = [];
-    const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b|\b(?:19|20)\d{2}\b/i;
-    const gpaRegex = /(?:CGPA|GPA|Score|Percentage|Marks)?:?\s*(\d{1,2}(?:\.\d{1,2})?(?:\s*\/\s*10(?:\.0)?)?|\d{1,3}(?:\.\d{1,2})?%)/i;
-    const degreeKeywords = /Bachelor|Master|B\.?Tech|B\.?E\.?|B\.?Sc|B\.?S\.?|M\.?Tech|M\.?S\.?|High\s+School|Senior\s+Secondary|Class\s+(?:X|XII|10|12)/i;
+    const gpaRegex = /(?:CGPA\/Percentage|CGPA|GPA|Percentage|Score|Marks)\s*[:|]?\s*(\d{1,3}(?:\.\d+)?%?|\d(?:\.\d{1,2})?(?:\s*\/\s*(?:10|4)(?:\.0)?)?)|\b(\d{1,3}(?:\.\d+)?%|\d\.\d{1,2}\s*\/\s*(?:10|4)(?:\.0)?|\b[6-9]\.\d{1,2}\b)/i;
+    const degreeKeywords = /Bachelor|Master|B\.?Tech|B\.?E\.?|B\.?Sc|B\.?S\.?|M\.?Tech|M\.?S\.?|High\s+School|Senior\s+Secondary|Secondary|Class\s+(?:X|XII|10|12)|\b10\s*th\b|\b12\s*th\b/i;
 
     let currentEdu = null;
 
-    lines.forEach(line => {
-      // Check if line looks like an institution or degree line
-      const hasDate = dateRegex.test(line);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const { dates, remaining } = extractDateFromLine(line);
       const hasDegree = degreeKeywords.test(line);
-      const isLikelySchool = /University|College|Institute|School|Academy|IIT|NIT|IIIT|BITS|VIT|SRM/i.test(line);
+      const hasGpa = gpaRegex.test(line);
+      const hasCoursework = /coursework|courses|relevant/i.test(line);
 
-      if (isLikelySchool || (hasDegree && !currentEdu)) {
-        if (currentEdu) education.push(currentEdu);
-
-        let institution = line;
-        let location = '';
-        let dates = '';
-
-        // Extract dates from institution line if present
-        const dateMatch = line.match(dateRegex);
-        if (dateMatch) {
-          dates = dateMatch[0].trim();
-          institution = institution.replace(dateMatch[0], '').replace(/[|,\-–]$/, '').trim();
-        }
-
-        // Extract location if separated by comma or pipe
-        const parts = institution.split(/[|,]/).map(p => p.trim());
-        if (parts.length > 1 && parts[parts.length - 1].length <= 25 && !parts[parts.length - 1].toLowerCase().includes('tech')) {
-          location = parts.pop();
-          institution = parts.join(', ').trim();
-        }
-
-        currentEdu = {
-          institution: institution || 'University / Institution',
-          location: location || '',
-          degree: '',
-          dates: dates || '',
-          gpa: '',
-          coursework: ''
-        };
-      } else if (currentEdu) {
-        // Degree / GPA / Coursework lines
-        const gpaMatch = line.match(gpaRegex);
-        if (gpaMatch && !currentEdu.gpa) {
-          currentEdu.gpa = gpaMatch[1].trim();
-        }
-
-        const dateMatch = line.match(dateRegex);
-        if (dateMatch && !currentEdu.dates) {
-          currentEdu.dates = dateMatch[0].trim();
-        }
-
-        if (/coursework|courses|relevant/i.test(line)) {
-          currentEdu.coursework = line.replace(/^(?:relevant\s+)?coursework:?\s*/i, '').trim();
-        } else if (!currentEdu.degree && (hasDegree || line.length <= 80)) {
-          currentEdu.degree = line.replace(dateRegex, '').replace(/[|,]$/, '').trim();
-        }
+      // Case 1: Coursework line
+      if (hasCoursework && currentEdu) {
+        currentEdu.coursework = line.replace(/^(?:relevant\s+)?coursework:?\s*/i, '').trim();
+        continue;
       }
-    });
+
+      // Case 2: Detail line (Degree, Dates, GPA)
+      if (currentEdu && (hasDegree || (dates && (hasGpa || line.length <= 90)))) {
+        let deg = remaining;
+        let gpa = '';
+
+        const gpaMatch = line.match(gpaRegex);
+        if (gpaMatch) {
+          gpa = (gpaMatch[1] || gpaMatch[2] || '').trim();
+          deg = deg.replace(gpaMatch[0], '').trim();
+        }
+
+        deg = deg.replace(/[|,]$/, '').replace(/^[|,]/, '').trim();
+        deg = deg.replace(/\s*\|\s*$/, '').replace(/^\s*\|\s*/, '').trim();
+
+        if (/^\b12\s*th\b/i.test(deg)) {
+          deg = 'Class XII (Senior Secondary)';
+        } else if (/^\b10\s*th\b/i.test(deg)) {
+          deg = 'Class X (Secondary School)';
+        }
+
+        if (deg) currentEdu.degree = deg;
+        if (dates && !currentEdu.dates) currentEdu.dates = dates;
+        if (gpa && !currentEdu.gpa) currentEdu.gpa = gpa;
+        continue;
+      }
+
+      // Case 3: New Institution line
+      if (currentEdu) {
+        education.push(currentEdu);
+        currentEdu = null;
+      }
+
+      const { main, location } = extractOrgLocation(dates ? remaining : line);
+
+      currentEdu = {
+        institution: main || line,
+        location: location || '',
+        degree: '',
+        dates: dates || '',
+        gpa: '',
+        coursework: ''
+      };
+    }
 
     if (currentEdu) education.push(currentEdu);
 
@@ -676,60 +945,91 @@
     if (!rawLines || rawLines.length === 0) return [];
     const lines = stitchSectionBullets(rawLines);
     const experience = [];
-    const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b|\b(?:19|20)\d{2}\b/i;
-
     let currentExp = null;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line || line.trim().length === 0) continue;
+      const line = lines[i].trim();
+      if (!line) continue;
 
       const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
       const cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
-      const dateMatch = line.match(dateRegex);
+      const { dates, remaining } = extractDateFromLine(line);
 
-      const hasSeparators = line.includes('—') || line.includes('–') || line.includes('|');
-      const isLikelyHeading = !isBullet && (
-        currentExp === null ||
-        dateMatch ||
-        hasSeparators ||
-        (currentExp.bullets.length > 0 && !line.endsWith('.'))
-      );
-
-      if (isLikelyHeading && (currentExp === null || currentExp.bullets.length > 0 || dateMatch)) {
+      // If line has dates and is not a bullet -> Header line!
+      if (!isBullet && dates) {
         if (currentExp) experience.push(currentExp);
 
-        const dates = dateMatch ? dateMatch[0].trim() : '';
-        let titleLine = dateMatch ? line.replace(dateMatch[0], '') : line;
-        titleLine = titleLine.replace(/[|,\-–—\s]+$/, '').replace(/^[|,\-–—\s]+/, '').trim();
-
-        let role = titleLine;
+        let role = remaining.replace(/[|,\-–—\s]+$/, '').replace(/^[|,\-–—\s]+/, '').trim();
         let company = '';
         let location = '';
 
-        const splitParts = titleLine.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
-        if (splitParts.length >= 2) {
-          company = splitParts[0];
-          role = splitParts[1];
-          if (splitParts.length >= 3) location = splitParts[2];
+        // Check if Company and Role are on the same line (e.g. Company | Role | Location)
+        const parts = role.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          company = parts[0];
+          role = parts[1];
+          if (parts.length >= 3) location = parts[2];
         }
 
         currentExp = {
-          role: role || 'Software Development Intern',
-          company: company || 'Company / Organization',
-          location: location || '',
+          role: role || 'Role / Position',
+          company: company,
+          location: location,
           dates: dates,
           bullets: []
         };
-      } else if (currentExp) {
-        if (isBullet || cleanLine.length > 15) {
+
+        // Check if next line is Line 2 of Jake's header (Company + Location)
+        if (i + 1 < lines.length) {
+          const nextLine = lines[i + 1].trim();
+          const nextIsBullet = /^[•\-*+]\s+/.test(nextLine) || /^(\d+\.|\([a-z]\))\s+/.test(nextLine);
+          const { dates: nextDates } = extractDateFromLine(nextLine);
+
+          // If next line is not a bullet and has no dates -> it is Company & Location!
+          if (!nextIsBullet && !nextDates && nextLine.length > 0 && nextLine.length <= 120) {
+            i++; // Consume next line
+            const { main: compMain, location: compLoc } = extractOrgLocation(nextLine);
+            if (!currentExp.company) {
+              currentExp.company = compMain || nextLine;
+              currentExp.location = compLoc || '';
+            }
+          }
+        }
+        continue;
+      }
+
+      // Check for standalone header without date (e.g. separated by | or —)
+      const hasSeparators = line.includes('—') || line.includes('–') || line.includes('|');
+      if (!isBullet && hasSeparators && (currentExp === null || currentExp.bullets.length > 0)) {
+        if (currentExp) experience.push(currentExp);
+        const parts = line.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
+        currentExp = {
+          role: parts[1] || parts[0] || 'Software Engineer',
+          company: parts[0] || 'Company',
+          location: parts[2] || '',
+          dates: '',
+          bullets: []
+        };
+        continue;
+      }
+
+      // Bullet point or job details
+      if (currentExp) {
+        if (isBullet || cleanLine.length > 10) {
           currentExp.bullets.push(cleanLine);
         }
       }
     }
 
     if (currentExp) experience.push(currentExp);
-    return experience;
+
+    return experience.map(exp => ({
+      role: exp.role || 'Software Development Intern',
+      company: exp.company || 'Company / Organization',
+      location: exp.location || '',
+      dates: exp.dates || 'June 2023 -- Aug. 2023',
+      bullets: exp.bullets.length > 0 ? exp.bullets : ['Contributed to key software engineering initiatives.']
+    }));
   }
 
   /**
@@ -741,7 +1041,6 @@
     if (!rawLines || rawLines.length === 0) return [];
     const lines = stitchSectionBullets(rawLines);
     const projects = [];
-    const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\s*(?:--|-|to|–)\s*(?:(?:19|20)\d{2}|Present|Current)\b|\b(?:19|20)\d{2}\b/i;
     const techSplitRegex = /^(.*?)(?:\s*\|\s*|\s*[-–—]\s*|\s{2,}|\s+(?=(?:React|Node|Express|Mongo|Postgre|Python|Java|C\+\+|Next|Vue|Angular|SQL|AWS|Docker|Flutter|TypeScript|JavaScript|HTML|Tailwind|FastAPI|Django|Flask|Firebase|Spring|Git|Redis|GraphQL)\b))(.*)$/i;
 
     let currentProj = null;
@@ -774,13 +1073,14 @@
         continue;
       }
 
-      const hasDate = dateRegex.test(line);
+      const { dates, remaining } = extractDateFromLine(line);
+      const hasDate = Boolean(dates);
 
       // If this line is just a date line right after project title (before any bullets)
       if (currentProj && currentProj.bullets.length === 0 && !currentProj.dates && hasDate) {
-        const pureText = line.replace(dateRegex, '').replace(/[|,\-–—\s]+$/, '').trim();
+        const pureText = remaining.replace(/[|,\-–—\s]+$/, '').trim();
         if (!pureText || pureText.length < 3) {
-          currentProj.dates = line.match(dateRegex)[0].trim();
+          currentProj.dates = dates;
           continue;
         }
       }
@@ -788,21 +1088,19 @@
       const techInParen = line.match(/\(([^)]+)\)/);
       const hasSeparators = line.includes('|') || line.includes(' — ') || line.includes(' – ');
 
-      // Since lines are pre-stitched, non-bullet lines that are headings start a project
       const isLikelyProjectTitle = !isBullet && (
-        currentProj === null || // First non-bullet item in Projects is always a project
-        techInParen ||         // Contains tech in parentheses
-        hasDate ||             // Has date
-        hasSeparators ||       // Has pipe or dash separator
+        currentProj === null ||
+        techInParen ||
+        hasDate ||
+        hasSeparators ||
         (currentProj.bullets.length > 0 && !line.endsWith('.'))
       );
 
       if (isLikelyProjectTitle) {
         if (currentProj) projects.push(currentProj);
 
-        let title = line;
+        let title = hasDate ? remaining : line;
         let techStack = '';
-        let dates = '';
         let liveUrl = '';
         let githubUrl = '';
 
@@ -817,15 +1115,6 @@
         if (urlMatch && !urlMatch[0].includes('github.com')) {
           liveUrl = urlMatch[0];
           title = title.replace(urlMatch[0], '');
-        }
-
-        // Extract dates
-        if (hasDate) {
-          const dMatch = title.match(dateRegex);
-          if (dMatch) {
-            dates = dMatch[0].trim();
-            title = title.replace(dMatch[0], '');
-          }
         }
 
         // Extract tech stack
@@ -843,7 +1132,6 @@
             techStack = parts.slice(1).join(', ');
           }
         } else {
-          // Check for trailing tech list (e.g. "URL Shortener Node.js, Express.js, MongoDB")
           const splitMatch = title.match(techSplitRegex);
           if (splitMatch && splitMatch[1].trim().length >= 3 && splitMatch[2].trim().length >= 3) {
             title = splitMatch[1].trim();
@@ -928,7 +1216,6 @@
     if (!rawLines || rawLines.length === 0) return [];
     const lines = stitchSectionBullets(rawLines);
     const certs = [];
-    const dateRegex = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\b/i;
 
     const certLinks = (linkUrls || []).filter(u => /drive\.google\.com|coursera\.org|credly\.com|certmetrics\.com|verify|certificate/i.test(u));
     let linkIdx = 0;
@@ -942,16 +1229,10 @@
       clean = clean.replace(/\s*(?:\[|\()?verify(?: certificate)?(?:\]|\))?$/i, '').trim();
       clean = clean.replace(/\s*(?:\[|\()?(?:view|link|credential)(?:\]|\))?$/i, '').trim();
 
-      let name = clean;
+      const { dates: date, remaining } = extractDateFromLine(clean);
+      let name = remaining;
       let issuer = '';
-      let date = '';
       let url = '';
-
-      const dateMatch = clean.match(dateRegex);
-      if (dateMatch) {
-        date = dateMatch[0].trim();
-        name = name.replace(dateMatch[0], '').trim();
-      }
 
       // Check for any dash or separator: en-dash, em-dash, hyphen, pipe, or colon
       if (name.includes(' – ') || name.includes(' — ') || name.includes(' - ') || name.includes(' -- ') || name.includes(' | ')) {

@@ -1323,8 +1323,8 @@ function autoFitToOnePage(andDownload = false) {
 window.autoFitToOnePage = autoFitToOnePage;
 
 /**
- * Export Clean PDF without browser print headers, URLs, or timestamps
- * Automatically runs Smart Auto-Fit if overflowing, ensuring clean 1-click download
+ * Export Resume PDF: Opens format selection modal (Native Vector PDF vs 1-Click File Download)
+ * Automatically runs Smart Auto-Fit if overflowing, ensuring 1-page compliance
  */
 function exportCleanPdf() {
   const resumeElem = document.getElementById('visual-resume');
@@ -1340,8 +1340,8 @@ function exportCleanPdf() {
   if (currentHeight > PAGE_HEIGHT_MAX + 6) {
     const fitted = autoFitToOnePage(false);
     if (fitted) {
-      showToast('⚡ Auto-fitted to 1 page! Downloading clean PDF...');
-      executeCleanPdfDownload();
+      showToast('⚡ Auto-fitted to 1 page!');
+      showExportModal();
       return;
     }
     // Only if even maximum compaction (Level 5) cannot fit, prompt the user
@@ -1351,12 +1351,184 @@ function exportCleanPdf() {
     return;
   }
 
-  executeCleanPdfDownload();
+  showExportModal();
 }
 window.exportCleanPdf = exportCleanPdf;
 
 /**
- * Execute actual Clean PDF generation and download
+ * Show and Close Export Modal
+ */
+function showExportModal() {
+  const modal = document.getElementById('export-pdf-modal');
+  if (modal) {
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('z-index', '99999', 'important');
+    modal.classList.add('open');
+  }
+}
+window.showExportModal = showExportModal;
+
+function closeExportModal() {
+  const modal = document.getElementById('export-pdf-modal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
+}
+window.closeExportModal = closeExportModal;
+
+/**
+ * Option 1: Native Vector PDF (Overleaf / LaTeX Standard)
+ * Uses browser print engine with zero margins and embedded Computer Modern vector fonts
+ */
+function exportNativeVectorPdf() {
+  closeExportModal();
+
+  const resumeElem = document.getElementById('visual-resume');
+  if (!resumeElem) return;
+
+  // Ensure cutoff line and banners are removed
+  const cutoff = resumeElem.querySelector('.page-cutoff-line');
+  if (cutoff) cutoff.remove();
+
+  // If overflowing, auto-fit to 1 page first
+  if (resumeElem.scrollHeight > PAGE_HEIGHT_MAX + 6) {
+    autoFitToOnePage(false);
+  }
+
+  showToast('🖨️ Opening print preview: Select "Save as PDF" for 100% Vector LaTeX quality...');
+  setTimeout(() => {
+    window.print();
+  }, 250);
+}
+window.exportNativeVectorPdf = exportNativeVectorPdf;
+
+/**
+ * Extract all visual text words and group into unified continuous lines with exact
+ * physical coordinates mapped to PDF inches for true 1:1 mouse selection alignment.
+ */
+function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0) {
+  const resumeRect = resumeElem.getBoundingClientRect();
+  const scaleX = pdfWidthIn / resumeRect.width;
+  const scaleY = pdfHeightIn / resumeRect.height;
+  const lines = [];
+
+  try {
+    const walker = document.createTreeWalker(
+      resumeElem,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          if (!node.textContent || !node.textContent.trim()) return NodeFilter.FILTER_REJECT;
+          const p = node.parentElement;
+          if (!p) return NodeFilter.FILTER_REJECT;
+          const s = window.getComputedStyle(p);
+          if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return NodeFilter.FILTER_REJECT;
+          if (p.closest('.page-cutoff-line') || p.closest('.page-overflow-banner')) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    const words = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = node.textContent;
+      const p = node.parentElement;
+      const s = window.getComputedStyle(p);
+      const fontSizePx = parseFloat(s.fontSize) || 12;
+      const fontPt = fontSizePx * 0.75 * (pdfWidthIn * 72 / resumeRect.width);
+
+      let offset = 0;
+      const tokens = text.split(/(\s+)/);
+      for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i];
+        if (tok.trim().length > 0) {
+          const r = document.createRange();
+          r.setStart(node, offset);
+          r.setEnd(node, offset + tok.length);
+          const rect = r.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            words.push({
+              text: tok,
+              left: rect.left,
+              right: rect.right,
+              top: rect.top,
+              bottom: rect.bottom,
+              height: rect.height,
+              fontSize: fontPt
+            });
+          }
+        }
+        offset += tok.length;
+      }
+    }
+
+    // Sort words top-to-bottom, then left-to-right
+    words.sort((a, b) => {
+      const dy = a.top - b.top;
+      if (Math.abs(dy) > 4) return dy;
+      return a.left - b.left;
+    });
+
+    let curLine = null;
+    for (const w of words) {
+      if (!curLine) {
+        curLine = {
+          words: [w.text],
+          left: w.left,
+          right: w.right,
+          top: w.top,
+          height: w.height,
+          fontSize: w.fontSize
+        };
+      } else {
+        const sameLine = Math.abs(w.top - curLine.top) <= 4;
+        const gap = w.left - curLine.right;
+
+        // Group into same line if on the same horizontal baseline and not a distant right-aligned segment (> 45px gap)
+        if (sameLine && gap < 45) {
+          curLine.words.push(w.text);
+          curLine.right = w.right;
+          curLine.height = Math.max(curLine.height, w.height);
+        } else {
+          lines.push({
+            text: curLine.words.join(' '),
+            x: (curLine.left - resumeRect.left) * scaleX,
+            y: (curLine.top - resumeRect.top) * scaleY + (curLine.height * scaleY * 0.78),
+            fontSize: curLine.fontSize
+          });
+          curLine = {
+            words: [w.text],
+            left: w.left,
+            right: w.right,
+            top: w.top,
+            height: w.height,
+            fontSize: w.fontSize
+          };
+        }
+      }
+    }
+
+    if (curLine) {
+      lines.push({
+        text: curLine.words.join(' '),
+        x: (curLine.left - resumeRect.left) * scaleX,
+        y: (curLine.top - resumeRect.top) * scaleY + (curLine.height * scaleY * 0.78),
+        fontSize: curLine.fontSize
+      });
+    }
+  } catch (err) {
+    console.warn('Error extracting visual text lines:', err);
+  }
+
+  return lines;
+}
+
+/**
+ * Execute actual Clean PDF generation and download with 100% pixel-perfect selectable text layer
  */
 function executeCleanPdfDownload() {
   const resumeElem = document.getElementById('visual-resume');
@@ -1368,13 +1540,13 @@ function executeCleanPdfDownload() {
     return;
   }
 
-  showToast('📄 Generating clean 1-page PDF...');
+  showToast('📄 Generating clean 1-page PDF with 100% selectable text...');
 
   // Crucial: remove cutoff line completely so it is never in canvas
   const cutoff = resumeElem.querySelector('.page-cutoff-line');
   if (cutoff) cutoff.remove();
 
-  // Temporarily reset zoom scale and box shadow for 100% crisp render
+  // Temporarily reset zoom scale and box shadow for 100% crisp render & exact coordinate extraction
   const prevTransform = resumeElem.style.transform;
   const prevTransformOrigin = resumeElem.style.transformOrigin;
   const prevBoxShadow = resumeElem.style.boxShadow;
@@ -1399,6 +1571,9 @@ function executeCleanPdfDownload() {
                     visualResume.classList.contains('compact-3') ||
                     visualResume.classList.contains('compact-4') ||
                     visualResume.classList.contains('compact-5');
+
+  // Extract pixel-perfect visual text lines mapped directly to PDF coordinates
+  const visualLines = extractVisualTextLines(resumeElem, 8.5, 11.0);
 
   const opt = {
     margin: [0, 0, 0, 0],
@@ -1436,11 +1611,50 @@ function executeCleanPdfDownload() {
         // Automatically delete any accidental blank 2nd page!
         pdf.deletePage(2);
       }
+      pdf.setPage(1);
+
+      // 1. Lossless Resume State Embedding in PDF Metadata
+      try {
+        let b64Payload = '';
+        try {
+          const jsonStr = JSON.stringify(resumeState);
+          const utf8Bytes = encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+            return String.fromCharCode(parseInt(p1, 16));
+          });
+          b64Payload = btoa(utf8Bytes);
+        } catch (encErr) {
+          b64Payload = encodeURIComponent(JSON.stringify(resumeState));
+        }
+
+        const payload = 'JAKE_RESUME_DATA:' + b64Payload;
+        pdf.setProperties({
+          title: `${resumeState.personal.fullName || 'Jake Ryan'} - Resume`,
+          subject: payload,
+          keywords: payload,
+          author: resumeState.personal.fullName || 'Jake Ryan',
+          creator: "Jake's Resume Builder (Lossless ATS Engine)"
+        });
+      } catch (metaErr) {
+        console.warn('Could not embed metadata in PDF:', metaErr);
+      }
+
+      // 2. Inject Pixel-Perfect Selectable Text Layer (100% 1:1 aligned with visual text elements)
+      try {
+        if (visualLines && visualLines.length > 0) {
+          pdf.setFont('times', 'normal');
+          visualLines.forEach(it => {
+            pdf.setFontSize(Math.max(5.5, Math.min(28, it.fontSize)));
+            pdf.text(it.text, it.x, it.y, { renderingMode: 'invisible' });
+          });
+        }
+      } catch (txtErr) {
+        console.warn('Could not inject selectable text layer in PDF:', txtErr);
+      }
     })
     .save()
     .then(() => {
       cleanup();
-      showToast(`✓ Clean PDF downloaded: ${filename}`);
+      showToast(`✓ Clean 100% selectable PDF downloaded: ${filename}`);
     })
     .catch((err) => {
       console.error('Error generating clean PDF:', err);
@@ -3884,6 +4098,14 @@ function closeUploadModal() {
 function handleModalBackdropClick(e) {
   if (e.target.id === 'upload-modal') {
     closeUploadModal();
+  } else if (e.target.id === 'jd-matcher-modal') {
+    closeJdMatcherModal();
+  } else if (e.target.id === 'profiles-modal') {
+    if (typeof closeProfilesModal === 'function') closeProfilesModal();
+  } else if (e.target.id === 'typography-modal') {
+    if (typeof closeTypographyModal === 'function') closeTypographyModal();
+  } else if (e.target.id === 'trim-lines-modal') {
+    if (typeof closeTrimLinesModal === 'function') closeTrimLinesModal();
   }
 }
 
@@ -3992,13 +4214,27 @@ async function processResumeFile(file) {
       }
       setParseLoading(true, 'Extracting text and hyperlinks from PDF...');
       const arrayBuffer = await file.arrayBuffer();
-      const pdfExtraction = await ResumeParser.extractTextFromPdf(arrayBuffer, (percent) => {
-        setParseLoading(true, `Reading PDF pages & hyperlinks (${percent}%)...`);
+      const pdfExtraction = await ResumeParser.extractTextFromPdf(arrayBuffer, (statusOrPercent) => {
+        if (typeof statusOrPercent === 'number') {
+          setParseLoading(true, `Reading PDF pages & hyperlinks (${statusOrPercent}%)...`);
+        } else {
+          setParseLoading(true, statusOrPercent);
+        }
       });
       setParseLoading(true, 'Analyzing sections, contact links, and experiences...');
-      const text = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.text) ? pdfExtraction.text : pdfExtraction;
-      const links = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.links) ? pdfExtraction.links : [];
-      parsedResult = ResumeParser.parseText(text, links);
+
+      if (pdfExtraction && pdfExtraction.isEmbeddedPayload && pdfExtraction.embeddedState) {
+        parsedResult = pdfExtraction.embeddedState;
+        parsedResult.__isLosslessRestoration = true;
+        showToast('✓ 100% exact resume data restored from Jake Resume PDF!');
+      } else {
+        const text = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.text) ? pdfExtraction.text : pdfExtraction;
+        const links = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.links) ? pdfExtraction.links : [];
+        parsedResult = ResumeParser.parseText(text, links);
+        if (pdfExtraction && pdfExtraction.isOcrExtraction) {
+          showToast('✓ Legacy image PDF recovered via Smart OCR!');
+        }
+      }
     } else if (filename.endsWith('.tex')) {
       setParseLoading(true, 'Parsing LaTeX document...');
       const texContent = await file.text();
@@ -4056,7 +4292,9 @@ function showExtractionSummary(data) {
   const summaryBadges = document.getElementById('summary-badges');
 
   if (summaryName) {
-    summaryName.textContent = data.personal?.fullName || 'Extracted Candidate Profile';
+    const isLossless = Boolean(data.__isLosslessRestoration);
+    summaryName.innerHTML = (data.personal?.fullName || 'Extracted Candidate Profile') +
+      (isLossless ? ' <span style="font-size: 11px; padding: 3px 8px; border-radius: 9999px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; vertical-align: middle; margin-left: 8px;">⚡ 100% Exact Jake Resume Data</span>' : '');
   }
 
   if (summaryBadges) {
@@ -4668,3 +4906,689 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSidebarDragReorder();
   }, 200);
 });
+
+/* ==========================================================================
+   FORGE STUDIO — Job Description (JD) Matcher & ATS Compatibility Engine
+   ========================================================================== */
+
+const JD_TAXONOMY = {
+  // --- Programming Languages ---
+  'python': { canonical: 'Python', category: 'Languages', aliases: ['py'] },
+  'java': { canonical: 'Java', category: 'Languages', aliases: ['core java', 'j2se'] },
+  'c++': { canonical: 'C++', category: 'Languages', aliases: ['cpp', 'c plus plus'] },
+  'c': { canonical: 'C', category: 'Languages', isSingleChar: true },
+  'c#': { canonical: 'C#', category: 'Languages', aliases: ['csharp', 'c-sharp', '.net'] },
+  'go': { canonical: 'Go', category: 'Languages', aliases: ['golang'], isWordBoundary: true },
+  'javascript': { canonical: 'JavaScript', category: 'Languages', aliases: ['js', 'ecmascript'] },
+  'typescript': { canonical: 'TypeScript', category: 'Languages', aliases: ['ts'] },
+  'rust': { canonical: 'Rust', category: 'Languages' },
+  'sql': { canonical: 'SQL', category: 'Languages', aliases: ['structured query language'] },
+  'bash': { canonical: 'Bash', category: 'Languages', aliases: ['shell scripting', 'shell', 'zsh'] },
+  'html': { canonical: 'HTML5', category: 'Languages', aliases: ['html5'] },
+  'css': { canonical: 'CSS3', category: 'Languages', aliases: ['css3'] },
+  'kotlin': { canonical: 'Kotlin', category: 'Languages' },
+  'swift': { canonical: 'Swift', category: 'Languages' },
+  'r': { canonical: 'R', category: 'Languages', isSingleChar: true },
+
+  // --- Frameworks & Web Platforms ---
+  'react': { canonical: 'React', category: 'Frameworks', aliases: ['react.js', 'reactjs'] },
+  'next.js': { canonical: 'Next.js', category: 'Frameworks', aliases: ['nextjs', 'next'] },
+  'node.js': { canonical: 'Node.js', category: 'Frameworks', aliases: ['nodejs', 'node'] },
+  'express': { canonical: 'Express.js', category: 'Frameworks', aliases: ['expressjs', 'express.js'] },
+  'spring boot': { canonical: 'Spring Boot', category: 'Frameworks', aliases: ['springboot', 'spring framework'] },
+  'django': { canonical: 'Django', category: 'Frameworks' },
+  'fastapi': { canonical: 'FastAPI', category: 'Frameworks', aliases: ['fast api'] },
+  'flask': { canonical: 'Flask', category: 'Frameworks' },
+  'vue': { canonical: 'Vue.js', category: 'Frameworks', aliases: ['vuejs', 'vue.js'] },
+  'angular': { canonical: 'Angular', category: 'Frameworks', aliases: ['angularjs'] },
+  'tailwind css': { canonical: 'Tailwind CSS', category: 'Frameworks', aliases: ['tailwind', 'tailwindcss'] },
+  'graphql': { canonical: 'GraphQL', category: 'Frameworks' },
+  'rest api': { canonical: 'RESTful APIs', category: 'Frameworks', aliases: ['rest', 'restful api', 'rest apis', 'restful services', 'web api'] },
+  'grpc': { canonical: 'gRPC', category: 'Frameworks' },
+  'websockets': { canonical: 'WebSockets', category: 'Frameworks', aliases: ['websocket'] },
+
+  // --- Databases & Streaming ---
+  'postgresql': { canonical: 'PostgreSQL', category: 'Developer Tools', aliases: ['postgres', 'psql'] },
+  'mysql': { canonical: 'MySQL', category: 'Developer Tools' },
+  'mongodb': { canonical: 'MongoDB', category: 'Developer Tools', aliases: ['mongo'] },
+  'redis': { canonical: 'Redis', category: 'Developer Tools', aliases: ['redis cache'] },
+  'kafka': { canonical: 'Apache Kafka', category: 'Developer Tools', aliases: ['apache kafka'] },
+  'elasticsearch': { canonical: 'Elasticsearch', category: 'Developer Tools', aliases: ['elastic search'] },
+  'dynamodb': { canonical: 'DynamoDB', category: 'Developer Tools', aliases: ['dynamo db'] },
+  'cassandra': { canonical: 'Cassandra', category: 'Developer Tools' },
+  'sqlite': { canonical: 'SQLite', category: 'Developer Tools' },
+  'firebase': { canonical: 'Firebase', category: 'Developer Tools' },
+
+  // --- Cloud, DevOps & Tools ---
+  'docker': { canonical: 'Docker', category: 'Developer Tools', aliases: ['containerization', 'containers'] },
+  'kubernetes': { canonical: 'Kubernetes', category: 'Developer Tools', aliases: ['k8s'] },
+  'aws': { canonical: 'AWS', category: 'Developer Tools', aliases: ['amazon web services', 'ec2', 's3', 'lambda'] },
+  'azure': { canonical: 'Azure', category: 'Developer Tools', aliases: ['microsoft azure'] },
+  'gcp': { canonical: 'Google Cloud Platform', category: 'Developer Tools', aliases: ['google cloud', 'gcp'] },
+  'git': { canonical: 'Git', category: 'Developer Tools', aliases: ['github', 'gitlab'] },
+  'ci/cd': { canonical: 'CI/CD Pipelines', category: 'Developer Tools', aliases: ['cicd', 'github actions', 'jenkins', 'gitlab ci'] },
+  'nginx': { canonical: 'NGINX', category: 'Developer Tools' },
+  'linux': { canonical: 'Linux / Unix', category: 'Developer Tools', aliases: ['unix', 'ubuntu'] },
+  'terraform': { canonical: 'Terraform', category: 'Developer Tools', aliases: ['iac', 'infrastructure as code'] },
+  'maven': { canonical: 'Maven', category: 'Developer Tools' },
+  'gradle': { canonical: 'Gradle', category: 'Developer Tools' },
+
+  // --- Core CS & Architecture ---
+  'data structures': { canonical: 'Data Structures & Algorithms', category: 'Core CS', aliases: ['dsa', 'algorithms', 'data structure', 'algorithm'] },
+  'system design': { canonical: 'System Design', category: 'Core CS', aliases: ['distributed systems', 'system architecture', 'hld', 'lld', 'high level design', 'low level design'] },
+  'object oriented programming': { canonical: 'OOP (Object-Oriented Programming)', category: 'Core CS', aliases: ['oop', 'oops', 'object-oriented design', 'object oriented'] },
+  'operating systems': { canonical: 'Operating Systems', category: 'Core CS', aliases: ['os', 'concurrency', 'multithreading', 'multi-threading', 'thread management'] },
+  'database management': { canonical: 'DBMS', category: 'Core CS', aliases: ['dbms', 'acid properties', 'database indexing', 'transactions', 'relational database'] },
+  'computer networks': { canonical: 'Computer Networks', category: 'Core CS', aliases: ['tcp/ip', 'http', 'https', 'dns', 'networking protocols'] },
+  'microservices': { canonical: 'Microservices Architecture', category: 'Core CS', aliases: ['microservice', 'micro-services', 'event-driven architecture', 'service-oriented'] },
+  'scalability': { canonical: 'High Scalability', category: 'Core CS', aliases: ['scalable systems', 'load balancing', 'horizontal scaling', 'high throughput'] },
+  'unit testing': { canonical: 'Unit Testing & TDD', category: 'Developer Tools', aliases: ['tdd', 'junit', 'pytest', 'jest', 'mocking', 'integration testing', 'automated testing'] },
+
+  // --- AI, Machine Learning & Data ---
+  'machine learning': { canonical: 'Machine Learning', category: 'Frameworks', aliases: ['ml', 'machine-learning'] },
+  'deep learning': { canonical: 'Deep Learning', category: 'Frameworks', aliases: ['neural networks', 'dl'] },
+  'pytorch': { canonical: 'PyTorch', category: 'Frameworks' },
+  'tensorflow': { canonical: 'TensorFlow', category: 'Frameworks', aliases: ['keras'] },
+  'computer vision': { canonical: 'Computer Vision', category: 'Frameworks', aliases: ['opencv', 'cv'] },
+  'nlp': { canonical: 'NLP', category: 'Frameworks', aliases: ['natural language processing', 'transformers', 'huggingface'] },
+  'pandas': { canonical: 'Pandas', category: 'Frameworks' },
+  'numpy': { canonical: 'NumPy', category: 'Frameworks' },
+  'scikit-learn': { canonical: 'Scikit-Learn', category: 'Frameworks', aliases: ['sklearn'] },
+  'llm': { canonical: 'Large Language Models (LLMs)', category: 'Frameworks', aliases: ['llms', 'rag', 'langchain', 'generative ai', 'genai'] },
+
+  // --- Embedded Systems & Low-Level Engineering ---
+  'embedded systems': { canonical: 'Embedded Systems', category: 'Developer Tools', aliases: ['embedded c', 'embedded software', 'firmware', 'bare-metal'] },
+  'assembly': { canonical: 'Assembly Language', category: 'Languages', aliases: ['x86', 'arm assembly', 'nasm', 'masm'] },
+  'rtos': { canonical: 'RTOS', category: 'Developer Tools', aliases: ['freertos', 'zephyr', 'real-time os', 'real-time operating system'] },
+  'microcontrollers': { canonical: 'Microcontrollers', category: 'Developer Tools', aliases: ['cortex-m', 'stm32', 'esp32', 'arduino', 'mcu'] },
+  'fpga': { canonical: 'FPGA & Hardware Design', category: 'Developer Tools', aliases: ['verilog', 'vhdl', 'systemverilog'] },
+  'device drivers': { canonical: 'Device Drivers', category: 'Developer Tools', aliases: ['kernel development', 'device driver', 'linux kernel'] },
+
+  // --- Big Data & Data Engineering ---
+  'spark': { canonical: 'Apache Spark', category: 'Developer Tools', aliases: ['pyspark', 'apache spark'] },
+  'airflow': { canonical: 'Apache Airflow', category: 'Developer Tools', aliases: ['apache airflow'] },
+  'snowflake': { canonical: 'Snowflake', category: 'Developer Tools' },
+  'dbt': { canonical: 'dbt', category: 'Developer Tools', aliases: ['data build tool'] },
+  'hadoop': { canonical: 'Hadoop', category: 'Developer Tools', aliases: ['hdfs', 'mapreduce'] },
+  'databricks': { canonical: 'Databricks', category: 'Developer Tools' },
+
+  // --- Mobile Development ---
+  'react native': { canonical: 'React Native', category: 'Frameworks', aliases: ['react-native'] },
+  'flutter': { canonical: 'Flutter', category: 'Frameworks', aliases: ['dart'] },
+  'android': { canonical: 'Android Development', category: 'Developer Tools', aliases: ['android sdk', 'jetpack compose'] },
+  'ios': { canonical: 'iOS Development', category: 'Developer Tools', aliases: ['swiftui', 'uikit', 'xcode'] }
+};
+
+const PRESET_SAMPLE_JDS = {
+  amazon_sde: `Position: Software Development Engineer (SDE-1) - Campus Placements
+Company: Amazon
+
+Basic Qualifications:
+- Bachelor's degree in Computer Science, Computer Engineering, or related technical discipline.
+- Strong proficiency in at least one modern programming language such as Java, C++, Python, or Go.
+- Deep understanding of Data Structures & Algorithms (DSA), Object-Oriented Programming (OOP), and design patterns.
+- Solid foundations in Computer Science fundamentals: Operating Systems, Computer Networks, and DBMS.
+- Experience with building scalable RESTful APIs and distributed backend architectures.
+- Familiarity with Cloud platforms (AWS: EC2, S3, Lambda, DynamoDB) and containerization using Docker.
+- Experience in automated unit testing (JUnit/pytest), CI/CD pipelines, and Git version control.
+- Ability to solve complex engineering challenges with measurable impact, high scalability, and clean code.`,
+
+  google_swe: `Role: Software Engineer, Early Career / Campus Placements
+Organization: Google
+
+Minimum Qualifications:
+- Currently pursuing or completed a B.Tech / B.E. / M.Tech in Computer Science or equivalent practical experience.
+- Experience in software development with C++, Java, Python, or Go.
+- Strong algorithmic problem-solving ability, algorithmic complexity analysis, and Data Structures.
+- Hands-on knowledge of Distributed Systems, System Design principles, Microservices, and high-throughput databases.
+- Thorough understanding of Concurrency, Multithreading, Memory Management, and Unix / Linux environments.
+- Experience with automated testing, continuous integration, and version control using Git.
+- Demonstrated project experience demonstrating end-to-end software engineering, high reliability, and latency optimization.`,
+
+  fullstack: `Role: Full-Stack Software Engineer
+Tech Stack: React, TypeScript, Node.js, PostgreSQL, Docker, AWS
+
+Responsibilities & Requirements:
+- Build responsive, accessible client-facing applications using modern React, TypeScript, and Tailwind CSS.
+- Architect high-performance backend microservices using Node.js / Express.js and RESTful APIs / GraphQL.
+- Design relational database schemas and optimize query performance using PostgreSQL, Redis caching, and SQL.
+- Deploy and manage containerized applications with Docker and AWS cloud services (S3, ECS, CloudFront).
+- Implement CI/CD pipelines using GitHub Actions for automated linting, test suites, and zero-downtime deployments.
+- Write robust unit and integration tests with Jest, Cypress, or React Testing Library.`,
+
+  backend_cloud: `Position: Backend & Cloud Infrastructure Engineer
+Tech Stack: Go / Java, Apache Kafka, Redis, PostgreSQL, Kubernetes, Docker, AWS
+
+Key Requirements:
+- Proven experience engineering asynchronous distributed systems, message queues (Apache Kafka, RabbitMQ), and microservices.
+- High proficiency in Go (Golang), Java, or Python for resilient backend services.
+- Experience implementing Redis caching, PostgreSQL database connection pooling, and ACID transactions.
+- Infrastructure automation and container orchestration with Docker, Kubernetes (K8s), and CI/CD pipelines.
+- Deep comprehension of System Design, load balancing, fault tolerance, horizontal scalability, and gRPC / WebSockets.
+- Focus on performance profiling, latency reduction (<50ms p99), and distributed observability.`,
+
+  aiml: `Position: AI / Machine Learning Engineer (Campus / Early Career)
+Tech Stack: Python, PyTorch, TensorFlow, Computer Vision, NLP, Docker, FastAPI
+
+Candidate Profile:
+- Bachelor's degree in Computer Science, AI/Data Science, or related field.
+- Strong software engineering foundation in Python, NumPy, Pandas, and Scikit-Learn.
+- Practical experience designing, training, and fine-tuning Deep Learning models with PyTorch or TensorFlow.
+- Experience with modern Computer Vision (OpenCV) or Natural Language Processing (Transformers, LLMs, RAG).
+- Ability to deploy ML inference pipelines as lightweight REST APIs using FastAPI / Flask containerized with Docker.
+- Strong theoretical grasp of Machine Learning algorithms, statistical evaluation metrics, and GPU optimization.`
+};
+
+let currentJdAnalysisResults = null;
+
+function openJdMatcherModal() {
+  const modal = document.getElementById('jd-matcher-modal');
+  if (modal) {
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('z-index', '99999', 'important');
+    modal.classList.add('open');
+    const textarea = document.getElementById('inp-jd-text');
+    if (textarea && textarea.value.trim()) {
+      runJdAnalysis();
+    } else if (textarea) {
+      setTimeout(() => textarea.focus(), 60);
+    }
+  }
+}
+window.openJdMatcherModal = openJdMatcherModal;
+
+function closeJdMatcherModal() {
+  const modal = document.getElementById('jd-matcher-modal');
+  if (modal) {
+    modal.style.setProperty('display', 'none', 'important');
+    modal.classList.remove('open');
+  }
+}
+window.closeJdMatcherModal = closeJdMatcherModal;
+
+// Failsafe global click interceptor for all JD Matcher triggers
+document.addEventListener('click', (e) => {
+  const target = e.target.closest && e.target.closest('#btn-open-jd-matcher, .sidebar-jd-card, .chip-btn-jd, [data-action="open-jd-matcher"]');
+  if (target) {
+    e.preventDefault();
+    e.stopPropagation();
+    openJdMatcherModal();
+  }
+});
+
+async function pasteFromClipboardToJd() {
+  const textarea = document.getElementById('inp-jd-text');
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        if (textarea) {
+          textarea.value = text;
+          handleJdInput(text);
+          runJdAnalysis();
+          showToast('✓ Pasted Job Description from clipboard & analyzed!');
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    // Clipboard permission denied or insecure context
+  }
+  if (textarea) {
+    textarea.focus();
+    textarea.style.borderColor = '#f59e0b';
+    textarea.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.25)';
+    setTimeout(() => {
+      textarea.style.borderColor = '';
+      textarea.style.boxShadow = '';
+    }, 1200);
+    showToast('Clipboard empty or restricted. Press Ctrl+V directly into the box.');
+  }
+}
+window.pasteFromClipboardToJd = pasteFromClipboardToJd;
+
+function loadPresetJd(key) {
+  const text = PRESET_SAMPLE_JDS[key];
+  if (!text) return;
+  const textarea = document.getElementById('inp-jd-text');
+  if (textarea) {
+    textarea.value = text;
+    handleJdInput(text);
+    runJdAnalysis();
+  }
+}
+window.loadPresetJd = loadPresetJd;
+
+function clearJdInput() {
+  const textarea = document.getElementById('inp-jd-text');
+  if (textarea) {
+    textarea.value = '';
+    handleJdInput('');
+  }
+  const dash = document.getElementById('jd-analysis-dashboard');
+  if (dash) dash.style.display = 'none';
+  const pill = document.getElementById('header-ats-pill');
+  if (pill) pill.style.display = 'none';
+}
+window.clearJdInput = clearJdInput;
+
+function handleJdInput(val) {
+  const countEl = document.getElementById('jd-char-count');
+  if (countEl) {
+    const chars = (val || '').length;
+    const words = (val || '').trim() ? (val.trim().split(/\s+/).length) : 0;
+    countEl.textContent = `${chars} characters • ${words} words`;
+  }
+}
+window.handleJdInput = handleJdInput;
+
+/**
+ * Scan arbitrary text against tech taxonomy with boundary & alias handling
+ */
+function extractTaxonomyFromText(text) {
+  if (!text) return [];
+  const textLower = ' ' + text.toLowerCase().replace(/[\r\n\t]/g, ' ') + ' ';
+  const matched = [];
+
+  Object.entries(JD_TAXONOMY).forEach(([key, info]) => {
+    const terms = [key, ...(info.aliases || [])];
+    let isFound = false;
+
+    for (const term of terms) {
+      const termLower = term.toLowerCase();
+      // Special symbol handling (C++, C#, .NET, CI/CD)
+      if (termLower === 'c++') {
+        if (/(\bc\+\+|\bc\s*\+\+|cpp|\bc plus plus\b)/i.test(text)) { isFound = true; break; }
+      } else if (termLower === 'c#') {
+        if (/(\bc#|csharp|\bc-sharp\b|\.net\b)/i.test(text)) { isFound = true; break; }
+      } else if (info.isSingleChar) {
+        // Strict boundary check for single characters like C or R
+        const regex = new RegExp(`\\b${termLower}\\b`, 'i');
+        // Only consider if in programming language context
+        if (regex.test(textLower) && /(language|programming|code|developer|software)/i.test(textLower)) {
+          isFound = true; break;
+        }
+      } else if (termLower === 'go') {
+        // Strict check so "go" doesn't trigger on common English "go ahead", "let's go"
+        if (/(\bgolang\b|\bgo\s*(lang|language|developer|backend|code)\b)/i.test(textLower) || /\bGo\b/.test(text)) {
+          isFound = true; break;
+        }
+      } else {
+        // Standard boundary escape
+        const escaped = termLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
+        if (regex.test(textLower)) {
+          isFound = true;
+          break;
+        }
+      }
+    }
+
+    if (isFound) {
+      matched.push({
+        key,
+        canonical: info.canonical,
+        category: info.category
+      });
+    }
+  });
+
+  return matched;
+}
+
+/**
+ * Build aggregated resume text corpus categorized by section prominence
+ */
+function getResumeCorpus() {
+  const s = resumeState;
+  let experienceProjectsText = '';
+  let skillsText = '';
+  let otherText = '';
+
+  // 1. Experience
+  (s.experience || []).forEach(exp => {
+    experienceProjectsText += ` ${exp.company || ''} ${exp.role || ''} ${(exp.bullets || []).join(' ')} `;
+  });
+
+  // 2. Projects
+  (s.projects || []).forEach(p => {
+    experienceProjectsText += ` ${p.title || ''} ${p.techStack || ''} ${(p.bullets || []).join(' ')} `;
+  });
+
+  // 3. Skills
+  (s.skills || []).forEach(sk => {
+    skillsText += ` ${sk.category || ''}: ${sk.items || ''} `;
+  });
+
+  // 4. Education, Certs, Honors
+  (s.education || []).forEach(e => {
+    otherText += ` ${e.institution || e.school || ''} ${e.degree || ''} ${e.coursework || ''} `;
+  });
+  (s.certifications || []).forEach(c => {
+    otherText += ` ${c.name || c.title || ''} `;
+  });
+  (s.achievements || []).forEach(a => {
+    otherText += ` ${typeof a === 'string' ? a : (a.title || a.name || '')} `;
+  });
+
+  return {
+    experienceProjectsText,
+    skillsText,
+    otherText,
+    allText: `${experienceProjectsText} ${skillsText} ${otherText}`
+  };
+}
+
+/**
+ * Count bullets with measurable metrics and action verbs
+ */
+function countMetricBullets() {
+  const s = resumeState;
+  let totalBullets = 0;
+  let metricBullets = 0;
+  const metricRegex = /(\d+(?:\.\d+)?%|\$\d+|\d+\+|\b\d+\s*(?:ms|seconds|minutes|k|m|users|queries|reqs|requests|rps|tps|concurrent)\b)/i;
+
+  (s.experience || []).forEach(e => {
+    (e.bullets || []).forEach(b => {
+      totalBullets++;
+      if (metricRegex.test(b)) metricBullets++;
+    });
+  });
+
+  (s.projects || []).forEach(p => {
+    (p.bullets || []).forEach(b => {
+      totalBullets++;
+      if (metricRegex.test(b)) metricBullets++;
+    });
+  });
+
+  return { totalBullets, metricBullets };
+}
+
+/**
+ * Run comprehensive ATS Job Description scan
+ */
+function runJdAnalysis() {
+  const textarea = document.getElementById('inp-jd-text');
+  const jdText = textarea ? textarea.value.trim() : '';
+
+  if (!jdText) {
+    if (textarea) {
+      textarea.focus();
+      textarea.style.borderColor = '#ef4444';
+      textarea.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.25)';
+      setTimeout(() => {
+        textarea.style.borderColor = '';
+        textarea.style.boxShadow = '';
+      }, 1400);
+    }
+    showToast('⚠️ Please paste a Job Description or click a sample preset below first');
+    return;
+  }
+
+  // 1. Extract required keywords from JD
+  const jdKeywords = extractTaxonomyFromText(jdText);
+  if (jdKeywords.length === 0) {
+    showToast('No specific technical requirements identified in this text. Try pasting the full JD.');
+    return;
+  }
+
+  // 2. Scan resume sections
+  const corpus = getResumeCorpus();
+  const resumeExpProjMatches = extractTaxonomyFromText(corpus.experienceProjectsText);
+  const resumeAllMatches = extractTaxonomyFromText(corpus.allText);
+
+  const matchedKeysInExp = new Set(resumeExpProjMatches.map(m => m.key));
+  const matchedKeysInAll = new Set(resumeAllMatches.map(m => m.key));
+
+  const matchedKeywords = [];
+  const missingKeywords = [];
+
+  let techStackTotal = 0;
+  let techStackMatched = 0;
+  let coreCsTotal = 0;
+  let coreCsMatched = 0;
+
+  jdKeywords.forEach(item => {
+    const isCore = item.category === 'Core CS';
+    if (isCore) {
+      coreCsTotal++;
+    } else {
+      techStackTotal++;
+    }
+
+    if (matchedKeysInAll.has(item.key)) {
+      const inExpProj = matchedKeysInExp.has(item.key);
+      matchedKeywords.push({
+        ...item,
+        inExpProj
+      });
+      if (isCore) coreCsMatched++;
+      else techStackMatched++;
+    } else {
+      missingKeywords.push(item);
+    }
+  });
+
+  // 3. Compute weighted ATS score
+  const { totalBullets, metricBullets } = countMetricBullets();
+  const metricScore = totalBullets > 0 ? Math.min(metricBullets / Math.max(Math.ceil(totalBullets * 0.4), 1), 1) : 0.7;
+
+  let rawScore;
+  if (techStackTotal > 0 && coreCsTotal > 0) {
+    const techScore = techStackMatched / techStackTotal;
+    const coreCsScore = coreCsMatched / coreCsTotal;
+    rawScore = (techScore * 55) + (coreCsScore * 30) + (metricScore * 15);
+  } else if (techStackTotal > 0) {
+    const techScore = techStackMatched / techStackTotal;
+    rawScore = (techScore * 80) + (metricScore * 20);
+  } else if (coreCsTotal > 0) {
+    const coreCsScore = coreCsMatched / coreCsTotal;
+    rawScore = (coreCsScore * 80) + (metricScore * 20);
+  } else {
+    rawScore = 50;
+  }
+  const finalScore = Math.min(Math.max(Math.round(rawScore), 15), 100);
+
+  currentJdAnalysisResults = {
+    score: finalScore,
+    matchedKeywords,
+    missingKeywords,
+    techStackTotal,
+    techStackMatched,
+    coreCsTotal,
+    coreCsMatched,
+    metricBullets,
+    totalBullets
+  };
+
+  renderJdAnalysisResults(currentJdAnalysisResults);
+}
+window.runJdAnalysis = runJdAnalysis;
+
+/**
+ * Render Results Dashboard with animations
+ */
+function renderJdAnalysisResults(res) {
+  const dash = document.getElementById('jd-analysis-dashboard');
+  if (dash) dash.style.display = 'flex';
+
+  // 1. Animated Score Ring
+  const numEl = document.getElementById('jd-score-number');
+  if (numEl) numEl.textContent = res.score;
+
+  const ringFill = document.getElementById('jd-score-fill');
+  if (ringFill) {
+    const circumference = 251.2; // 2 * PI * 40
+    const offset = (circumference - (res.score / 100) * circumference).toFixed(1);
+    ringFill.style.strokeDashoffset = offset;
+    ringFill.style.stroke = res.score >= 80 ? '#10b981' : (res.score >= 60 ? '#6366f1' : '#f59e0b');
+  }
+
+  // 2. Status Label & Subtext
+  const statusEl = document.getElementById('jd-score-status');
+  const subtextEl = document.getElementById('jd-score-subtext');
+  if (statusEl) {
+    if (res.score >= 85) {
+      statusEl.textContent = '🌟 Exceptional Shortlist Potential';
+      statusEl.style.color = '#34d399';
+    } else if (res.score >= 70) {
+      statusEl.textContent = '✓ Strong Placement Candidate';
+      statusEl.style.color = '#818cf8';
+    } else if (res.score >= 50) {
+      statusEl.textContent = '⚠️ Moderate Match (Needs Keywords)';
+      statusEl.style.color = '#fbbf24';
+    } else {
+      statusEl.textContent = '❌ Low Keyword Alignment';
+      statusEl.style.color = '#f87171';
+    }
+  }
+  if (subtextEl) {
+    const totalJd = res.matchedKeywords.length + res.missingKeywords.length;
+    subtextEl.textContent = `Matches ${res.matchedKeywords.length} of ${totalJd} required technical competencies`;
+  }
+
+  // 3. Breakdown Bars
+  const barTech = document.getElementById('bar-tech-stack');
+  const statTech = document.getElementById('stat-tech-stack');
+  if (barTech && statTech) {
+    const pct = res.techStackTotal > 0 ? Math.round((res.techStackMatched / res.techStackTotal) * 100) : 100;
+    barTech.style.width = `${pct}%`;
+    barTech.style.background = pct >= 75 ? '#10b981' : '#6366f1';
+    statTech.textContent = `${res.techStackMatched} / ${res.techStackTotal} (${pct}%)`;
+  }
+
+  const barCore = document.getElementById('bar-core-cs');
+  const statCore = document.getElementById('stat-core-cs');
+  if (barCore && statCore) {
+    const pct = res.coreCsTotal > 0 ? Math.round((res.coreCsMatched / res.coreCsTotal) * 100) : 100;
+    barCore.style.width = `${pct}%`;
+    barCore.style.background = pct >= 75 ? '#10b981' : '#6366f1';
+    statCore.textContent = `${res.coreCsMatched} / ${res.coreCsTotal} (${pct}%)`;
+  }
+
+  const barMetrics = document.getElementById('bar-metrics');
+  const statMetrics = document.getElementById('stat-metrics');
+  if (barMetrics && statMetrics) {
+    const pct = res.totalBullets > 0 ? Math.min(Math.round((res.metricBullets / res.totalBullets) * 100), 100) : 0;
+    barMetrics.style.width = `${pct}%`;
+    barMetrics.style.background = pct >= 50 ? '#10b981' : '#f59e0b';
+    statMetrics.textContent = `${res.metricBullets} of ${res.totalBullets} bullets (${pct}%)`;
+  }
+
+  // 4. Missing Keywords Chips (with 1-click add)
+  const listMissing = document.getElementById('list-missing-keywords');
+  const countMissing = document.getElementById('count-missing-keywords');
+  if (countMissing) countMissing.textContent = res.missingKeywords.length;
+  if (listMissing) {
+    if (res.missingKeywords.length === 0) {
+      listMissing.innerHTML = '<span class="jd-empty-state">🎉 Outstanding! No critical technical keywords are missing from this JD.</span>';
+    } else {
+      listMissing.innerHTML = res.missingKeywords.map(item => `
+        <button type="button" class="jd-chip-missing" onclick="insertMissingSkillToResume('${escapeHtml(item.canonical)}', '${escapeHtml(item.category)}')" title="Click to auto-insert into Technical Skills & boost score">
+          <span>${escapeHtml(item.canonical)}</span>
+          <span class="jd-chip-add-icon">+ Add</span>
+        </button>
+      `).join('');
+    }
+  }
+
+  // 5. Matched Keywords Chips
+  const listMatched = document.getElementById('list-matched-keywords');
+  const countMatched = document.getElementById('count-matched-keywords');
+  if (countMatched) countMatched.textContent = res.matchedKeywords.length;
+  if (listMatched) {
+    if (res.matchedKeywords.length === 0) {
+      listMatched.innerHTML = '<span class="jd-empty-state">No direct keyword matches found yet. Add core requirements to your skills or projects.</span>';
+    } else {
+      listMatched.innerHTML = res.matchedKeywords.map(item => `
+        <span class="jd-chip-matched" title="${item.inExpProj ? 'Found with high impact in Experience/Projects!' : 'Found in Technical Skills'}">
+          <span>✓ ${escapeHtml(item.canonical)}</span>
+          ${item.inExpProj ? '<small style="opacity:0.75; font-size:0.65rem;">(Projects)</small>' : ''}
+        </span>
+      `).join('');
+    }
+  }
+
+  // 6. Actionable Placement Recommendations
+  const listRecs = document.getElementById('jd-recommendations-list');
+  if (listRecs) {
+    const recs = [];
+    if (res.missingKeywords.length > 0) {
+      const top3 = res.missingKeywords.slice(0, 3).map(k => `<strong>${escapeHtml(k.canonical)}</strong>`).join(', ');
+      recs.push(`Click to insert high-frequency missing keywords: ${top3} directly into your Technical Skills.`);
+    }
+    if (res.coreCsTotal > 0 && res.coreCsMatched < res.coreCsTotal) {
+      recs.push(`Ensure Core CS concepts (like <strong>System Design</strong>, <strong>Operating Systems</strong>, or <strong>OOP</strong>) are clearly highlighted in your coursework or project descriptions.`);
+    }
+    if (res.metricBullets < 4) {
+      recs.push(`Quantify project outcomes with measurable metrics (e.g., <em>"reduced query latency by 35%"</em> or <em>"supporting 1,200+ active users"</em>) to impress ATS scanners.`);
+    }
+    if (recs.length === 0) {
+      recs.push(`Your resume demonstrates top-tier ATS keyword alignment with this job specification! Ready to compile and submit.`);
+    }
+    listRecs.innerHTML = recs.map(r => `<li>${r}</li>`).join('');
+  }
+
+  // 7. Update Header ATS Pill
+  const headerPill = document.getElementById('header-ats-pill');
+  if (headerPill) {
+    headerPill.style.display = 'inline-block';
+    headerPill.textContent = `${res.score}% ATS`;
+    headerPill.style.background = res.score >= 80 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)';
+    headerPill.style.borderColor = res.score >= 80 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(99, 102, 241, 0.4)';
+    headerPill.style.color = res.score >= 80 ? '#34d399' : '#a5b4fc';
+  }
+}
+
+/**
+ * 1-Click Insert Missing Keyword directly into Resume Technical Skills
+ */
+function insertMissingSkillToResume(canonicalSkill, categoryHint) {
+  if (!resumeState.skills || !Array.isArray(resumeState.skills)) {
+    resumeState.skills = [];
+  }
+
+  // Determine target category name
+  let targetCatName = 'Developer Tools';
+  if (categoryHint === 'Languages') targetCatName = 'Languages';
+  else if (categoryHint === 'Frameworks') targetCatName = 'Frameworks';
+  else if (categoryHint === 'Core CS') targetCatName = 'Developer Tools'; // or append to relevant row
+
+  // Find existing category row
+  let targetRow = resumeState.skills.find(r => r.category && r.category.toLowerCase().includes(targetCatName.toLowerCase()));
+
+  // Fallback: check if we have any category row, or create one
+  if (!targetRow) {
+    if (resumeState.skills.length > 0) {
+      targetRow = resumeState.skills[0];
+    } else {
+      targetRow = { category: targetCatName, items: '' };
+      resumeState.skills.push(targetRow);
+    }
+  }
+
+  // Check if skill already in items
+  const currentItems = targetRow.items ? targetRow.items.split(',').map(s => s.trim()) : [];
+  const exists = currentItems.some(i => i.toLowerCase() === canonicalSkill.toLowerCase());
+
+  if (!exists) {
+    currentItems.push(canonicalSkill);
+    targetRow.items = currentItems.join(', ');
+
+    // Update form and previews
+    renderSkillsList();
+    populateFormFromState();
+    updatePreviews();
+    showToast(`✓ Added "${canonicalSkill}" to ${targetRow.category}!`);
+
+    // Re-run analysis immediately so score dynamically climbs!
+    runJdAnalysis();
+  } else {
+    showToast(`"${canonicalSkill}" is already in ${targetRow.category}`);
+  }
+}
+window.insertMissingSkillToResume = insertMissingSkillToResume;
+

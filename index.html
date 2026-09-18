@@ -8,9 +8,18 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=3.5.0">
+  <link rel="stylesheet" href="style.css?v=3.5.8">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Tesseract.js for In-Browser OCR Fallback on Legacy Image PDFs -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- Vercel Web Analytics & Speed Insights -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
 <body>
 
@@ -58,6 +67,13 @@
       <button id="btn-upload-resume" class="btn btn-upload" onclick="openUploadModal()" title="Upload existing resume (PDF, .tex, .txt, or .json) to auto-fill">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
         Upload
+      </button>
+
+      <!-- 🎯 JD Matcher & ATS Score -->
+      <button id="btn-open-jd-matcher" class="btn btn-jd-trigger" data-action="open-jd-matcher" onclick="openJdMatcherModal()" title="Scan your resume against any Job Description for ATS score and keyword match">
+        <span class="jd-target-icon">🎯</span>
+        <span>JD Matcher</span>
+        <span id="header-ats-pill" class="header-ats-pill" style="display: none;">0%</span>
       </button>
 
       <!-- More Actions Dropdown -->
@@ -127,6 +143,17 @@
             <span class="ring-label-sub">Complete</span>
           </div>
         </div>
+      </div>
+
+      <!-- 🎯 Quick JD Matcher Shortcut Card in Sidebar -->
+      <div class="sidebar-jd-cta-wrap">
+        <button type="button" class="sidebar-jd-card" data-action="open-jd-matcher" onclick="openJdMatcherModal()" title="Paste any Job Description to scan ATS match score and find missing keywords">
+          <div class="sidebar-jd-icon">🎯</div>
+          <div class="sidebar-jd-info">
+            <span class="sidebar-jd-title">Target JD Matcher</span>
+            <span class="sidebar-jd-sub">Paste JD &amp; Scan ATS &rarr;</span>
+          </div>
+        </button>
       </div>
 
       <!-- Section Steps -->
@@ -259,8 +286,12 @@
             <button type="button" class="chip-btn" onclick="scrollToSection('sec-skills')">⚡ Skills</button>
             <button type="button" class="chip-btn" onclick="scrollToSection('sec-certs')">📜 Certs</button>
             <button type="button" class="chip-btn" onclick="scrollToSection('sec-honors')">🏆 Honors</button>
+            <button type="button" class="chip-btn chip-btn-jd" data-action="open-jd-matcher" onclick="openJdMatcherModal()" style="background: rgba(99, 102, 241, 0.22); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; font-weight: 700;">🎯 Match JD</button>
           </div>
           <div class="quick-tools-right">
+            <button type="button" class="btn btn-sm btn-jd-trigger" id="btn-quick-jd-matcher" data-action="open-jd-matcher" onclick="openJdMatcherModal()" title="Scan your resume against any Job Description for ATS match score" style="padding: 0.28rem 0.65rem; font-weight: 700; font-size: 0.76rem;">
+              <span>🎯 Match JD</span>
+            </button>
             <!-- Single Format Toolbar Instance -->
             <div class="global-format-toolbar" title="Global text formatting: select any text in any field &amp; click to style">
               <span class="format-toolbar-label">Format:</span>
@@ -790,6 +821,68 @@
     </div>
   </div>
 
+  <!-- Export PDF Options Modal -->
+  <div id="export-pdf-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
+    <div class="modal-dialog" style="max-width: 580px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Export Resume PDF</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeExportModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 22px;">
+        <p class="modal-subtitle" style="margin-bottom: 18px;">
+          Choose your export format for campus placements and job applications:
+        </p>
+
+        <!-- Option 1: Native Vector Print PDF (100% LaTeX Vector Quality) -->
+        <div class="export-option-card recommended" onclick="exportNativeVectorPdf()">
+          <div class="export-option-icon">🖨️</div>
+          <div class="export-option-details">
+            <div class="export-option-title">
+              <strong>Native Vector PDF (Overleaf / LaTeX Standard)</strong>
+              <span class="export-badge-recommended">⭐ Recommended for ATS</span>
+            </div>
+            <p class="export-option-desc">
+              100% vector Computer Modern typography with zero rasterization. Infinite zoom clarity, 100% selectable text, exactly like an Overleaf-compiled document. Opens print preview &rarr; select <em>"Save as PDF"</em> with zero margins.
+            </p>
+          </div>
+          <button type="button" class="btn btn-emerald btn-sm" style="white-space: nowrap;">Save as PDF &rarr;</button>
+        </div>
+
+        <!-- Option 2: 1-Click Direct Download (.pdf) -->
+        <div class="export-option-card" onclick="executeCleanPdfDownload(); closeExportModal();">
+          <div class="export-option-icon">📥</div>
+          <div class="export-option-details">
+            <div class="export-option-title">
+              <strong>Instant 1-Click File Download (.pdf)</strong>
+              <span class="export-badge-instant">⚡ 1-Click</span>
+            </div>
+            <p class="export-option-desc">
+              Directly downloads <code>.pdf</code> to your device with pixel-perfect selectable text layer and embedded lossless resume backup data.
+            </p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Download .PDF</button>
+        </div>
+
+        <!-- Option 3: Compile on Overleaf -->
+        <div class="export-option-card" onclick="openInOverleaf(); closeExportModal();">
+          <div class="export-option-icon">🍃</div>
+          <div class="export-option-details">
+            <div class="export-option-title">
+              <strong>Official Overleaf Compilation</strong>
+            </div>
+            <p class="export-option-desc">
+              Opens Overleaf's cloud compiler in 1-click with the complete LaTeX source code ready to compile.
+            </p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Open Overleaf</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Resume Profiles Manager Modal -->
   <div id="profiles-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
     <div class="modal-dialog" style="max-width: 600px;" onclick="event.stopPropagation()">
@@ -892,6 +985,148 @@
     </div>
   </div>
 
+  <!-- 🎯 Job Description (JD) Keyword Matcher & ATS Scanner Modal -->
+  <div id="jd-matcher-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
+    <div class="modal-dialog jd-modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="jd-title-badge">🎯 ATS Scanner</span>
+          <span>Target Job Description &amp; Keyword Matcher</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeJdMatcherModal()">&times;</button>
+      </div>
+      <div class="modal-body jd-modal-body">
+        <!-- Step 1: Paste Your Job Description (Prominent Section) -->
+        <div class="jd-section-header-box">
+          <div class="jd-section-header-left">
+            <span class="jd-step-badge">1</span>
+            <div>
+              <strong class="jd-section-title">Paste Your Target Job Description (JD)</strong>
+              <div class="jd-section-subtitle">Copy text from LinkedIn, Unstop, Indeed, or career portals and paste it into the box below:</div>
+            </div>
+          </div>
+          <div class="jd-section-header-actions">
+            <button type="button" class="btn btn-sm btn-primary" onclick="pasteFromClipboardToJd()" title="Paste text directly from clipboard">
+              📋 Paste from Clipboard
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="clearJdInput()" title="Clear textarea">
+              🧹 Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- JD Textarea Input -->
+        <div class="jd-input-container">
+          <textarea id="inp-jd-text" class="form-control jd-textarea" placeholder="👉 PASTE ANY JOB DESCRIPTION HERE (Ctrl+V)&#10;&#10;Copy and paste the qualifications, required skills, or responsibilities from any job posting...&#10;&#10;Then click '⚡ Scan ATS Match & Keywords' below to see your match score and missing keywords." oninput="handleJdInput(this.value)"></textarea>
+          <div class="jd-input-footer">
+            <span id="jd-char-count" class="jd-char-count">0 characters • 0 words</span>
+            <button type="button" id="btn-analyze-jd" class="btn btn-emerald btn-lg" onclick="runJdAnalysis()" style="font-weight: 700; padding: 0.5rem 1.35rem; font-size: 0.9rem;">
+              <span>⚡ Scan ATS Match &amp; Keywords &rarr;</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Alternate: Quick Sample JDs Toolbar -->
+        <div class="jd-preset-bar">
+          <span class="jd-preset-label">⚡ Don't have a JD? Try a sample campus job post:</span>
+          <div class="jd-preset-chips">
+            <button type="button" class="jd-preset-chip" onclick="loadPresetJd('amazon_sde')">📦 Amazon SDE-1</button>
+            <button type="button" class="jd-preset-chip" onclick="loadPresetJd('google_swe')">🔍 Google SWE</button>
+            <button type="button" class="jd-preset-chip" onclick="loadPresetJd('fullstack')">🌐 Full-Stack</button>
+            <button type="button" class="jd-preset-chip" onclick="loadPresetJd('backend_cloud')">☁️ Backend &amp; Cloud</button>
+            <button type="button" class="jd-preset-chip" onclick="loadPresetJd('aiml')">🤖 AI / ML Engineer</button>
+          </div>
+        </div>
+
+        <!-- Analysis Dashboard -->
+        <div id="jd-analysis-dashboard" class="jd-analysis-dashboard" style="display: none;">
+          <!-- Score Overview -->
+          <div class="jd-score-overview">
+            <!-- Circular Gauge -->
+            <div class="jd-score-ring-card">
+              <div class="jd-score-ring-wrap">
+                <svg class="jd-score-svg" viewBox="0 0 100 100">
+                  <circle class="jd-score-bg" cx="50" cy="50" r="40"></circle>
+                  <circle id="jd-score-fill" class="jd-score-fill" cx="50" cy="50" r="40"></circle>
+                </svg>
+                <div class="jd-score-text">
+                  <span id="jd-score-number">0</span><small>%</small>
+                  <span class="jd-score-caption">ATS Match</span>
+                </div>
+              </div>
+              <div class="jd-score-summary">
+                <div id="jd-score-status" class="jd-score-status">Analyzing...</div>
+                <div id="jd-score-subtext" class="jd-score-subtext">Scanning keyword matches</div>
+              </div>
+            </div>
+
+            <!-- Breakdown Bars -->
+            <div class="jd-breakdown-grid">
+              <div class="jd-breakdown-item">
+                <div class="jd-breakdown-header">
+                  <span class="jd-breakdown-label">💻 Tech Stack &amp; Tools</span>
+                  <span id="stat-tech-stack" class="jd-breakdown-stat">0/0</span>
+                </div>
+                <div class="jd-breakdown-bar-bg"><div id="bar-tech-stack" class="jd-breakdown-bar" style="width: 0%;"></div></div>
+              </div>
+              <div class="jd-breakdown-item">
+                <div class="jd-breakdown-header">
+                  <span class="jd-breakdown-label">🧠 Core CS &amp; Architecture</span>
+                  <span id="stat-core-cs" class="jd-breakdown-stat">0/0</span>
+                </div>
+                <div class="jd-breakdown-bar-bg"><div id="bar-core-cs" class="jd-breakdown-bar" style="width: 0%;"></div></div>
+              </div>
+              <div class="jd-breakdown-item">
+                <div class="jd-breakdown-header">
+                  <span class="jd-breakdown-label">📈 Action Metrics &amp; Impact</span>
+                  <span id="stat-metrics" class="jd-breakdown-stat">0 bullets</span>
+                </div>
+                <div class="jd-breakdown-bar-bg"><div id="bar-metrics" class="jd-breakdown-bar" style="width: 0%;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Keyword Comparison Columns -->
+          <div class="jd-keywords-comparison">
+            <!-- Missing Keywords (Interactive 1-click add) -->
+            <div class="jd-keywords-card jd-card-missing">
+              <div class="jd-card-header">
+                <div class="jd-card-title">
+                  <span class="jd-dot-missing"></span>
+                  <span>Missing Keywords (<span id="count-missing-keywords">0</span>)</span>
+                </div>
+                <span class="jd-card-hint">Click + to auto-insert into Skills</span>
+              </div>
+              <div id="list-missing-keywords" class="jd-keywords-chips"></div>
+            </div>
+
+            <!-- Matched Keywords -->
+            <div class="jd-keywords-card jd-card-matched">
+              <div class="jd-card-header">
+                <div class="jd-card-title">
+                  <span class="jd-dot-matched"></span>
+                  <span>Matched Keywords (<span id="count-matched-keywords">0</span>)</span>
+                </div>
+                <span class="jd-card-hint">Found in Experience, Projects &amp; Skills</span>
+              </div>
+              <div id="list-matched-keywords" class="jd-keywords-chips"></div>
+            </div>
+          </div>
+
+          <!-- Recommendations -->
+          <div class="jd-recommendations-card">
+            <div class="jd-rec-title">💡 Targeted Placement Shortlist Advice</div>
+            <ul id="jd-recommendations-list" class="jd-rec-list"></ul>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1.25rem;">
+          <button type="button" id="btn-close-jd-modal" class="btn btn-secondary btn-close-jd-modal" onclick="closeJdMatcherModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast-notice" class="toast-notice">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-emerald);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -900,9 +1135,9 @@
 
   <!-- Scripts -->
   <script src="html2pdf.bundle.min.js"></script>
-  <script src="template.js?v=3.5.0"></script>
-  <script src="parser.js?v=3.5.0"></script>
-  <script src="app.js?v=3.5.0"></script>
+  <script src="template.js?v=3.5.8"></script>
+  <script src="parser.js?v=3.5.8"></script>
+  <script src="app.js?v=3.5.8"></script>
 
 </body>
 </html>
