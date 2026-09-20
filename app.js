@@ -1437,20 +1437,29 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
   const lines = [];
 
   function addLine(text, left, top, width, height, fontSizePt) {
-    const cleanText = text.replace(/\s+/g, ' ').trim();
+    // Clean unicode special characters to clean ASCII representations for standard PDF text layer
+    const cleanText = text
+      .replace(/\u00a0/g, ' ')
+      .replace(/[\u2013\u2014]/g, '--')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (!cleanText) return;
     lines.push({
       text: cleanText,
       x: (left - resumeRect.left) * scaleX,
       y: (top - resumeRect.top) * scaleY + (height * scaleY * 0.78),
-      fontSize: fontSizePt
+      fontSize: fontSizePt,
+      widthPt: width * scaleX * 72,
+      topPt: (top - resumeRect.top) * scaleY * 72
     });
   }
 
-  function extractContainerLines(elem) {
-    if (!elem) return;
+  function getWordsFromElement(elem) {
+    if (!elem) return [];
     const style = window.getComputedStyle(elem);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return;
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return [];
 
     const walker = document.createTreeWalker(
       elem,
@@ -1473,14 +1482,13 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
       textNodes.push(n);
     }
 
-    if (textNodes.length === 0) return;
-
     const words = [];
     for (const node of textNodes) {
       const p = node.parentElement;
       const s = window.getComputedStyle(p);
+      // Exact point calculation: 1 CSS pixel = 72 / 96 = 0.75 points
       const fontSizePx = parseFloat(s.fontSize) || 12;
-      const fontPt = fontSizePx * 0.75 * (pdfWidthIn * 72 / resumeRect.width);
+      const fontPt = fontSizePx * 0.75;
 
       let offset = 0;
       const tokens = node.textContent.split(/(\s+)/);
@@ -1507,8 +1515,14 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
       }
     }
 
-    if (words.length === 0) return;
+    return words;
+  }
 
+  function wordsToLines(words) {
+    if (!words || words.length === 0) return [];
+    const elemLines = [];
+
+    // Sort words top-to-bottom, then left-to-right
     words.sort((a, b) => {
       const dy = a.top - b.top;
       if (Math.abs(dy) > 5) return dy;
@@ -1528,12 +1542,21 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
         };
       } else {
         const sameLine = Math.abs(w.top - curLine.top) <= 5;
-        if (sameLine) {
+        const gap = w.left - curLine.right;
+        // Group words if on the same horizontal baseline and not separated by a wide column gap (> 35px)
+        if (sameLine && gap < 35) {
           curLine.words.push(w.text);
           curLine.right = w.right;
           curLine.height = Math.max(curLine.height, w.height);
         } else {
-          addLine(curLine.words.join(' '), curLine.left, curLine.top, curLine.right - curLine.left, curLine.height, curLine.fontSize);
+          elemLines.push({
+            text: curLine.words.join(' '),
+            left: curLine.left,
+            top: curLine.top,
+            width: curLine.right - curLine.left,
+            height: curLine.height,
+            fontSize: curLine.fontSize
+          });
           curLine = {
             words: [w.text],
             left: w.left,
@@ -1547,30 +1570,41 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
     }
 
     if (curLine) {
-      addLine(curLine.words.join(' '), curLine.left, curLine.top, curLine.right - curLine.left, curLine.height, curLine.fontSize);
+      elemLines.push({
+        text: curLine.words.join(' '),
+        left: curLine.left,
+        top: curLine.top,
+        width: curLine.right - curLine.left,
+        height: curLine.height,
+        fontSize: curLine.fontSize
+      });
     }
+
+    return elemLines;
+  }
+
+  function extractContainerLines(elem) {
+    const words = getWordsFromElement(elem);
+    const elemLines = wordsToLines(words);
+    elemLines.forEach(l => {
+      addLine(l.text, l.left, l.top, l.width, l.height, l.fontSize);
+    });
   }
 
   // Walk major resume blocks in logical DOM order:
   // 1. Header
   const header = resumeElem.querySelector('.res-header');
   if (header) {
-    const nameElem = header.querySelector('.res-name');
-    if (nameElem) extractContainerLines(nameElem);
-    const taglineElem = header.querySelector('.res-tagline');
-    if (taglineElem) extractContainerLines(taglineElem);
-    const contactsElem = header.querySelector('.res-contacts');
-    if (contactsElem) extractContainerLines(contactsElem);
+    extractContainerLines(header.querySelector('.res-name'));
+    extractContainerLines(header.querySelector('.res-tagline'));
+    extractContainerLines(header.querySelector('.res-contacts'));
   }
 
   // 2. Sections
   const sections = resumeElem.querySelectorAll('.res-section');
   sections.forEach(sec => {
-    const title = sec.querySelector('.res-section-title');
-    if (title) extractContainerLines(title);
-
-    const intro = sec.querySelector('.res-intro-text');
-    if (intro) extractContainerLines(intro);
+    extractContainerLines(sec.querySelector('.res-section-title'));
+    extractContainerLines(sec.querySelector('.res-intro-text'));
 
     const subheadings = sec.querySelectorAll('.res-subheading');
     if (subheadings.length > 0) {
@@ -1579,8 +1613,24 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
         rows.forEach(row => {
           const children = Array.from(row.children);
           if (children.length >= 2) {
-            extractContainerLines(children[0]);
-            extractContainerLines(children[1]);
+            // Process left and right children separately into lines
+            const leftWords = getWordsFromElement(children[0]);
+            const leftLines = wordsToLines(leftWords);
+
+            const rightWords = getWordsFromElement(children[1]);
+            const rightLines = wordsToLines(rightWords);
+
+            // EMIT IN STRICT READING ORDER:
+            // Line 1 of left + Line 1 of right (date), THEN Line 2 of left (e.g. wrapped tech stack)!
+            if (leftLines.length > 0) {
+              addLine(leftLines[0].text, leftLines[0].left, leftLines[0].top, leftLines[0].width, leftLines[0].height, leftLines[0].fontSize);
+            }
+            if (rightLines.length > 0) {
+              rightLines.forEach(rl => addLine(rl.text, rl.left, rl.top, rl.width, rl.height, rl.fontSize));
+            }
+            for (let i = 1; i < leftLines.length; i++) {
+              addLine(leftLines[i].text, leftLines[i].left, leftLines[i].top, leftLines[i].width, leftLines[i].height, leftLines[i].fontSize);
+            }
           } else {
             extractContainerLines(row);
           }
@@ -1726,16 +1776,35 @@ function executeCleanPdfDownload() {
         console.warn('Could not embed metadata in PDF:', metaErr);
       }
 
-      // 2. Inject Pixel-Perfect Selectable Text Layer using 3 Tr (Official Invisible Text Mode)
+      // 2. Inject Pixel-Perfect Selectable Text Layer with Precise Font Metrics & Character Spacing (Tc)
       try {
         if (visualLines && visualLines.length > 0) {
-          pdf.internal.write('3 Tr');
+          pdf.internal.write('3 Tr\n'); // Invisible text rendering mode
           pdf.setFont('times', 'normal');
+
           visualLines.forEach(it => {
-            pdf.setFontSize(Math.max(5.5, Math.min(28, it.fontSize)));
+            const fontSize = Math.max(5.5, Math.min(28, it.fontSize));
+            pdf.setFontSize(fontSize);
+
+            // Calibrate character spacing (Tc) so the text string spans 100% of the visual element width
+            if (it.widthPt && it.text.length > 1) {
+              const strWidthPt = pdf.getStringUnitWidth(it.text) * fontSize;
+              const diff = it.widthPt - strWidthPt;
+              // Only apply positive stretch up to 1.5pt per char (prevents over-stretching short standalone labels)
+              if (diff > 0 && (diff / (it.text.length - 1)) < 1.5) {
+                const charSpace = diff / (it.text.length - 1);
+                pdf.internal.write(charSpace.toFixed(4) + ' Tc\n');
+              } else {
+                pdf.internal.write('0 Tc\n');
+              }
+            } else {
+              pdf.internal.write('0 Tc\n');
+            }
+
             pdf.text(it.text, it.x, it.y);
           });
-          pdf.internal.write('0 Tr');
+
+          pdf.internal.write('0 Tc\n0 Tr\n'); // Reset spacing and render mode
         }
       } catch (txtErr) {
         console.warn('Could not inject selectable text layer in PDF:', txtErr);
