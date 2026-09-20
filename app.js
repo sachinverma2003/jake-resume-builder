@@ -1985,10 +1985,67 @@ function generateTrimRecommendations(linesNeeded) {
 window.generateTrimRecommendations = generateTrimRecommendations;
 
 /**
+ * Build LaTeX options with auto-detected compact level for 1-page guarantee.
+ * Probes compact CSS classes temporarily to find the minimum compaction needed.
+ * Does NOT permanently change the visual display or currentOptions.
+ */
+function buildLatexOptions() {
+  const opts = Object.assign({}, currentOptions);
+  if (!visualResume) return opts;
+
+  // Remove the page cutoff line so measurement is clean
+  const cutoff = visualResume.querySelector('.page-cutoff-line');
+  if (cutoff) cutoff.style.display = 'none';
+
+  // Save current visual state
+  const prevClasses = [...visualResume.classList];
+
+  // Remove any existing compact classes temporarily
+  visualResume.classList.remove('compact-1', 'compact-2', 'compact-3', 'compact-4', 'compact-5', 'compact-mode');
+
+  // Walk up compact levels until the resume fits
+  let detectedLevel = 0;
+  let detectedFontSize = opts.fontSize || '11pt';
+
+  if (visualResume.scrollHeight > PAGE_HEIGHT_MAX + 4) {
+    const levels = [
+      { level: 1, cls: 'compact-1', fontSize: '11pt' },
+      { level: 2, cls: 'compact-2', fontSize: '11pt' },
+      { level: 3, cls: 'compact-3', fontSize: '10.7pt' },
+      { level: 4, cls: 'compact-4', fontSize: '10.4pt' },
+      { level: 5, cls: 'compact-5', fontSize: '10pt' }
+    ];
+    for (const { level, cls, fontSize } of levels) {
+      visualResume.classList.add(cls);
+      if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 4) {
+        detectedLevel = level;
+        detectedFontSize = fontSize;
+        break;
+      }
+      visualResume.classList.remove(cls);
+      detectedLevel = level; // even if not fitting, use highest tried
+      detectedFontSize = fontSize;
+    }
+  }
+
+  // Restore original visual classes
+  visualResume.classList.remove('compact-1', 'compact-2', 'compact-3', 'compact-4', 'compact-5', 'compact-mode');
+  prevClasses.forEach(c => { if (c !== 'resume-paper') visualResume.classList.add(c); });
+  if (cutoff) cutoff.style.display = '';
+
+  // Merge detected level into options
+  opts.compactLevel = detectedLevel;
+  opts.fontSize = detectedFontSize;
+  return opts;
+}
+window.buildLatexOptions = buildLatexOptions;
+
+/**
  * Copy LaTeX Code to Clipboard
  */
 function copyLatexCode() {
-  const code = generateLatexCode(resumeState, currentOptions);
+  const opts = buildLatexOptions();
+  const code = generateLatexCode(resumeState, opts);
   navigator.clipboard.writeText(code).then(() => {
     showToast('✓ LaTeX Code copied to clipboard!');
   }).catch(() => {
@@ -2006,7 +2063,8 @@ function copyLatexCode() {
  * Download .tex File
  */
 function downloadTexFile() {
-  const code = generateLatexCode(resumeState, currentOptions);
+  const opts = buildLatexOptions();
+  const code = generateLatexCode(resumeState, opts);
   const blob = new Blob([code], { type: 'text/x-tex;charset=utf-8;' });
   const filename = `${(resumeState.personal.fullName || 'resume').toLowerCase().replace(/\s+/g, '_')}_jake_resume.tex`;
   
@@ -2016,14 +2074,16 @@ function downloadTexFile() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  showToast(`✓ Downloaded ${filename}`);
+  const lvlMsg = opts.compactLevel > 0 ? ` (auto-compacted to Level ${opts.compactLevel} for 1-page LaTeX)` : '';
+  showToast(`✓ Downloaded ${filename}${lvlMsg}`);
 }
 
 /**
  * Open Directly in Overleaf via snip API
  */
 function openInOverleaf() {
-  const code = generateLatexCode(resumeState, currentOptions);
+  const opts = buildLatexOptions();
+  const code = generateLatexCode(resumeState, opts);
   const form = document.createElement('form');
   form.action = 'https://www.overleaf.com/docs';
   form.method = 'POST';
@@ -2044,7 +2104,8 @@ function openInOverleaf() {
   document.body.appendChild(form);
   form.submit();
   document.body.removeChild(form);
-  showToast('🚀 Opening compilation directly in Overleaf...');
+  const lvlMsg = opts.compactLevel > 0 ? ` (auto-compacted Level ${opts.compactLevel} for 1-page)` : '';
+  showToast(`🚀 Opening in Overleaf${lvlMsg}...`);
 }
 
 /**

@@ -653,42 +653,55 @@ ${marginAdjustments}
 
 %-------------------------
 % Custom commands
-\\newcommand{\\resumeItem}[1]{
-  \\item\\small{
-    {#1 \\vspace{-2pt}}
+% Spacing is dynamically tightened at higher compact levels to ensure 1-page compliance in Overleaf
+${(() => {
+  const cl = options.compactLevel || 0;
+  // itemVspace: negative vspace after each \resumeItem bullet
+  const itemVspace     = cl >= 5 ? '-3.5pt' : cl >= 4 ? '-3pt' : cl >= 3 ? '-2.5pt' : '-2pt';
+  // subheadVspace: negative vspace before \resumeSubheading
+  const subheadVspace  = cl >= 5 ? '-3.5pt' : cl >= 4 ? '-3pt' : cl >= 3 ? '-2.5pt' : '-2pt';
+  // tabVspace: negative vspace after tabularx in subheading/project
+  const tabVspace      = cl >= 5 ? '-9pt' : cl >= 4 ? '-8.5pt' : cl >= 3 ? '-8pt' : cl >= 2 ? '-7.5pt' : '-7pt';
+  // listEndVspace: negative vspace at end of item list
+  const listEndVspace  = cl >= 5 ? '-8pt' : cl >= 4 ? '-7pt' : cl >= 3 ? '-6pt' : '-5pt';
+  const bs = '\\';
+  return `${bs}newcommand{${bs}resumeItem}[1]{
+  ${bs}item${bs}small{
+    {#1 ${bs}vspace{${itemVspace}}}
   }
 }
 
-\\newcommand{\\resumeSubheading}[4]{
-  \\vspace{-2pt}\\item
-    \\begin{tabularx}{\\linewidth}[t]{@{}X@{\\hspace{10pt}}r@{}}
-      \\textbf{#1} & #2 \\\\
-      \\textit{\\small#3} & \\textit{\\small #4} \\\\
-    \\end{tabularx}\\vspace{-7pt}
+${bs}newcommand{${bs}resumeSubheading}[4]{
+  ${bs}vspace{${subheadVspace}}${bs}item
+    ${bs}begin{tabularx}{${bs}linewidth}[t]{@{}X@{${bs}hspace{10pt}}r@{}}
+      ${bs}textbf{#1} & #2 ${bs}${bs}
+      ${bs}textit{${bs}small#3} & ${bs}textit{${bs}small #4} ${bs}${bs}
+    ${bs}end{tabularx}${bs}vspace{${tabVspace}}
 }
 
-\\newcommand{\\resumeSubSubheading}[2]{
-    \\item
-    \\begin{tabularx}{\\linewidth}[t]{@{}X@{\\hspace{10pt}}r@{}}
-      \\textit{\\small#1} & \\textit{\\small #2} \\\\
-    \\end{tabularx}\\vspace{-7pt}
+${bs}newcommand{${bs}resumeSubSubheading}[2]{
+    ${bs}item
+    ${bs}begin{tabularx}{${bs}linewidth}[t]{@{}X@{${bs}hspace{10pt}}r@{}}
+      ${bs}textit{${bs}small#1} & ${bs}textit{${bs}small #2} ${bs}${bs}
+    ${bs}end{tabularx}${bs}vspace{${tabVspace}}
 }
 
-\\newcommand{\\resumeProjectHeading}[2]{
-    \\item
-    \\begin{tabularx}{\\linewidth}[t]{@{}X@{\\hspace{10pt}}r@{}}
-      \\small#1 & #2 \\\\
-    \\end{tabularx}\\vspace{-7pt}
+${bs}newcommand{${bs}resumeProjectHeading}[2]{
+    ${bs}item
+    ${bs}begin{tabularx}{${bs}linewidth}[t]{@{}X@{${bs}hspace{10pt}}r@{}}
+      ${bs}small#1 & #2 ${bs}${bs}
+    ${bs}end{tabularx}${bs}vspace{${tabVspace}}
 }
 
-\\newcommand{\\resumeSubItem}[1]{\\resumeItem{#1}\\vspace{-4pt}}
+${bs}newcommand{${bs}resumeSubItem}[1]{${bs}resumeItem{#1}${bs}vspace{-4pt}}
 
-\\renewcommand\\labelitemii{$\\vcenter{\\hbox{\\tiny$\\bullet$}}$}
+${bs}renewcommand${bs}labelitemii{$${bs}vcenter{${bs}hbox{${bs}tiny$${bs}bullet$}}$}
 
-\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.15in, label={}]}
-\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
-\\newcommand{\\resumeItemListStart}{\\begin{itemize}}
-\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
+${bs}newcommand{${bs}resumeSubHeadingListStart}{${bs}begin{itemize}[leftmargin=0.15in, label={}]}
+${bs}newcommand{${bs}resumeSubHeadingListEnd}{${bs}end{itemize}}
+${bs}newcommand{${bs}resumeItemListStart}{${bs}begin{itemize}}
+${bs}newcommand{${bs}resumeItemListEnd}{${bs}end{itemize}${bs}vspace{${listEndVspace}}}`;
+})()} 
 
 %-------------------------------------------
 %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
