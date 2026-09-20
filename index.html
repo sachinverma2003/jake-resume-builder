@@ -758,29 +758,34 @@
 
   <!-- 1-Page Overflow Warning Modal -->
   <div id="download-warning-modal" class="modal-backdrop" style="display: none;" onclick="handleModalBackdropClick(event)">
-    <div class="modal-dialog" style="max-width: 520px;" onclick="event.stopPropagation()">
+    <div class="modal-dialog" style="max-width: 530px;" onclick="event.stopPropagation()">
       <div class="modal-header" style="background: rgba(245, 158, 11, 0.12); border-bottom: 1px solid rgba(245, 158, 11, 0.3);">
         <div class="modal-title" style="color: #f59e0b; display: flex; align-items: center; gap: 8px;">
-          <span>⚠️</span> Resume Exceeds 1 Page
+          <span>⚠️</span> Resume Exceeds 1 Page — Export Blocked
         </div>
         <button type="button" class="modal-close-btn" onclick="closeDownloadWarningModal()">&times;</button>
       </div>
       <div class="modal-body" style="padding: 20px;">
-        <p style="font-size: 14.5px; line-height: 1.55; margin-bottom: 14px; color: var(--text-primary);">
-          Your resume currently exceeds 1 page by approximately <strong id="download-overflow-lines" style="color: #f59e0b; font-size: 16px;">2 line(s)</strong> and will spill onto a second page.
-        </p>
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+          <div style="font-weight: 600; color: #ef4444; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <span>🚫</span> Export Blocked: 1-Page Compliance Required
+          </div>
+          <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.45;">
+            Your resume content currently exceeds 1 page by approximately <strong id="download-overflow-lines" style="color: #ef4444; font-size: 14px;">2 line(s)</strong> and will spill onto a second page.
+          </div>
+        </div>
         <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; font-size: 13px; color: var(--text-secondary); line-height: 1.45;">
-          💡 <strong>Recruiter Standard:</strong> Software engineering resumes should strictly fit on 1 single page for ATS optimization and immediate recruiter impact.
+          💡 <strong>Why this happens:</strong> Elite tech companies (Google, Microsoft, Amazon), campus recruiters, and automated ATS software strictly expect software engineering resumes to fit on <strong>exactly 1 single page</strong>. A 2-page resume with just a few dangling lines often gets penalized or discarded by automated filters.
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <button type="button" class="btn btn-emerald btn-lg" onclick="autoFitAndDownload()" style="width: 100%; justify-content: center; font-weight: 600; font-size: 14.5px;">
             ⚡ Auto-Fit to 1 Page &amp; Download PDF
           </button>
-          <button type="button" class="btn btn-secondary" onclick="proceedWithDownloadAnyway()" style="width: 100%; justify-content: center;">
-            ⬇️ Download Anyway (Multi-Page PDF)
-          </button>
           <button type="button" class="btn btn-secondary" onclick="openTrimModalFromDownload()" style="width: 100%; justify-content: center;">
-            ✂️ View Line Trim Suggestions
+            ✂️ View Line Trim Suggestions (Save Lines)
+          </button>
+          <button type="button" class="btn btn-ghost" onclick="proceedWithDownloadAnyway()" style="width: 100%; justify-content: center; font-size: 12.5px; opacity: 0.8; color: var(--text-muted);">
+            ⬇️ Download Anyway (Multi-Page PDF)
           </button>
         </div>
       </div>

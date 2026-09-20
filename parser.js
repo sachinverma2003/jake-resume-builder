@@ -22,7 +22,7 @@
     projects: /^(?:projects|technical\s+projects|academic\s+projects|personal\s+projects|key\s+projects|selected\s+projects)\b/i,
     skills: /^(?:technical\s+skills|skills\s*(?:&|and)\s*abilities|skills\s*(?:&|and)\s*tools|skills|core\s+competencies|technologies|tools\s*(?:&|and)\s*technologies)\b/i,
     certifications: /^(?:certifications|licenses\s*(?:&|and)\s*certifications|certificates|courses\s*(?:&|and)\s*certifications)\b/i,
-    achievements: /^(?:honors\s*(?:&|and)\s*achievements|achievements|honors|awards\s*(?:&|and)\s*achievements|awards|accomplishments|extracurricular\s+activities)\b/i
+    achievements: /^(?:honors\s*(?:&|and)\s*achievements|achievements\s*(?:&|and)\s*certifications|achievements|honors|awards\s*(?:&|and)\s*achievements|awards|accomplishments|extracurricular\s+activities|publications?|research\s+publications?)\b/i
   };
 
   // Unified robust date matching patterns across Education, Experience, Projects, Certifications
@@ -53,11 +53,11 @@
       const p = line.split('|').map(s => s.trim()).filter(Boolean);
       return { main: p[0] || '', location: p.slice(1).join(', ') };
     }
-    const orgMatch = line.match(/^(.*?\b(?:University|College|School|Institute|Academy|Corp|Inc|LLC|Ltd|Company|Technologies|niketan))\s+([A-Za-z0-9.\-\s]+,\s*(?:[A-Z]{2}|[A-Za-z]+))$/i);
+    const orgMatch = line.match(/^(.*?\b(?:University|College|School|Institute|Academy|Corp|Inc|LLC|Ltd|Company|Technologies|niketan|Fest|Simulation\s+on\s+Forage|Simulation))\s+([A-Za-z0-9.\-\s]+,\s*(?:[A-Z]{2}|[A-Za-z]+)|[A-Za-z]+)$/i);
     if (orgMatch) {
       return { main: orgMatch[1].trim(), location: orgMatch[2].trim() };
     }
-    const cityMatch = line.match(/\s+([A-Za-z0-9.\-]+\s+[A-Za-z0-9.\-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)|[A-Za-z0-9.\-]+,\s*(?:[A-Z]{2}|[A-Za-z]+))$/i);
+    const cityMatch = line.match(/\s+([A-Za-z0-9.\-]+\s+[A-Za-z0-9.\-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)|[A-Za-z0-9.\-]+,\s*(?:[A-Z]{2}|[A-Za-z]+)|Bengaluru|Bangalore|Patna|Delhi|Mumbai|Hyderabad|Pune|Chennai|Kolkata|London|New York|San Francisco|Seattle|Austin)$/i);
     if (cityMatch) {
       return { main: line.slice(0, cityMatch.index).trim(), location: cityMatch[1].trim() };
     }
@@ -198,13 +198,29 @@
       // 2. Segment lines into categorized sections
       const sections = segmentSections(lines);
 
+      // Smart bifurcation for combined "Achievements & Certifications" or "Certifications & Achievements"
+      let certLines = sections.certifications || [];
+      let achLines = sections.achievements || [];
+
+      if (certLines.length === 0 && achLines.length > 0) {
+        const remainingAch = [];
+        achLines.forEach(line => {
+          if (/\b(?:certification|certified|certificate|coursework|coursera|udemy|edx|springboard|nptel|aws|oracle)\b/i.test(line)) {
+            certLines.push(line);
+          } else {
+            remainingAch.push(line);
+          }
+        });
+        achLines = remainingAch;
+      }
+
       // 3. Parse individual sections
       const education = parseEducation(sections.education || []);
       const experience = parseExperience(sections.experience || []);
       const projects = parseProjects(sections.projects || [], linkUrls);
       const skills = parseSkills(sections.skills || []);
-      const certifications = parseCertifications(sections.certifications || [], linkUrls);
-      const achievements = parseAchievements(sections.achievements || []);
+      const certifications = parseCertifications(certLines, linkUrls);
+      const achievements = parseAchievements(achLines);
       const introduction = parseIntroduction(sections.introduction || []);
 
       // 4. Construct Section Order
@@ -639,6 +655,7 @@
       fullName: '',
       phone: '',
       email: '',
+      location: '',
       linkedin: '',
       linkedinDisplay: '',
       github: '',
@@ -648,6 +665,16 @@
       portfolio: '',
       portfolioDisplay: ''
     };
+
+    // Extract Location / City, Country from top 5 lines
+    const locationRegex = /\b([A-Za-z\s]+,\s*[A-Za-z\s]+,\s*[A-Za-z\s]+(?:\s*-\s*\d{5,6})?|[A-Za-z\s]+,\s*(?:[A-Z]{2}|[A-Za-z\s]+)\s*-\s*\d{5,6})\b/i;
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const locMatch = lines[i].match(locationRegex);
+      if (locMatch && !locMatch[0].toLowerCase().includes('university') && !locMatch[0].toLowerCase().includes('college')) {
+        personal.location = locMatch[0].trim();
+        break;
+      }
+    }
 
     // Extract Email: first from rawText, then fallback to linkUrls
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i;
@@ -866,6 +893,18 @@
     }));
   }
 
+  const BULLET_START_REGEX = /^(?:[•·●○◦∙►▸◆■*+\-–—]{1,4}\s+|\d+\.\s+|\([a-z0-9]+\)\s+)/i;
+  function isBulletLine(line) {
+    if (!line || typeof line !== 'string') return false;
+    return BULLET_START_REGEX.test(line.trim());
+  }
+
+  function stripLeadingBullet(line) {
+    if (!line || typeof line !== 'string') return '';
+    let clean = line.trim();
+    return clean.replace(/^(?:[•·●○◦∙►▸◆■*+\-–—\s]+|\d+\.\s*|\([a-z0-9]+\)\s*)+/i, '').trim();
+  }
+
   /**
    * Helper: Check if a line is a continuation of an active bullet point
    * (e.g. wrapped lines from PDF extraction or pasted plain text)
@@ -877,34 +916,47 @@
     if (!trimmed) return false;
 
     // If this line itself is clearly a bullet, it's NOT a continuation
-    if (/^[•\-*+]\s+/.test(trimmed) || /^(\d+\.|\([a-z]\))\s+/.test(trimmed)) {
+    if (isBulletLine(trimmed)) {
       return false;
     }
 
-    // 1. Starts with lowercase letter -> definitely continuation
+    // Check if line looks like a major section header
+    for (const [secKey, pattern] of Object.entries(SECTION_PATTERNS)) {
+      if (trimmed.length <= 45 && pattern.test(trimmed.replace(/^[#*_\-=\s]+|[#*_\-=\s]+$/g, '').trim())) {
+        return false;
+      }
+    }
+
+    // Check if line looks like an Experience or Education header with dates
+    const { dates, remaining } = extractDateFromLine(trimmed);
+    const hasOrgOrSchool = /\b(?:University|College|School|Institute|Corp|Inc|LLC|Ltd|Company|Technologies)\b/i.test(trimmed);
+    if (dates && (hasOrgOrSchool || remaining.length <= 40 || trimmed.includes('|'))) {
+      return false;
+    }
+
+    // 1. If current bullet does NOT end with terminal punctuation (. ! ? : ;),
+    // then any subsequent non-bullet line is almost certainly its wrapped continuation!
+    const cleanCurrent = currentBullet.trim();
+    const endsWithPunct = /[.!?:;]$/.test(cleanCurrent) || /[.!?:;]["')\]]$/.test(cleanCurrent);
+    if (!endsWithPunct) {
+      return true;
+    }
+
+    // 2. Starts with lowercase letter -> definitely continuation
     if (/^[a-z]/.test(trimmed)) return true;
 
-    // 2. Starts with continuation punctuation (comma, dash, em-dash, parenthesis, etc.)
+    // 3. Starts with continuation punctuation (comma, dash, em-dash, parenthesis, etc.)
     if (/^[,\-–—)\]};]/.test(trimmed)) return true;
 
-    // 3. Starts with common conjunctions or prepositions (e.g. "and", "or", "with", "using", etc.)
+    // 4. Starts with common conjunctions or prepositions
     if (/^(?:and|or|but|so|with|using|in|for|to|at|by|from|as|that|which|where|when|while|into|over|under|including|such\s+as)\b/i.test(trimmed)) {
       return true;
     }
 
-    // 4. Check if currentBullet ended mid-sentence (e.g. ends with a conjunction, preposition, comma, or hyphen)
-    const prevEndsWithBreak = /(?:,\s*|\band\s*|\bor\s*|\bwith\s*|\busing\s*|\bfor\s*|\bto\s*|\bin\s*|\bof\s*|\bat\s*|\bby\s*|-\s*)$/i.test(currentBullet.trim());
-    if (prevEndsWithBreak) {
-      return true;
-    }
-
-    // 5. If this line ends with a period, but does NOT look like a title or heading:
-    // A heading typically does NOT end with a period, whereas a sentence fragment wrapping to a period DOES.
-    const hasDate = /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4}|\b(?:19|20)\d{2}\b/i.test(trimmed);
+    // 5. Line ends with a period, but does NOT look like a title or heading
     const hasPipe = trimmed.includes('|');
     const endsWithPeriod = trimmed.endsWith('.');
-
-    if (endsWithPeriod && !hasPipe && !hasDate) {
+    if (endsWithPeriod && !hasPipe && !dates && trimmed.length > 20) {
       return true;
     }
 
@@ -924,7 +976,7 @@
       const line = lines[i].trim();
       if (!line) continue;
 
-      const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
+      const isBullet = isBulletLine(line);
       const nextLine = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
 
       if (isBullet) {
@@ -932,10 +984,13 @@
         currentBullet = line;
       } else if (currentBullet) {
         if (isBulletContinuation(line, currentBullet, nextLine)) {
+          // De-hyphenate if wrapped mid-word with hyphen
           if (currentBullet.endsWith('-') && !currentBullet.endsWith(' -')) {
             currentBullet = currentBullet.slice(0, -1) + line;
           } else if (line.startsWith('—') || line.startsWith('–')) {
             currentBullet += ' ' + line;
+          } else if (/\b(?:communi)$/i.test(currentBullet) && /^(?:cation)\b/i.test(line)) {
+            currentBullet += line;
           } else {
             currentBullet += ' ' + line;
           }
@@ -966,11 +1021,34 @@
       const line = lines[i].trim();
       if (!line) continue;
 
-      const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
-      const cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
+      const isBullet = isBulletLine(line);
+      const cleanLine = stripLeadingBullet(line);
       const { dates, remaining } = extractDateFromLine(line);
 
-      // If line has dates and is not a bullet -> Header line!
+      // Header Pattern A: line i has NO dates, but line i+1 has dates!
+      // (e.g. Line 1: Company & Location, Line 2: Role & Dates)
+      if (!isBullet && !dates && i + 1 < lines.length) {
+        const nextLine = lines[i + 1].trim();
+        const nextIsBullet = isBulletLine(nextLine);
+        const { dates: nextDates, remaining: nextRemaining } = extractDateFromLine(nextLine);
+
+        if (!nextIsBullet && nextDates && line.length <= 120 && nextRemaining.length <= 120) {
+          if (currentExp) experience.push(currentExp);
+
+          const { main: compMain, location: compLoc } = extractOrgLocation(line);
+          currentExp = {
+            role: nextRemaining.replace(/[|,\-–—\s]+$/, '').replace(/^[|,\-–—\s]+/, '').trim() || 'Software Engineer',
+            company: compMain || line,
+            location: compLoc || '',
+            dates: nextDates,
+            bullets: []
+          };
+          i++; // Consume next line
+          continue;
+        }
+      }
+
+      // Header Pattern B: line i has dates (and is NOT a bullet line)
       if (!isBullet && dates) {
         if (currentExp) experience.push(currentExp);
 
@@ -978,7 +1056,6 @@
         let company = '';
         let location = '';
 
-        // Check if Company and Role are on the same line (e.g. Company | Role | Location)
         const parts = role.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
         if (parts.length >= 2) {
           company = parts[0];
@@ -994,15 +1071,13 @@
           bullets: []
         };
 
-        // Check if next line is Line 2 of Jake's header (Company + Location)
         if (i + 1 < lines.length) {
           const nextLine = lines[i + 1].trim();
-          const nextIsBullet = /^[•\-*+]\s+/.test(nextLine) || /^(\d+\.|\([a-z]\))\s+/.test(nextLine);
+          const nextIsBullet = isBulletLine(nextLine);
           const { dates: nextDates } = extractDateFromLine(nextLine);
 
-          // If next line is not a bullet and has no dates -> it is Company & Location!
           if (!nextIsBullet && !nextDates && nextLine.length > 0 && nextLine.length <= 120) {
-            i++; // Consume next line
+            i++;
             const { main: compMain, location: compLoc } = extractOrgLocation(nextLine);
             if (!currentExp.company) {
               currentExp.company = compMain || nextLine;
@@ -1013,9 +1088,9 @@
         continue;
       }
 
-      // Check for standalone header without date (e.g. separated by | or —)
+      // Separators line without dates
       const hasSeparators = line.includes('—') || line.includes('–') || line.includes('|');
-      if (!isBullet && hasSeparators && (currentExp === null || currentExp.bullets.length > 0)) {
+      if (!isBullet && hasSeparators && line.length <= 120 && !line.endsWith('.') && (currentExp === null || currentExp.bullets.length > 0)) {
         if (currentExp) experience.push(currentExp);
         const parts = line.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
         currentExp = {
@@ -1028,7 +1103,6 @@
         continue;
       }
 
-      // Bullet point or job details
       if (currentExp) {
         if (isBullet || cleanLine.length > 10) {
           currentExp.bullets.push(cleanLine);
@@ -1064,11 +1138,10 @@
       const line = lines[i];
       if (!line || line.trim().length === 0) continue;
 
-      const isBullet = /^[•\-*+]\s+/.test(line) || /^(\d+\.|\([a-z]\))\s+/.test(line);
-      let cleanLine = line.replace(/^[•\-*+]\s+|^(\d+\.|\([a-z]\))\s+/, '').trim();
+      const isBullet = isBulletLine(line);
+      let cleanLine = stripLeadingBullet(line);
 
       // Check if this bullet line specifies "Tech: ..." or "Technologies: ..."
-      // Format with markdown bold (**Tech:** ...) and preserve as a clean bullet
       const techBulletMatch = cleanLine.match(/^(tech(?:nologies)?|tools|tech\s+stack|stack|built\s+with)\s*[:\-–—]\s*(.+)$/i);
       if (techBulletMatch && currentProj) {
         const label = techBulletMatch[1].charAt(0).toUpperCase() + techBulletMatch[1].slice(1).toLowerCase();
@@ -1102,13 +1175,14 @@
 
       const techInParen = line.match(/\(([^)]+)\)/);
       const hasSeparators = line.includes('|') || line.includes(' — ') || line.includes(' – ');
+      const startsWithActionVerb = /^(?:engineered|implemented|developed|built|architected|created|designed|performed|reduced|increased|optimized|integrated|spearheaded|led|managed|collaborated|conducted|resolved)\b/i.test(cleanLine);
 
-      const isLikelyProjectTitle = !isBullet && (
+      const isLikelyProjectTitle = !isBullet && !startsWithActionVerb && (
         currentProj === null ||
-        techInParen ||
-        hasDate ||
-        hasSeparators ||
-        (currentProj.bullets.length > 0 && !line.endsWith('.'))
+        (hasSeparators && line.length <= 130 && !line.endsWith('.')) ||
+        (techInParen && line.length <= 100 && !line.endsWith('.')) ||
+        (hasDate && remaining.length <= 80 && !line.endsWith('.')) ||
+        (currentProj.bullets.length > 0 && line.length <= 50 && !line.endsWith('.') && !line.includes(','))
       );
 
       if (isLikelyProjectTitle) {
@@ -1167,7 +1241,7 @@
           bullets: []
         };
       } else if (currentProj) {
-        if (isBullet || cleanLine.length > 15) {
+        if (isBullet || cleanLine.length > 10) {
           const gitMatch = cleanLine.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s)\]]+/i);
           if (gitMatch && !currentProj.githubUrl) {
             currentProj.githubUrl = gitMatch[0].startsWith('http') ? gitMatch[0] : `https://${gitMatch[0]}`;
@@ -1204,7 +1278,7 @@
       }
 
       // If bulleted without colon, check for comma-separated items
-      const clean = line.replace(/^[•\-*+\s]+/, '').trim();
+      const clean = stripLeadingBullet(line);
       if (clean.includes(',')) {
         skills.push({
           category: 'Technologies',
@@ -1217,7 +1291,7 @@
     if (skills.length === 0 && lines.length > 0) {
       skills.push({
         category: 'Technologies & Tools',
-        items: lines.join(', ')
+        items: lines.map(l => stripLeadingBullet(l)).join(', ')
       });
     }
 
@@ -1236,7 +1310,7 @@
     let linkIdx = 0;
 
     lines.forEach(line => {
-      let clean = line.replace(/^[•\-*+\s]+/, '').trim();
+      let clean = stripLeadingBullet(line);
       if (!clean || clean.length < 4) return;
 
       // Clean trailing link annotations like "Certificate", "[Certificate]", "Verify", etc.
@@ -1250,8 +1324,8 @@
       let url = '';
 
       // Check for any dash or separator: en-dash, em-dash, hyphen, pipe, or colon
-      if (name.includes(' – ') || name.includes(' — ') || name.includes(' - ') || name.includes(' -- ') || name.includes(' | ')) {
-        const parts = name.split(/\s+[—–|\-]+\s+/).map(p => p.trim()).filter(Boolean);
+      if (name.includes(' – ') || name.includes(' — ') || name.includes(' - ') || name.includes(' -- ') || name.includes(' | ') || /\s+[-–—|]\s*/.test(name)) {
+        const parts = name.split(/\s+[—–|\-]+\s*/).map(p => p.trim()).filter(Boolean);
         if (parts.length > 1) {
           name = parts[0];
           issuer = parts.slice(1).join(' - ');
@@ -1286,10 +1360,24 @@
     if (!rawLines || rawLines.length === 0) return [];
     const lines = stitchSectionBullets(rawLines);
     const achievements = [];
+    let currentAch = null;
 
-    lines.forEach(line => {
-      const clean = line.replace(/^[•\-*+\s]+/, '').trim();
-      if (!clean || clean.length < 4) return;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const isBullet = isBulletLine(line);
+      const clean = stripLeadingBullet(line);
+      if (!clean || clean.length < 4) continue;
+
+      // If previous item did not end with a period, and current line is not a bullet:
+      if (currentAch && !isBullet && !currentAch.title.endsWith('.') && !currentAch.description.endsWith('.')) {
+        if (currentAch.description) {
+          currentAch.description += ' ' + clean;
+        } else {
+          currentAch.title += ' ' + clean;
+        }
+        continue;
+      }
 
       let title = clean;
       let description = '';
@@ -1304,13 +1392,14 @@
         description = parts.slice(1).join(' — ').trim();
       }
 
-      achievements.push({
+      currentAch = {
         title: title || 'Honor / Achievement',
         description: description || '',
         url: '',
         linkLabel: ''
-      });
-    });
+      };
+      achievements.push(currentAch);
+    }
 
     return achievements;
   }
@@ -1715,6 +1804,7 @@
         fullName: '',
         phone: '',
         email: '',
+        location: '',
         linkedin: '',
         linkedinDisplay: '',
         github: '',

@@ -875,6 +875,9 @@ function renderVisualResume() {
     const disp = typeof getSiteDisplayName === 'function' ? getSiteDisplayName(personal.portfolio, personal.portfolioDisplay, 'Portfolio') : (personal.portfolioDisplay || 'Portfolio');
     contactsHtml.push(`<a href="${normalizeUrl(personal.portfolio)}" target="_blank" rel="noopener noreferrer" data-jump-target="inp-portfolio" title="Click to edit Portfolio" style="text-decoration: none;">${escapeHtml(disp)}</a>`);
   }
+  if (personal.location) {
+    contactsHtml.push(`<span title="Location">${escapeHtml(personal.location)}</span>`);
+  }
 
   const nameSize = (currentOptions.nameSize || 'Huge').toLowerCase();
   const nameClass = `res-name res-name-${nameSize}`;
@@ -1336,17 +1339,19 @@ function exportCleanPdf() {
 
   const currentHeight = resumeElem.scrollHeight;
 
-  // If overflowing, automatically run Smart Auto-Fit to ensure 1 full page!
-  if (currentHeight > PAGE_HEIGHT_MAX + 6) {
+  // If overflowing, check if auto-fit can resolve it or block export with clear warning
+  if (currentHeight > PAGE_HEIGHT_MAX + 4) {
     const fitted = autoFitToOnePage(false);
-    if (fitted) {
-      showToast('⚡ Auto-fitted to 1 page!');
+    if (fitted && resumeElem.scrollHeight <= PAGE_HEIGHT_MAX + 4) {
+      showToast('⚡ Auto-fitted to 1 page! Opening Export Options...', 'success');
       showExportModal();
       return;
     }
-    // Only if even maximum compaction (Level 5) cannot fit, prompt the user
+
+    // Overflow persists: block export with explicit recruiter standard warning
     const overflowPx = resumeElem.scrollHeight - PAGE_HEIGHT_MAX;
     const lines = Math.max(1, Math.ceil(overflowPx / 18));
+    showToast(`⚠️ Export blocked: Resume exceeds 1 page (+${lines} line${lines === 1 ? '' : 's'}). Software engineering resumes must strictly fit on 1 page!`, 'error', 6000);
     showDownloadOverflowWarningModal(lines, overflowPx);
     return;
   }
@@ -1685,9 +1690,25 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
 /**
  * Execute actual Clean PDF generation and download with 100% pixel-perfect selectable text layer
  */
-function executeCleanPdfDownload() {
+function executeCleanPdfDownload(allowMultiPage = false) {
   const resumeElem = document.getElementById('visual-resume');
   if (!resumeElem) return;
+
+  // Crucial: remove cutoff line before measuring
+  const cutoff = resumeElem.querySelector('.page-cutoff-line');
+  if (cutoff) cutoff.remove();
+
+  // If overflowing and user did not explicitly request multi-page:
+  if (!allowMultiPage && resumeElem.scrollHeight > PAGE_HEIGHT_MAX + 4) {
+    const fitted = autoFitToOnePage(false);
+    if (!fitted || resumeElem.scrollHeight > PAGE_HEIGHT_MAX + 4) {
+      const overflowPx = resumeElem.scrollHeight - PAGE_HEIGHT_MAX;
+      const lines = Math.max(1, Math.ceil(overflowPx / 18));
+      showToast(`⚠️ Export blocked: Resume exceeds 1 page (+${lines} line${lines === 1 ? '' : 's'}). Software engineering resumes must strictly fit on 1 page!`, 'error', 6000);
+      showDownloadOverflowWarningModal(lines, overflowPx);
+      return;
+    }
+  }
 
   if (typeof html2pdf === 'undefined') {
     showToast('Opening print dialog (uncheck "Headers and footers" in print settings)...');
@@ -1701,15 +1722,6 @@ function executeCleanPdfDownload() {
   const previewArea = document.getElementById('visual-preview-area');
   if (previewArea) previewArea.scrollTop = 0;
   window.scrollTo(0, 0);
-
-  // If overflowing, auto-fit to 1 page first
-  if (resumeElem.scrollHeight > PAGE_HEIGHT_MAX + 4) {
-    autoFitToOnePage(false);
-  }
-
-  // Crucial: remove cutoff line completely so it is never in canvas
-  const cutoff = resumeElem.querySelector('.page-cutoff-line');
-  if (cutoff) cutoff.remove();
 
   // Temporarily reset zoom scale and box shadow for 100% crisp render & exact coordinate extraction
   const prevTransform = resumeElem.style.transform;
@@ -1852,20 +1864,30 @@ function showDownloadOverflowWarningModal(lines, overflowPx) {
   const modal = document.getElementById('download-warning-modal');
   const linesEl = document.getElementById('download-overflow-lines');
   if (linesEl) linesEl.innerText = `${lines} line${lines === 1 ? '' : 's'}`;
-  if (modal) modal.style.display = 'flex';
+  if (modal) {
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('pointer-events', 'auto', 'important');
+    modal.style.setProperty('z-index', '99999', 'important');
+    modal.classList.add('open');
+  }
 }
 window.showDownloadOverflowWarningModal = showDownloadOverflowWarningModal;
 
 function closeDownloadWarningModal() {
   const modal = document.getElementById('download-warning-modal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
 }
 window.closeDownloadWarningModal = closeDownloadWarningModal;
 
 function proceedWithDownloadAnyway() {
   closeDownloadWarningModal();
   closeTrimLinesModal();
-  executeCleanPdfDownload();
+  executeCleanPdfDownload(true);
 }
 window.proceedWithDownloadAnyway = proceedWithDownloadAnyway;
 
@@ -1892,13 +1914,23 @@ function showTrimLinesModal(linesNeeded, remainingOverflowPx = 0, andDownload = 
     listEl.innerHTML = recs.map(r => `<li>${r}</li>`).join('');
   }
 
-  if (modal) modal.style.display = 'flex';
+  if (modal) {
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('pointer-events', 'auto', 'important');
+    modal.style.setProperty('z-index', '99999', 'important');
+    modal.classList.add('open');
+  }
 }
 window.showTrimLinesModal = showTrimLinesModal;
 
 function closeTrimLinesModal() {
   const modal = document.getElementById('trim-lines-modal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
 }
 window.closeTrimLinesModal = closeTrimLinesModal;
 

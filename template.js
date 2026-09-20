@@ -529,6 +529,9 @@ function generateLatexCode(resumeData, options = {}) {
     const disp = getSiteDisplayName(personal.portfolio, personal.portfolioDisplay, 'Portfolio');
     headerLinks.push(createLatexHref(personal.portfolio, disp));
   }
+  if (personal.location) {
+    headerLinks.push(escapeLatex(personal.location.trim()));
+  }
 
   const headerLine = headerLinks.join(' $|$ \n    ');
 
