@@ -234,17 +234,25 @@
       const state = createEmptyState();
 
       // 1. Extract Name
-      const nameMatch = latexSource.match(/\\Huge\s*(?:\\scshape)?\s*\{?([^}\\\n]+)\}?/i) ||
-                        latexSource.match(/\\textbf\{\\Huge\s*([^\}]+)\}/i);
+      const nameMatch = latexSource.match(/\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape)?\s*\{?([^}\\\n]+)\}?/i) ||
+                        latexSource.match(/\\textbf\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape)?\s*\{?([^}\\\n]+)\}?\}/i) ||
+                        latexSource.match(/\\textbf\{([^\}]+)\}\s*\\\\\s*\\vspace/i);
       if (nameMatch) {
         state.personal.fullName = cleanLatexText(nameMatch[1]);
+      }
+
+      // 1b. Extract Tagline (if present)
+      const taglineMatch = latexSource.match(/\\textit\{([^}]+)\}\s*\\\\\s*\\vspace\{1pt\}\s*\\small/i) ||
+                           latexSource.match(/\\small\s*\\textit\{([^}]+)\}/i);
+      if (taglineMatch) {
+        state.personal.tagline = cleanLatexText(taglineMatch[1]);
       }
 
       // 2. Extract Header Links
       const emailMatch = latexSource.match(/href\{mailto:([^}]+)\}/i) || latexSource.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
       if (emailMatch) state.personal.email = emailMatch[1].trim();
 
-      const phoneMatch = latexSource.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+91[-.\s]?\d{10}/);
+      const phoneMatch = latexSource.match(/(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,5}[-.\s]?\d{4,5}\b/);
       if (phoneMatch) state.personal.phone = phoneMatch[0].trim();
 
       const linkedinMatch = latexSource.match(/href\{(https?:\/\/(?:www\.)?linkedin\.com\/in\/[^}]+)\}/i);
@@ -259,10 +267,17 @@
         state.personal.githubDisplay = 'GitHub';
       }
 
-      const leetcodeMatch = latexSource.match(/href\{(https?:\/\/(?:www\.)?(?:leetcode|codeforces|kaggle)\.com\/[^}]+)\}/i);
+      const leetcodeMatch = latexSource.match(/href\{(https?:\/\/(?:www\.)?(?:leetcode|codeforces|kaggle|codechef|hackerrank|geeksforgeeks)\.com\/[^}]+)\}/i);
       if (leetcodeMatch) {
         state.personal.leetcode = leetcodeMatch[1].trim();
         state.personal.leetcodeDisplay = getSiteDisplayName(leetcodeMatch[1], '', 'LeetCode');
+      }
+
+      const portfolioMatch = latexSource.match(/href\{(https?:\/\/[^}]+)\}\{(?:[^\}]*portfolio[^\}]*|[^\}]*\.(?:dev|io|app|me|site|tech|github\.io|vercel\.app|netlify\.app)[^\}]*)\}/i) ||
+                             latexSource.match(/href\{(https?:\/\/(?!github\.com|linkedin\.com|leetcode\.com|codeforces\.com|kaggle\.com|mailto)[^}]+)\}/i);
+      if (portfolioMatch) {
+        state.personal.portfolio = portfolioMatch[1].trim();
+        state.personal.portfolioDisplay = getSiteDisplayName(portfolioMatch[1], '', 'Portfolio');
       }
 
       // 3. Segment by \section{...}
@@ -1419,38 +1434,90 @@
 
   function parseLatexProjects(latex) {
     const list = [];
-    const itemRegex = /\\resumeProjectHeading\s*\{([^}]+)\}\s*\{([^}]+)\}([\s\S]*?)(?=\\resumeProjectHeading|\\resumeSubHeadingListEnd|$)/gi;
-    let match;
-    while ((match = itemRegex.exec(latex)) !== null) {
-      const titleAndTech = match[1];
-      const dates = cleanLatexText(match[2]);
+    const keyword = '\\resumeProjectHeading';
+    const docStart = latex.indexOf('\\begin{document}');
+    let idx = docStart !== -1 ? docStart : 0;
+    while ((idx = latex.indexOf(keyword, idx)) !== -1) {
+      const { args, nextIndex } = extractBracedArgs(latex, idx + keyword.length, 2);
+      if (args.length === 2) {
+        const titleAndTech = args[0];
+        const dates = cleanLatexText(args[1]);
 
-      let title = cleanLatexText(titleAndTech);
-      let techStack = '';
+        let title = '';
+        let techStack = '';
+        let liveUrl = '';
+        let liveLabel = '';
+        let githubUrl = '';
+        let githubLabel = '';
 
-      const techMatch = titleAndTech.match(/\\emph\{([^}]+)\}/) || titleAndTech.match(/\|\s*(.+)$/);
-      if (techMatch) {
-        techStack = cleanLatexText(techMatch[1]);
-        title = cleanLatexText(titleAndTech.replace(techMatch[0], ''));
+        // Extract href links in titleAndTech
+        const hrefRegex = /\\href\{([^}]+)\}\{([^}]+)\}/gi;
+        let hMatch;
+        while ((hMatch = hrefRegex.exec(titleAndTech)) !== null) {
+          const u = hMatch[1].trim();
+          const lbl = cleanLatexText(hMatch[2]);
+          if (u.includes('github.com')) {
+            githubUrl = u;
+            githubLabel = lbl || 'GitHub';
+          } else {
+            liveUrl = u;
+            liveLabel = lbl || 'Live Demo';
+          }
+        }
+
+        // Clean out hrefs from titleAndTech before extracting title and techStack
+        let cleanedTitleBlock = titleAndTech.replace(/\\href\{[^}]+\}\{[^}]+\}/g, '').trim();
+
+        // Extract techStack if in \emph{...}
+        const emphMatch = cleanedTitleBlock.match(/\\emph\{([^}]+)\}/i);
+        if (emphMatch) {
+          techStack = cleanLatexText(emphMatch[1]);
+          cleanedTitleBlock = cleanedTitleBlock.replace(emphMatch[0], '');
+        }
+
+        // Split by $|$ or |
+        const parts = cleanedTitleBlock.split(/\s*\$\|\$\s*|\s*\|\s*/).map(p => cleanLatexText(p).trim()).filter(Boolean);
+        if (parts.length > 0) {
+          title = parts[0];
+          if (!techStack && parts.length > 1) {
+            techStack = parts.slice(1).join(', ');
+          }
+        }
+
+        // Find bullets between nextIndex and next \resumeProjectHeading or \resumeSubHeadingListEnd
+        const nextHeading = latex.indexOf(keyword, nextIndex);
+        const nextEnd = latex.indexOf('\\resumeSubHeadingListEnd', nextIndex);
+        const blockEnd = Math.min(
+          nextHeading !== -1 ? nextHeading : Infinity,
+          nextEnd !== -1 ? nextEnd : Infinity,
+          latex.length
+        );
+
+        const subBody = latex.substring(nextIndex, blockEnd);
+        const bullets = [];
+        let bIdx = 0;
+        while ((bIdx = subBody.indexOf('\\resumeItem', bIdx)) !== -1) {
+          const bArg = extractBracedArgs(subBody, bIdx + '\\resumeItem'.length, 1);
+          if (bArg.args.length > 0) {
+            bullets.push(cleanLatexText(bArg.args[0]));
+          }
+          bIdx = bArg.nextIndex || bIdx + 11;
+        }
+
+        list.push({
+          title: title.trim(),
+          techStack: techStack.trim(),
+          dates: dates.trim(),
+          liveUrl: liveUrl.trim(),
+          liveLabel: liveLabel.trim(),
+          githubUrl: githubUrl.trim(),
+          githubLabel: githubLabel.trim(),
+          bullets: bullets
+        });
+        idx = nextIndex;
+      } else {
+        idx += keyword.length;
       }
-
-      const bullets = [];
-      const bulletRegex = /\\resumeItem\{([^}]+)\}/gi;
-      let bMatch;
-      while ((bMatch = bulletRegex.exec(match[3])) !== null) {
-        bullets.push(cleanLatexText(bMatch[1]));
-      }
-
-      list.push({
-        title: title.trim(),
-        techStack: techStack.trim(),
-        dates: dates.trim(),
-        liveUrl: '',
-        liveLabel: '',
-        githubUrl: '',
-        githubLabel: '',
-        bullets: bullets
-      });
     }
     return list;
   }
@@ -1537,26 +1604,41 @@
 
   function parseLatexAchievements(latex) {
     const list = [];
-    const achRegex = /\\resumeItem\{([^}]+)\}/gi;
-    let match;
-    while ((match = achRegex.exec(latex)) !== null) {
-      const clean = cleanLatexText(match[1]);
-      const colonIdx = clean.indexOf(':');
-      if (colonIdx > 0) {
-        list.push({
-          title: clean.substring(0, colonIdx).trim(),
-          description: clean.substring(colonIdx + 1).trim(),
-          url: '',
-          linkLabel: ''
-        });
-      } else {
-        list.push({
-          title: clean,
-          description: '',
-          url: '',
-          linkLabel: ''
-        });
+    const keyword = '\\resumeItem';
+    let idx = 0;
+    while ((idx = latex.indexOf(keyword, idx)) !== -1) {
+      const { args, nextIndex } = extractBracedArgs(latex, idx + keyword.length, 1);
+      if (args.length > 0) {
+        let itemBody = args[0];
+        let url = '';
+        let linkLabel = '';
+
+        const hrefMatch = itemBody.match(/\\href\{([^}]+)\}\{([^}]+)\}/i);
+        if (hrefMatch) {
+          url = hrefMatch[1].trim();
+          linkLabel = cleanLatexText(hrefMatch[2]);
+          itemBody = itemBody.replace(hrefMatch[0], '').replace(/[\[\]]/g, '').trim();
+        }
+
+        const clean = cleanLatexText(itemBody);
+        const colonIdx = clean.indexOf(':');
+        if (colonIdx > 0) {
+          list.push({
+            title: clean.substring(0, colonIdx).trim(),
+            description: clean.substring(colonIdx + 1).trim(),
+            url,
+            linkLabel
+          });
+        } else {
+          list.push({
+            title: clean,
+            description: '',
+            url,
+            linkLabel
+          });
+        }
       }
+      idx = nextIndex || idx + keyword.length;
     }
     return list;
   }
@@ -1574,6 +1656,7 @@
       .replace(/\\small\{([^}]+)\}/g, '$1')
       .replace(/\\footnotesize\{([^}]+)\}/g, '$1')
       .replace(/\\href\{[^}]+\}\{([^}]+)\}/g, '$1')
+      .replace(/\\(?:Huge|huge|LARGE|Large|large|scshape|sc)\b/g, '')
       .replace(/\\&/g, '&')
       .replace(/\\%/g, '%')
       .replace(/\\\$/g, '$')
@@ -1583,6 +1666,14 @@
       .replace(/\\textasciicircum\{\}/g, '^')
       .replace(/\\textbackslash\{\}/g, '\\')
       .replace(/\\\\/g, ' ')
+      .replace(/\$\\le\$/g, '<=')
+      .replace(/\$\\ge\$/g, '>=')
+      .replace(/\$<\$/g, '<')
+      .replace(/\$>\$/g, '>')
+      .replace(/\$\\pm\$/g, '+-')
+      .replace(/\$\\times\$/g, 'x')
+      .replace(/\$\\div\$/g, '/')
+      .replace(/\$\\neq\$/g, '!=')
       .replace(/\$[^$]*\$/g, '')
       .replace(/\\vspace\{[^}]+\}/g, '')
       .replace(/\\hspace\{[^}]+\}/g, '')

@@ -4,13 +4,31 @@
  * https://github.com/sb2nov/resume
  */
 
-// Escape characters that break LaTeX compilation
+// Escape characters and sanitize unicode that breaks LaTeX compilation
 function escapeLatex(text) {
   if (!text) return '';
   let str = String(text);
   
-  // Use function replacers to prevent JS String.prototype.replace '$' evaluation bugs
+  // 1. Sanitize unicode quotes, dashes, spaces, and math symbols
+  str = str.replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
+           .replace(/[\u2018\u2019\u201A\u201B\uFFFD]/g, "'")
+           .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, '"')
+           .replace(/[\u2010\u2011\u2012\u2212]/g, '-')
+           .replace(/\u2013/g, '--')
+           .replace(/[\u2014\u2015]/g, '---')
+           .replace(/\u2026/g, '...')
+           .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, '- ')
+           .replace(/≤/g, '$\\le$')
+           .replace(/≥/g, '$\\ge$')
+           .replace(/±/g, '$\\pm$')
+           .replace(/×/g, '$\\times$')
+           .replace(/÷/g, '$\\div$')
+           .replace(/≠/g, '$\\neq$');
+
+  // 2. Escape backslashes first
   str = str.replace(/\\/g, () => '\\textbackslash{}');
+
+  // 3. Escape TeX special reserved characters
   str = str.replace(/&/g, () => '\\&')
            .replace(/%/g, () => '\\%')
            .replace(/\$/g, () => '\\$')
@@ -19,7 +37,9 @@ function escapeLatex(text) {
            .replace(/\{/g, () => '\\{')
            .replace(/\}/g, () => '\\}')
            .replace(/~/g, () => '\\textasciitilde{}')
-           .replace(/\^/g, () => '\\textasciicircum{}');
+           .replace(/\^/g, () => '\\textasciicircum{}')
+           .replace(/</g, () => '$<$')
+           .replace(/>/g, () => '$>$');
            
   return str;
 }
@@ -197,8 +217,10 @@ function createLatexHref(url, displayText = null) {
   const fullUrl = normalizeUrl(url);
   const display = displayText ? displayText.trim() : cleanUrlDisplay(url);
   
-  // In LaTeX hyperref, URLs with # or % should have \# / \% so they do not cause runaway arguments
-  const safeUrl = fullUrl.replace(/#/g, () => '\\#').replace(/%/g, () => '\\%');
+  // In LaTeX hyperref, URLs with #, %, or & should be escaped so they do not cause runaway arguments or tabularx column breaks
+  const safeUrl = fullUrl.replace(/#/g, () => '\\#')
+                         .replace(/%/g, () => '\\%')
+                         .replace(/&/g, () => '\\&');
   const safeDisplay = escapeLatex(display);
   
   return `\\href{${safeUrl}}{${safeDisplay}}`;
@@ -273,8 +295,9 @@ function generateExperienceLatex(experience) {
     }
     if (exp.bullets && exp.bullets.length > 0) {
       exp.bullets.forEach(bullet => {
-        if (bullet.trim()) {
-          latex += `        \\resumeItem{${formatBulletLatex(bullet)}}\n`;
+        const bStr = bullet ? String(bullet).trim() : '';
+        if (bStr) {
+          latex += `        \\resumeItem{${formatBulletLatex(bStr)}}\n`;
         }
       });
     }
@@ -312,8 +335,9 @@ function generateProjectsLatex(projects) {
     }
     if (proj.bullets && proj.bullets.length > 0) {
       proj.bullets.forEach(bullet => {
-        if (bullet.trim()) {
-          latex += `            \\resumeItem{${formatBulletLatex(bullet)}}\n`;
+        const bStr = bullet ? String(bullet).trim() : '';
+        if (bStr) {
+          latex += `            \\resumeItem{${formatBulletLatex(bStr)}}\n`;
         }
       });
     }
@@ -472,7 +496,14 @@ function generateLatexCode(resumeData, options = {}) {
     showAchievements = true
   } = options;
 
-  const { personal, education, experience, projects, skills, certifications, achievements } = resumeData;
+  const data = resumeData || {};
+  const personal = data.personal || {};
+  const education = Array.isArray(data.education) ? data.education : [];
+  const experience = Array.isArray(data.experience) ? data.experience : [];
+  const projects = Array.isArray(data.projects) ? data.projects : [];
+  const skills = data.skills || [];
+  const certifications = Array.isArray(data.certifications) ? data.certifications : [];
+  const achievements = Array.isArray(data.achievements) ? data.achievements : [];
 
   // Format Header Links
   const headerLinks = [];
@@ -559,6 +590,7 @@ function generateLatexCode(resumeData, options = {}) {
 
 \\documentclass[${paperSize},${fontSize}]{article}
 
+\\usepackage[utf8]{inputenc}
 \\usepackage{latexsym}
 \\usepackage[empty]{fullpage}
 \\usepackage{titlesec}
@@ -670,7 +702,7 @@ ${marginAdjustments}
 
   // Dynamic Reorderable Sections Rendering
   const sectionGenerators = {
-    introduction: () => generateIntroductionLatex(resumeData.introduction),
+    introduction: () => generateIntroductionLatex(data.introduction),
     education: () => generateEducationLatex(education),
     experience: () => generateExperienceLatex(experience),
     projects: () => generateProjectsLatex(projects),
@@ -680,8 +712,8 @@ ${marginAdjustments}
   };
 
   const defaultOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
-  const order = (resumeData.sectionOrder && resumeData.sectionOrder.length > 0)
-    ? resumeData.sectionOrder
+  const order = (data.sectionOrder && data.sectionOrder.length > 0)
+    ? data.sectionOrder
     : defaultOrder;
 
   order.forEach(secKey => {
@@ -689,7 +721,7 @@ ${marginAdjustments}
       latex += sectionGenerators[secKey]();
     } else if (secKey.startsWith('custom_') || secKey.startsWith('sec-custom_')) {
       const cId = secKey.replace(/^sec-/, '');
-      const customSec = (resumeData.customSections || []).find(cs => cs.id === cId || cs.id === secKey);
+      const customSec = (data.customSections || []).find(cs => cs.id === cId || cs.id === secKey);
       if (customSec) {
         latex += generateCustomSectionLatex(customSec);
       }
@@ -842,7 +874,7 @@ const BTECH_PRESETS = {
         linkLabel: ''
       },
       {
-        title: 'Dean’s Academic Excellence List',
+        title: "Dean's Academic Excellence List",
         description: 'Southwestern University (Honored 6 consecutive semesters for cumulative GPA above 3.80)',
         url: '',
         linkLabel: ''
