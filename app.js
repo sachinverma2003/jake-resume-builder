@@ -1436,7 +1436,7 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
   const scaleY = pdfHeightIn / resumeRect.height;
   const lines = [];
 
-  function addLine(text, left, top, width, height, fontSizePt) {
+  function addLine(text, left, top, width, height, fontSizePt, fontStyle) {
     // Clean unicode special characters to clean ASCII representations for standard PDF text layer
     const cleanText = text
       .replace(/\u00a0/g, ' ')
@@ -1451,6 +1451,7 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
       x: (left - resumeRect.left) * scaleX,
       y: (top - resumeRect.top) * scaleY + (height * scaleY * 0.78),
       fontSize: fontSizePt,
+      fontStyle: fontStyle || 'normal',
       widthPt: width * scaleX * 72,
       topPt: (top - resumeRect.top) * scaleY * 72
     });
@@ -1490,6 +1491,16 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
       const fontSizePx = parseFloat(s.fontSize) || 12;
       const fontPt = fontSizePx * 0.75;
 
+      const isBold = parseInt(s.fontWeight) >= 600 || s.fontWeight === 'bold';
+      const isItalic = s.fontStyle === 'italic';
+      let fontStyle = 'normal';
+      if (isBold && isItalic) fontStyle = 'bolditalic';
+      else if (isBold) fontStyle = 'bold';
+      else if (isItalic) fontStyle = 'italic';
+
+      // Match small-caps or uppercase headings so PDF text layer matches physical glyph widths 1:1
+      const isSmallCapsOrUpper = s.fontVariant === 'small-caps' || s.textTransform === 'uppercase';
+
       let offset = 0;
       const tokens = node.textContent.split(/(\s+)/);
       for (let i = 0; i < tokens.length; i++) {
@@ -1500,14 +1511,19 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
           r.setEnd(node, offset + tok.length);
           const rect = r.getBoundingClientRect();
           if (rect.width > 0 && rect.height > 0) {
+            let wordText = tok;
+            if (isSmallCapsOrUpper) {
+              wordText = wordText.toUpperCase();
+            }
             words.push({
-              text: tok,
+              text: wordText,
               left: rect.left,
               right: rect.right,
               top: rect.top,
               bottom: rect.bottom,
               height: rect.height,
-              fontSize: fontPt
+              fontSize: fontPt,
+              fontStyle: fontStyle
             });
           }
         }
@@ -1538,7 +1554,8 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
           right: w.right,
           top: w.top,
           height: w.height,
-          fontSize: w.fontSize
+          fontSize: w.fontSize,
+          fontStyle: w.fontStyle
         };
       } else {
         const sameLine = Math.abs(w.top - curLine.top) <= 5;
@@ -1555,7 +1572,8 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
             top: curLine.top,
             width: curLine.right - curLine.left,
             height: curLine.height,
-            fontSize: curLine.fontSize
+            fontSize: curLine.fontSize,
+            fontStyle: curLine.fontStyle
           });
           curLine = {
             words: [w.text],
@@ -1563,7 +1581,8 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
             right: w.right,
             top: w.top,
             height: w.height,
-            fontSize: w.fontSize
+            fontSize: w.fontSize,
+            fontStyle: w.fontStyle
           };
         }
       }
@@ -1576,7 +1595,8 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
         top: curLine.top,
         width: curLine.right - curLine.left,
         height: curLine.height,
-        fontSize: curLine.fontSize
+        fontSize: curLine.fontSize,
+        fontStyle: curLine.fontStyle
       });
     }
 
@@ -1587,7 +1607,7 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
     const words = getWordsFromElement(elem);
     const elemLines = wordsToLines(words);
     elemLines.forEach(l => {
-      addLine(l.text, l.left, l.top, l.width, l.height, l.fontSize);
+      addLine(l.text, l.left, l.top, l.width, l.height, l.fontSize, l.fontStyle);
     });
   }
 
@@ -1623,13 +1643,13 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
             // EMIT IN STRICT READING ORDER:
             // Line 1 of left + Line 1 of right (date), THEN Line 2 of left (e.g. wrapped tech stack)!
             if (leftLines.length > 0) {
-              addLine(leftLines[0].text, leftLines[0].left, leftLines[0].top, leftLines[0].width, leftLines[0].height, leftLines[0].fontSize);
+              addLine(leftLines[0].text, leftLines[0].left, leftLines[0].top, leftLines[0].width, leftLines[0].height, leftLines[0].fontSize, leftLines[0].fontStyle);
             }
             if (rightLines.length > 0) {
-              rightLines.forEach(rl => addLine(rl.text, rl.left, rl.top, rl.width, rl.height, rl.fontSize));
+              rightLines.forEach(rl => addLine(rl.text, rl.left, rl.top, rl.width, rl.height, rl.fontSize, rl.fontStyle));
             }
             for (let i = 1; i < leftLines.length; i++) {
-              addLine(leftLines[i].text, leftLines[i].left, leftLines[i].top, leftLines[i].width, leftLines[i].height, leftLines[i].fontSize);
+              addLine(leftLines[i].text, leftLines[i].left, leftLines[i].top, leftLines[i].width, leftLines[i].height, leftLines[i].fontSize, leftLines[i].fontStyle);
             }
           } else {
             extractContainerLines(row);
@@ -1776,24 +1796,28 @@ function executeCleanPdfDownload() {
         console.warn('Could not embed metadata in PDF:', metaErr);
       }
 
-      // 2. Inject Pixel-Perfect Selectable Text Layer with Precise Font Metrics & Character Spacing (Tc)
+      // 2. Inject Pixel-Perfect Selectable Text Layer with Font Style & Precision Character Tracking (Tc)
       try {
         if (visualLines && visualLines.length > 0) {
           pdf.internal.write('3 Tr\n'); // Invisible text rendering mode
-          pdf.setFont('times', 'normal');
 
           visualLines.forEach(it => {
-            const fontSize = Math.max(5.5, Math.min(28, it.fontSize));
+            const fontSize = Math.max(5.5, Math.min(32, it.fontSize));
             pdf.setFontSize(fontSize);
+            pdf.setFont('times', it.fontStyle || 'normal');
 
             // Calibrate character spacing (Tc) so the text string spans 100% of the visual element width
             if (it.widthPt && it.text.length > 1) {
               const strWidthPt = pdf.getStringUnitWidth(it.text) * fontSize;
               const diff = it.widthPt - strWidthPt;
-              // Only apply positive stretch up to 1.5pt per char (prevents over-stretching short standalone labels)
-              if (diff > 0 && (diff / (it.text.length - 1)) < 1.5) {
-                const charSpace = diff / (it.text.length - 1);
-                pdf.internal.write(charSpace.toFixed(4) + ' Tc\n');
+              const charCount = it.text.length - 1;
+              const perChar = diff / charCount;
+
+              // Dynamically calibrate character spacing to match visual element span
+              if (perChar > 0 && perChar <= 5.0) {
+                pdf.internal.write(perChar.toFixed(4) + ' Tc\n');
+              } else if (perChar < 0 && perChar >= -1.0) {
+                pdf.internal.write(perChar.toFixed(4) + ' Tc\n');
               } else {
                 pdf.internal.write('0 Tc\n');
               }
