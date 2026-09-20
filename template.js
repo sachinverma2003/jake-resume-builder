@@ -626,24 +626,24 @@ ${marginAdjustments}
 
 \\newcommand{\\resumeSubheading}[4]{
   \\vspace{-2pt}\\item
-    \\begin{tabular*}{0.97\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}
+    \\begin{tabularx}{\\linewidth}[t]{@{}X@{\\hspace{10pt}}r@{}}
       \\textbf{#1} & #2 \\\\
       \\textit{\\small#3} & \\textit{\\small #4} \\\\
-    \\end{tabular*}\\vspace{-7pt}
+    \\end{tabularx}\\vspace{-7pt}
 }
 
 \\newcommand{\\resumeSubSubheading}[2]{
     \\item
-    \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
+    \\begin{tabularx}{\\linewidth}[t]{@{}X@{\\hspace{10pt}}r@{}}
       \\textit{\\small#1} & \\textit{\\small #2} \\\\
-    \\end{tabular*}\\vspace{-7pt}
+    \\end{tabularx}\\vspace{-7pt}
 }
 
 \\newcommand{\\resumeProjectHeading}[2]{
     \\item
-    \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
+    \\begin{tabularx}{\\linewidth}[t]{@{}X@{\\hspace{10pt}}r@{}}
       \\small#1 & #2 \\\\
-    \\end{tabular*}\\vspace{-7pt}
+    \\end{tabularx}\\vspace{-7pt}
 }
 
 \\newcommand{\\resumeSubItem}[1]{\\resumeItem{#1}\\vspace{-4pt}}

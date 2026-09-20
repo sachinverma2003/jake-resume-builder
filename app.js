@@ -1389,16 +1389,36 @@ function exportNativeVectorPdf() {
   const resumeElem = document.getElementById('visual-resume');
   if (!resumeElem) return;
 
+  // Reset preview scroll and window scroll so top header is never scrolled out of view or clipped
+  const previewArea = document.getElementById('visual-preview-area');
+  if (previewArea) previewArea.scrollTop = 0;
+  window.scrollTo(0, 0);
+
   // Ensure cutoff line and banners are removed
   const cutoff = resumeElem.querySelector('.page-cutoff-line');
   if (cutoff) cutoff.remove();
 
+  // Reset any visual zoom
+  const prevTransform = resumeElem.style.transform;
+  resumeElem.style.transform = 'none';
+
   // If overflowing, auto-fit to 1 page first
-  if (resumeElem.scrollHeight > PAGE_HEIGHT_MAX + 6) {
+  if (resumeElem.scrollHeight > PAGE_HEIGHT_MAX + 4) {
     autoFitToOnePage(false);
   }
 
-  showToast('🖨️ Opening print preview: Select "Save as PDF" for 100% Vector LaTeX quality...');
+  // Temporarily set document title to Clean Candidate Name so browser print header does not print web app title
+  const candidateName = (resumeState.personal.fullName || 'Jake_Ryan').trim().replace(/\s+/g, '_');
+  const origTitle = document.title;
+  document.title = `${candidateName}_Resume`;
+
+  window.onafterprint = function() {
+    document.title = origTitle;
+    resumeElem.style.transform = prevTransform;
+    window.onafterprint = null;
+  };
+
+  showToast('🖨️ Opening print preview: Select "Save as PDF" (Uncheck "Headers and footers" for zero tags)...');
   setTimeout(() => {
     window.print();
   }, 250);
@@ -1408,6 +1428,7 @@ window.exportNativeVectorPdf = exportNativeVectorPdf;
 /**
  * Extract all visual text words and group into unified continuous lines with exact
  * physical coordinates mapped to PDF inches for true 1:1 mouse selection alignment.
+ * Structured by visual elements so right-aligned dates never interleave with multi-line titles.
  */
 function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0) {
   const resumeRect = resumeElem.getBoundingClientRect();
@@ -1415,9 +1436,24 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
   const scaleY = pdfHeightIn / resumeRect.height;
   const lines = [];
 
-  try {
+  function addLine(text, left, top, width, height, fontSizePt) {
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+    if (!cleanText) return;
+    lines.push({
+      text: cleanText,
+      x: (left - resumeRect.left) * scaleX,
+      y: (top - resumeRect.top) * scaleY + (height * scaleY * 0.78),
+      fontSize: fontSizePt
+    });
+  }
+
+  function extractContainerLines(elem) {
+    if (!elem) return;
+    const style = window.getComputedStyle(elem);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return;
+
     const walker = document.createTreeWalker(
-      resumeElem,
+      elem,
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: function(node) {
@@ -1426,23 +1462,28 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
           if (!p) return NodeFilter.FILTER_REJECT;
           const s = window.getComputedStyle(p);
           if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return NodeFilter.FILTER_REJECT;
-          if (p.closest('.page-cutoff-line') || p.closest('.page-overflow-banner')) return NodeFilter.FILTER_REJECT;
           return NodeFilter.FILTER_ACCEPT;
         }
       }
     );
 
+    const textNodes = [];
+    let n;
+    while ((n = walker.nextNode())) {
+      textNodes.push(n);
+    }
+
+    if (textNodes.length === 0) return;
+
     const words = [];
-    let node;
-    while ((node = walker.nextNode())) {
-      const text = node.textContent;
+    for (const node of textNodes) {
       const p = node.parentElement;
       const s = window.getComputedStyle(p);
       const fontSizePx = parseFloat(s.fontSize) || 12;
       const fontPt = fontSizePx * 0.75 * (pdfWidthIn * 72 / resumeRect.width);
 
       let offset = 0;
-      const tokens = text.split(/(\s+)/);
+      const tokens = node.textContent.split(/(\s+)/);
       for (let i = 0; i < tokens.length; i++) {
         const tok = tokens[i];
         if (tok.trim().length > 0) {
@@ -1466,10 +1507,11 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
       }
     }
 
-    // Sort words top-to-bottom, then left-to-right
+    if (words.length === 0) return;
+
     words.sort((a, b) => {
       const dy = a.top - b.top;
-      if (Math.abs(dy) > 4) return dy;
+      if (Math.abs(dy) > 5) return dy;
       return a.left - b.left;
     });
 
@@ -1485,21 +1527,13 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
           fontSize: w.fontSize
         };
       } else {
-        const sameLine = Math.abs(w.top - curLine.top) <= 4;
-        const gap = w.left - curLine.right;
-
-        // Group into same line if on the same horizontal baseline and not a distant right-aligned segment (> 45px gap)
-        if (sameLine && gap < 45) {
+        const sameLine = Math.abs(w.top - curLine.top) <= 5;
+        if (sameLine) {
           curLine.words.push(w.text);
           curLine.right = w.right;
           curLine.height = Math.max(curLine.height, w.height);
         } else {
-          lines.push({
-            text: curLine.words.join(' '),
-            x: (curLine.left - resumeRect.left) * scaleX,
-            y: (curLine.top - resumeRect.top) * scaleY + (curLine.height * scaleY * 0.78),
-            fontSize: curLine.fontSize
-          });
+          addLine(curLine.words.join(' '), curLine.left, curLine.top, curLine.right - curLine.left, curLine.height, curLine.fontSize);
           curLine = {
             words: [w.text],
             left: w.left,
@@ -1513,16 +1547,67 @@ function extractVisualTextLines(resumeElem, pdfWidthIn = 8.5, pdfHeightIn = 11.0
     }
 
     if (curLine) {
-      lines.push({
-        text: curLine.words.join(' '),
-        x: (curLine.left - resumeRect.left) * scaleX,
-        y: (curLine.top - resumeRect.top) * scaleY + (curLine.height * scaleY * 0.78),
-        fontSize: curLine.fontSize
+      addLine(curLine.words.join(' '), curLine.left, curLine.top, curLine.right - curLine.left, curLine.height, curLine.fontSize);
+    }
+  }
+
+  // Walk major resume blocks in logical DOM order:
+  // 1. Header
+  const header = resumeElem.querySelector('.res-header');
+  if (header) {
+    const nameElem = header.querySelector('.res-name');
+    if (nameElem) extractContainerLines(nameElem);
+    const taglineElem = header.querySelector('.res-tagline');
+    if (taglineElem) extractContainerLines(taglineElem);
+    const contactsElem = header.querySelector('.res-contacts');
+    if (contactsElem) extractContainerLines(contactsElem);
+  }
+
+  // 2. Sections
+  const sections = resumeElem.querySelectorAll('.res-section');
+  sections.forEach(sec => {
+    const title = sec.querySelector('.res-section-title');
+    if (title) extractContainerLines(title);
+
+    const intro = sec.querySelector('.res-intro-text');
+    if (intro) extractContainerLines(intro);
+
+    const subheadings = sec.querySelectorAll('.res-subheading');
+    if (subheadings.length > 0) {
+      subheadings.forEach(sub => {
+        const rows = sub.querySelectorAll('.res-row-between');
+        rows.forEach(row => {
+          const children = Array.from(row.children);
+          if (children.length >= 2) {
+            extractContainerLines(children[0]);
+            extractContainerLines(children[1]);
+          } else {
+            extractContainerLines(row);
+          }
+        });
+
+        const subdetails = sub.querySelectorAll('.res-subdetails');
+        subdetails.forEach(sd => extractContainerLines(sd));
+
+        const bullets = sub.querySelectorAll('.res-bullets li');
+        bullets.forEach(b => extractContainerLines(b));
       });
     }
-  } catch (err) {
-    console.warn('Error extracting visual text lines:', err);
-  }
+
+    const skillsList = sec.querySelectorAll('.res-skills-list li, ul:not(.res-bullets) li');
+    skillsList.forEach(item => {
+      if (!item.closest('.res-subheading')) {
+        extractContainerLines(item);
+      }
+    });
+
+    const standAloneBullets = sec.querySelectorAll('ul.res-bullets > li');
+    standAloneBullets.forEach(b => {
+      if (!b.closest('.res-subheading')) {
+        extractContainerLines(b);
+      }
+    });
+  });
 
   return lines;
 }
@@ -1541,6 +1626,16 @@ function executeCleanPdfDownload() {
   }
 
   showToast('📄 Generating clean 1-page PDF with 100% selectable text...');
+
+  // Reset preview scroll and window scroll
+  const previewArea = document.getElementById('visual-preview-area');
+  if (previewArea) previewArea.scrollTop = 0;
+  window.scrollTo(0, 0);
+
+  // If overflowing, auto-fit to 1 page first
+  if (resumeElem.scrollHeight > PAGE_HEIGHT_MAX + 4) {
+    autoFitToOnePage(false);
+  }
 
   // Crucial: remove cutoff line completely so it is never in canvas
   const cutoff = resumeElem.querySelector('.page-cutoff-line');
@@ -1564,13 +1659,6 @@ function executeCleanPdfDownload() {
 
   const candidateName = (resumeState.personal.fullName || 'Jake_Ryan').trim().replace(/\s+/g, '_');
   const filename = `${candidateName}_Resume.pdf`;
-
-  const isOnePage = resumeElem.scrollHeight <= 1070 || 
-                    visualResume.classList.contains('compact-1') || 
-                    visualResume.classList.contains('compact-2') || 
-                    visualResume.classList.contains('compact-3') ||
-                    visualResume.classList.contains('compact-4') ||
-                    visualResume.classList.contains('compact-5');
 
   // Extract pixel-perfect visual text lines mapped directly to PDF coordinates
   const visualLines = extractVisualTextLines(resumeElem, 8.5, 11.0);
@@ -1607,7 +1695,7 @@ function executeCleanPdfDownload() {
     .toPdf()
     .get('pdf')
     .then(function (pdf) {
-      if (isOnePage && pdf.internal.getNumberOfPages() > 1) {
+      if (pdf.internal.getNumberOfPages() > 1) {
         // Automatically delete any accidental blank 2nd page!
         pdf.deletePage(2);
       }
@@ -1638,14 +1726,16 @@ function executeCleanPdfDownload() {
         console.warn('Could not embed metadata in PDF:', metaErr);
       }
 
-      // 2. Inject Pixel-Perfect Selectable Text Layer (100% 1:1 aligned with visual text elements)
+      // 2. Inject Pixel-Perfect Selectable Text Layer using 3 Tr (Official Invisible Text Mode)
       try {
         if (visualLines && visualLines.length > 0) {
+          pdf.internal.write('3 Tr');
           pdf.setFont('times', 'normal');
           visualLines.forEach(it => {
             pdf.setFontSize(Math.max(5.5, Math.min(28, it.fontSize)));
-            pdf.text(it.text, it.x, it.y, { renderingMode: 'invisible' });
+            pdf.text(it.text, it.x, it.y);
           });
+          pdf.internal.write('0 Tr');
         }
       } catch (txtErr) {
         console.warn('Could not inject selectable text layer in PDF:', txtErr);

@@ -8,7 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=3.5.8">
+  <link rel="stylesheet" href="style.css?v=3.5.9">
   <!-- Mozilla PDF.js for In-Browser Client-Side PDF Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- Tesseract.js for In-Browser OCR Fallback on Legacy Image PDFs -->
@@ -836,34 +836,34 @@
           Choose your export format for campus placements and job applications:
         </p>
 
-        <!-- Option 1: Native Vector Print PDF (100% LaTeX Vector Quality) -->
-        <div class="export-option-card recommended" onclick="exportNativeVectorPdf()">
-          <div class="export-option-icon">🖨️</div>
-          <div class="export-option-details">
-            <div class="export-option-title">
-              <strong>Native Vector PDF (Overleaf / LaTeX Standard)</strong>
-              <span class="export-badge-recommended">⭐ Recommended for ATS</span>
-            </div>
-            <p class="export-option-desc">
-              100% vector Computer Modern typography with zero rasterization. Infinite zoom clarity, 100% selectable text, exactly like an Overleaf-compiled document. Opens print preview &rarr; select <em>"Save as PDF"</em> with zero margins.
-            </p>
-          </div>
-          <button type="button" class="btn btn-emerald btn-sm" style="white-space: nowrap;">Save as PDF &rarr;</button>
-        </div>
-
-        <!-- Option 2: 1-Click Direct Download (.pdf) -->
-        <div class="export-option-card" onclick="executeCleanPdfDownload(); closeExportModal();">
+        <!-- Option 1: 1-Click Direct Download (.pdf) (Recommended) -->
+        <div class="export-option-card recommended" onclick="executeCleanPdfDownload(); closeExportModal();">
           <div class="export-option-icon">📥</div>
           <div class="export-option-details">
             <div class="export-option-title">
               <strong>Instant 1-Click File Download (.pdf)</strong>
-              <span class="export-badge-instant">⚡ 1-Click</span>
+              <span class="export-badge-recommended">⭐ Recommended for ATS</span>
             </div>
             <p class="export-option-desc">
-              Directly downloads <code>.pdf</code> to your device with pixel-perfect selectable text layer and embedded lossless resume backup data.
+              Directly downloads clean 1-page <code>.pdf</code> to your device with 100% selectable text layer, zero browser tags or headers, and embedded lossless resume backup data.
             </p>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Download .PDF</button>
+          <button type="button" class="btn btn-emerald btn-sm" style="white-space: nowrap;">Download .PDF &rarr;</button>
+        </div>
+
+        <!-- Option 2: Native Vector Print PDF (Browser Print Engine) -->
+        <div class="export-option-card" onclick="exportNativeVectorPdf()">
+          <div class="export-option-icon">🖨️</div>
+          <div class="export-option-details">
+            <div class="export-option-title">
+              <strong>Save as PDF via Print (Vector Engine)</strong>
+              <span class="export-badge-instant">Browser Print</span>
+            </div>
+            <p class="export-option-desc">
+              Uses your browser's vector print engine. Opens print preview &rarr; choose <em>"Save as PDF"</em>. <em>(Tip: Uncheck "Headers and footers" in print settings for zero page tags).</em>
+            </p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Print Preview</button>
         </div>
 
         <!-- Option 3: Compile on Overleaf -->

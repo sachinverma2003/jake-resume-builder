@@ -1318,6 +1318,12 @@ body.is-resizing * {
   width: 100%;
 }
 
+.res-row-between > :first-child {
+  flex: 1;
+  min-width: 0;
+  padding-right: 12px;
+}
+
 .res-bold {
   font-weight: 700;
 }
@@ -2250,15 +2256,18 @@ body.is-resizing * {
     position: relative !important;
     box-shadow: none !important;
     margin: 0 auto !important;
-    padding: 0.5in !important;
+    padding: 0.45in 0.5in !important;
     width: 8.5in !important;
     max-width: 8.5in !important;
-    min-height: 11in !important;
-    height: auto !important;
+    height: 11in !important;
+    max-height: 11in !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
     transform: none !important;
     border: none !important;
     background: #ffffff !important;
     page-break-after: avoid !important;
+    page-break-before: avoid !important;
     page-break-inside: avoid !important;
   }
 }
