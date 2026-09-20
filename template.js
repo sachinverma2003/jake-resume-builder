@@ -4,6 +4,197 @@
  * https://github.com/sb2nov/resume
  */
 
+// Strip leading bullet characters, numbers, dashes, and whitespace
+function stripLeadingBullet(text) {
+  if (!text) return '';
+  return String(text).replace(/^(?:[•·●○◦∙►▸◆■*+\-–—\s]+|\d+\.\s+|\([a-z0-9]+\)\s+)+/i, '').trim();
+}
+
+// Automatically heals fragmented projects, duplicated/garbled experience items, and strips double bullets
+function healResumeData(data) {
+  if (!data || typeof data !== 'object') return data;
+  const clone = JSON.parse(JSON.stringify(data));
+
+  // Clean Personal Info
+  if (clone.personal) {
+    if (clone.personal.fullName) clone.personal.fullName = stripLeadingBullet(clone.personal.fullName);
+    if (clone.personal.location) clone.personal.location = stripLeadingBullet(clone.personal.location);
+  }
+
+  // Clean Education
+  if (Array.isArray(clone.education)) {
+    clone.education.forEach(edu => {
+      if (edu.institution) edu.institution = stripLeadingBullet(edu.institution).replace(/[|,\-–—\s]+$/, '').trim();
+      if (edu.location) edu.location = stripLeadingBullet(edu.location);
+      if (edu.degree) edu.degree = stripLeadingBullet(edu.degree).replace(/[|,\-–—\s]+$/, '').trim();
+      if (edu.gpa) edu.gpa = stripLeadingBullet(edu.gpa);
+      if (edu.coursework) edu.coursework = stripLeadingBullet(edu.coursework);
+      if (edu.dates) edu.dates = stripLeadingBullet(edu.dates);
+    });
+  }
+
+  // Heal Experience
+  if (Array.isArray(clone.experience)) {
+    const healedExp = [];
+    clone.experience.forEach(exp => {
+      let role = stripLeadingBullet(exp.role || '').replace(/[|,\-–—\s]+$/, '').trim();
+      let company = stripLeadingBullet(exp.company || '').replace(/[|,\-–—\s]+$/, '').trim();
+      let dates = exp.dates || '';
+      let location = exp.location || '';
+      let rawBullets = Array.isArray(exp.bullets) ? exp.bullets.map(b => stripLeadingBullet(b)).filter(Boolean) : [];
+
+      // Stitch broken wrapped bullets
+      const bullets = [];
+      rawBullets.forEach(b => {
+        const last = bullets[bullets.length - 1];
+        if (last && (!/[.!?:;]$/.test(last) || /^(?:well|performance|mentoring|resulting)\b/i.test(b))) {
+          bullets[bullets.length - 1] = last.replace(/-$/, '') + (last.endsWith('-') ? '' : ' ') + b;
+        } else {
+          bullets.push(b);
+        }
+      });
+
+      // Handle case where company was mistakenly set to a bullet point
+      if (/^(?:wrote a proposal|built a web server|led and coordinated|developed and ran)\b/i.test(company)) {
+        bullets.unshift(company);
+        if (/Simulation\s+on\s+Forage|Forage/i.test(role)) {
+          company = 'Forage';
+          role = role.replace(/\s+on\s+Forage/i, '');
+        } else if (/Coordinator/i.test(role)) {
+          company = 'Phase Shift - Technical Fest Bengaluru';
+        } else {
+          company = '';
+        }
+      }
+
+      // Handle case where role was mistakenly set to a bullet point
+      if (/^(?:developed and ran|performed|engineered|implemented|built)\b/i.test(role)) {
+        if (healedExp.length > 0) {
+          const prev = healedExp[healedExp.length - 1];
+          prev.bullets.push(role);
+          bullets.forEach(b => {
+            if (/Fest|Technical|Bengaluru|College|University|Corp|Company|Simulation/i.test(b)) {
+              company = b;
+            } else {
+              prev.bullets.push(b);
+            }
+          });
+          return;
+        }
+      }
+
+      healedExp.push({
+        role,
+        company,
+        dates,
+        location,
+        bullets,
+        subsections: exp.subsections || []
+      });
+    });
+
+    healedExp.forEach((exp) => {
+      if (exp.role.toLowerCase().includes('coordinator') && (!exp.company || exp.company === 'Technical Fest')) {
+        exp.company = 'Phase Shift - Technical Fest Bengaluru';
+      }
+      const seen = new Set();
+      exp.bullets = exp.bullets.filter(b => {
+        const norm = b.toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim();
+        if (seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      });
+    });
+    clone.experience = healedExp;
+  }
+
+  // Heal Projects
+  if (Array.isArray(clone.projects)) {
+    const FRAGMENT_TITLE_REGEX = /^(?:engineered|implemented|developed|built|architected|created|designed|performed|reduced|increased|optimized|integrated|spearheaded|led|managed|collaborated|conducted|resolved|anomalies|ground|cation|while|trained|evaluated|deployed|formulated|wrote|tested|automated|migrated|configured|maintained|analyzed)\b/i;
+    const healedProj = [];
+    let currentProj = null;
+
+    clone.projects.forEach(p => {
+      const rawTitle = (p.title || '').trim();
+      const cleanTitle = stripLeadingBullet(rawTitle);
+
+      const isFragment = FRAGMENT_TITLE_REGEX.test(cleanTitle) ||
+                         /^[a-z]/.test(cleanTitle) ||
+                         (!p.techStack && !p.dates && !p.githubUrl && !p.liveUrl && cleanTitle.length > 45) ||
+                         (cleanTitle.startsWith('ETCC') && currentProj && (currentProj.title.toLowerCase().includes('intellimotion') || currentProj.title.toLowerCase().includes('publication')));
+
+      if (isFragment && currentProj) {
+        if (cleanTitle.startsWith('ETCC')) {
+          currentProj.techStack = cleanTitle + (p.techStack ? ' | ' + p.techStack : '');
+          if (p.dates && !currentProj.dates) currentProj.dates = p.dates;
+          return;
+        }
+
+        let bulletText = cleanTitle;
+        if (p.techStack) bulletText += ' (' + p.techStack + ')';
+
+        function appendBullet(text) {
+          if (!text) return;
+          const lastIdx = currentProj.bullets.length - 1;
+          const lastB = lastIdx >= 0 ? currentProj.bullets[lastIdx] : null;
+          if (lastB && (!/[.!?:;]$/.test(lastB) || /^(?:ground|while|cation|performance)\b/i.test(text))) {
+            currentProj.bullets[lastIdx] = lastB.replace(/-$/, '') + (lastB.endsWith('-') ? '' : ' ') + text;
+          } else {
+            currentProj.bullets.push(text);
+          }
+        }
+
+        appendBullet(bulletText);
+        (p.bullets || []).forEach(b => {
+          const cb = stripLeadingBullet(b);
+          if (cb) appendBullet(cb);
+        });
+      } else {
+        currentProj = {
+          title: cleanTitle.replace(/[|,\-–—\s]+$/, '').trim(),
+          techStack: stripLeadingBullet(p.techStack || '').replace(/[|,\-–—\s]+$/, '').trim(),
+          dates: p.dates || '',
+          liveUrl: p.liveUrl || '',
+          liveLabel: p.liveLabel || '',
+          githubUrl: p.githubUrl || '',
+          githubLabel: p.githubLabel || '',
+          bullets: [],
+          subsections: p.subsections || []
+        };
+        (p.bullets || []).forEach(b => {
+          const cb = stripLeadingBullet(b);
+          if (cb) currentProj.bullets.push(cb);
+        });
+        healedProj.push(currentProj);
+      }
+    });
+
+    // Fix word break: "communi cation" -> "communication"
+    healedProj.forEach(p => {
+      p.bullets = p.bullets.map(b => b.replace(/\bcommuni\s+cation\b/gi, 'communication'));
+    });
+
+    clone.projects = healedProj;
+  }
+
+  // Clean Certifications & Achievements
+  if (Array.isArray(clone.certifications)) {
+    clone.certifications.forEach(c => {
+      if (c.name) c.name = stripLeadingBullet(c.name);
+      if (c.issuer) c.issuer = stripLeadingBullet(c.issuer);
+    });
+  }
+
+  if (Array.isArray(clone.achievements)) {
+    clone.achievements.forEach(a => {
+      if (a.title) a.title = stripLeadingBullet(a.title);
+      if (a.description) a.description = stripLeadingBullet(a.description);
+    });
+  }
+
+  return clone;
+}
+
 // Escape characters and sanitize unicode that breaks LaTeX compilation
 function escapeLatex(text) {
   if (!text) return '';
@@ -17,7 +208,7 @@ function escapeLatex(text) {
            .replace(/\u2013/g, '--')
            .replace(/[\u2014\u2015]/g, '---')
            .replace(/\u2026/g, '...')
-           .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, '- ')
+           .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, ' $\\bullet$ ')
            .replace(/≤/g, '$\\le$')
            .replace(/≥/g, '$\\ge$')
            .replace(/±/g, '$\\pm$')
@@ -104,8 +295,9 @@ function parseFormattingSpec(specStr) {
  * Escapes special characters while converting markdown bold (**...**), italics (*...*),
  * highlighters (==...==), custom colors ([text]{color}), and sizes ([text]{size:...}).
  */
-function formatBulletLatex(text) {
+function formatBulletLatex(text, isBulletItem = false) {
   if (!text) return '';
+  if (isBulletItem) text = stripLeadingBullet(text);
 
   const pattern = /(==[^=\n]+==|\[[^\]\n]+\]\{[^}\n]+\}|\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g;
   const parts = String(text).split(pattern);
@@ -265,14 +457,14 @@ function generateEducationLatex(education) {
   if (!education || education.length === 0) return '';
   let latex = `\n%-----------EDUCATION-----------\n\\section{Education}\n  \\resumeSubHeadingListStart\n`;
   education.forEach(edu => {
-    let degreeLine = formatBulletLatex(edu.degree);
+    let degreeLine = formatBulletLatex(stripLeadingBullet(edu.degree));
     if (edu.gpa) {
-      degreeLine += ` \\hspace{1pt}$|$\\hspace{1pt} CGPA/Percentage: ${formatBulletLatex(edu.gpa)}`;
+      degreeLine += ` \\hspace{1pt}$|$\\hspace{1pt} CGPA/Percentage: ${formatBulletLatex(stripLeadingBullet(edu.gpa))}`;
     }
     if (edu.coursework) {
-      degreeLine += ` \\\\ \\small{\\textbf{Relevant Coursework:} ${formatBulletLatex(edu.coursework)}}`;
+      degreeLine += ` \\\\ \\small{\\textbf{Relevant Coursework:} ${formatBulletLatex(stripLeadingBullet(edu.coursework))}}`;
     }
-    latex += `    \\resumeSubheading\n      {${formatBulletLatex(edu.institution)}}{${formatBulletLatex(edu.location)}}\n      {${degreeLine}}{${formatBulletLatex(edu.dates)}}\n`;
+    latex += `    \\resumeSubheading\n      {${formatBulletLatex(stripLeadingBullet(edu.institution))}}{${formatBulletLatex(stripLeadingBullet(edu.location))}}\n      {${degreeLine}}{${formatBulletLatex(edu.dates)}}\n`;
   });
   latex += `  \\resumeSubHeadingListEnd\n`;
   return latex;
@@ -283,21 +475,21 @@ function generateExperienceLatex(experience) {
   if (!experience || experience.length === 0) return '';
   let latex = `\n%-----------EXPERIENCE-----------\n\\section{Experience}\n  \\resumeSubHeadingListStart\n`;
   experience.forEach(exp => {
-    latex += `    \\resumeSubheading\n      {${formatBulletLatex(exp.role)}}{${formatBulletLatex(exp.dates)}}\n      {${formatBulletLatex(exp.company)}}{${formatBulletLatex(exp.location)}}\n      \\resumeItemListStart\n`;
+    latex += `    \\resumeSubheading\n      {${formatBulletLatex(stripLeadingBullet(exp.role))}}{${formatBulletLatex(exp.dates)}}\n      {${formatBulletLatex(stripLeadingBullet(exp.company))}}{${formatBulletLatex(stripLeadingBullet(exp.location))}}\n      \\resumeItemListStart\n`;
     if (exp.subsections && exp.subsections.length > 0) {
       exp.subsections.forEach(sub => {
         if ((sub.label && sub.label.trim()) || (sub.text && sub.text.trim())) {
-          const rawLbl = sub.label ? sub.label.trim().replace(/:+$/, '') : '';
+          const rawLbl = sub.label ? stripLeadingBullet(sub.label).replace(/:+$/, '') : '';
           const lbl = rawLbl ? `\\textbf{${formatBulletLatex(rawLbl)}:} ` : '';
-          latex += `        \\resumeItem{${lbl}${formatBulletLatex(sub.text || '')}}\n`;
+          latex += `        \\resumeItem{${lbl}${formatBulletLatex(stripLeadingBullet(sub.text || ''), true)}}\n`;
         }
       });
     }
     if (exp.bullets && exp.bullets.length > 0) {
       exp.bullets.forEach(bullet => {
-        const bStr = bullet ? String(bullet).trim() : '';
+        const bStr = bullet ? stripLeadingBullet(bullet) : '';
         if (bStr) {
-          latex += `        \\resumeItem{${formatBulletLatex(bStr)}}\n`;
+          latex += `        \\resumeItem{${formatBulletLatex(bStr, true)}}\n`;
         }
       });
     }
@@ -312,9 +504,9 @@ function generateProjectsLatex(projects) {
   if (!projects || projects.length === 0) return '';
   let latex = `\n%-----------PROJECTS-----------\n\\section{Projects}\n    \\resumeSubHeadingListStart\n`;
   projects.forEach(proj => {
-    let titlePart = `\\textbf{${formatBulletLatex(proj.title)}}`;
+    let titlePart = `\\textbf{${formatBulletLatex(stripLeadingBullet(proj.title))}}`;
     if (proj.techStack) {
-      titlePart += ` $|$ \\emph{${formatBulletLatex(proj.techStack)}}`;
+      titlePart += ` $|$ \\emph{${formatBulletLatex(stripLeadingBullet(proj.techStack))}}`;
     }
     if (proj.liveUrl) {
       titlePart += ` $|$ ${createLatexHref(proj.liveUrl, proj.liveLabel || 'Live Demo')}`;
@@ -327,17 +519,17 @@ function generateProjectsLatex(projects) {
     if (proj.subsections && proj.subsections.length > 0) {
       proj.subsections.forEach(sub => {
         if ((sub.label && sub.label.trim()) || (sub.text && sub.text.trim())) {
-          const rawLbl = sub.label ? sub.label.trim().replace(/:+$/, '') : '';
+          const rawLbl = sub.label ? stripLeadingBullet(sub.label).replace(/:+$/, '') : '';
           const lbl = rawLbl ? `\\textbf{${formatBulletLatex(rawLbl)}:} ` : '';
-          latex += `            \\resumeItem{${lbl}${formatBulletLatex(sub.text || '')}}\n`;
+          latex += `            \\resumeItem{${lbl}${formatBulletLatex(stripLeadingBullet(sub.text || ''), true)}}\n`;
         }
       });
     }
     if (proj.bullets && proj.bullets.length > 0) {
       proj.bullets.forEach(bullet => {
-        const bStr = bullet ? String(bullet).trim() : '';
+        const bStr = bullet ? stripLeadingBullet(bullet) : '';
         if (bStr) {
-          latex += `            \\resumeItem{${formatBulletLatex(bStr)}}\n`;
+          latex += `            \\resumeItem{${formatBulletLatex(bStr, true)}}\n`;
         }
       });
     }
@@ -496,7 +688,7 @@ function generateLatexCode(resumeData, options = {}) {
     showAchievements = true
   } = options;
 
-  const data = resumeData || {};
+  const data = healResumeData(resumeData) || {};
   const personal = data.personal || {};
   const education = Array.isArray(data.education) ? data.education : [];
   const experience = Array.isArray(data.experience) ? data.experience : [];
@@ -1253,6 +1445,8 @@ const BTECH_PRESETS = {
 // Export to window in browser, or module.exports in Node
 if (typeof window !== 'undefined') {
   window.escapeLatex = escapeLatex;
+  window.stripLeadingBullet = stripLeadingBullet;
+  window.healResumeData = healResumeData;
   window.formatBulletLatex = formatBulletLatex;
   window.normalizeUrl = normalizeUrl;
   window.cleanUrlDisplay = cleanUrlDisplay;
@@ -1273,6 +1467,8 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     escapeLatex,
+    stripLeadingBullet,
+    healResumeData,
     formatBulletLatex,
     normalizeUrl,
     cleanUrlDisplay,

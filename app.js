@@ -151,6 +151,9 @@ function initProfiles() {
       // Auto-upgrade legacy Aarav Sharma and Jake Ryan profiles if missing enriched data
       if (Array.isArray(resumeProfiles)) {
         resumeProfiles.forEach(p => {
+          if (p.state && typeof healResumeData === 'function') {
+            p.state = healResumeData(p.state);
+          }
           if (p.state && p.state.personal && p.state.personal.fullName === 'Aarav Sharma' && p.state.experience && p.state.experience.length === 1) {
             p.state = JSON.parse(JSON.stringify(BTECH_PRESETS.sde));
           }
@@ -177,7 +180,7 @@ function initProfiles() {
             } else if (parsed.state.personal.fullName === 'Jake Ryan' && (!parsed.state.certifications || parsed.state.certifications.length === 0)) {
               initialDraftState = JSON.parse(JSON.stringify(BTECH_PRESETS.jake));
             } else {
-              initialDraftState = parsed.state;
+              initialDraftState = (typeof healResumeData === 'function') ? healResumeData(parsed.state) : parsed.state;
             }
             initialOptions = parsed.options;
             initialTimestamp = parsed.updatedAt || Date.now();
@@ -211,7 +214,7 @@ function initProfiles() {
     // Load active profile into memory
     const currentProf = resumeProfiles.find(p => p.id === activeProfileId) || resumeProfiles[0];
     if (currentProf && currentProf.state) {
-      resumeState = currentProf.state;
+      resumeState = (typeof healResumeData === 'function') ? healResumeData(currentProf.state) : currentProf.state;
       if (currentProf.options) {
         currentOptions = { ...currentOptions, ...currentProf.options };
       }
@@ -1000,7 +1003,7 @@ function renderExperienceVisual(experience) {
               ${s.label && s.label.trim() ? `<strong class="res-bold">${formatBulletHtml(s.label.trim())}:</strong> ` : ''}<span>${formatBulletHtml(s.text || '')}</span>
             </li>
           `).join('')}
-          ${exp.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="exp-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
+          ${exp.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="exp-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(stripLeadingBullet(b))}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -1040,7 +1043,7 @@ function renderProjectsVisual(projects) {
               ${s.label && s.label.trim() ? `<strong class="res-bold">${formatBulletHtml(s.label.trim())}:</strong> ` : ''}<span>${formatBulletHtml(s.text || '')}</span>
             </li>
           `).join('')}
-          ${proj.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="proj-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(b)}</li>`).join('')}
+          ${proj.bullets.filter(b => b.trim()).map((b, bIdx) => `<li data-jump-target="proj-${idx}-bullet-${bIdx}" title="Click to edit bullet point">${formatBulletHtml(stripLeadingBullet(b))}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -4500,13 +4503,13 @@ async function processResumeFile(file) {
       setParseLoading(true, 'Analyzing sections, contact links, and experiences...');
 
       if (pdfExtraction && pdfExtraction.isEmbeddedPayload && pdfExtraction.embeddedState) {
-        parsedResult = pdfExtraction.embeddedState;
+        parsedResult = healResumeData(pdfExtraction.embeddedState);
         parsedResult.__isLosslessRestoration = true;
         showToast('✓ 100% exact resume data restored from Jake Resume PDF!');
       } else {
         const text = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.text) ? pdfExtraction.text : pdfExtraction;
         const links = (pdfExtraction && typeof pdfExtraction === 'object' && pdfExtraction.links) ? pdfExtraction.links : [];
-        parsedResult = ResumeParser.parseText(text, links);
+        parsedResult = healResumeData(ResumeParser.parseText(text, links));
         if (pdfExtraction && pdfExtraction.isOcrExtraction) {
           showToast('✓ Legacy image PDF recovered via Smart OCR!');
         }

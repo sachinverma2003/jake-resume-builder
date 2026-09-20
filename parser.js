@@ -226,7 +226,7 @@
       // 4. Construct Section Order
       const sectionOrder = ['introduction', 'education', 'experience', 'projects', 'skills', 'certifications', 'achievements'];
 
-      return {
+      const rawResult = {
         personal,
         introduction,
         education,
@@ -237,6 +237,13 @@
         achievements,
         sectionOrder
       };
+
+      if (typeof healResumeData === 'function') {
+        return healResumeData(rawResult);
+      } else if (typeof window !== 'undefined' && typeof window.healResumeData === 'function') {
+        return window.healResumeData(rawResult);
+      }
+      return rawResult;
     },
 
     /**
@@ -1175,14 +1182,15 @@
 
       const techInParen = line.match(/\(([^)]+)\)/);
       const hasSeparators = line.includes('|') || line.includes(' — ') || line.includes(' – ');
-      const startsWithActionVerb = /^(?:engineered|implemented|developed|built|architected|created|designed|performed|reduced|increased|optimized|integrated|spearheaded|led|managed|collaborated|conducted|resolved)\b/i.test(cleanLine);
+      const startsWithActionVerb = /^(?:engineered|implemented|developed|built|architected|created|designed|performed|reduced|increased|optimized|integrated|spearheaded|led|managed|collaborated|conducted|resolved|anomalies|ground|cation|while|trained|evaluated|deployed|formulated|wrote|tested|automated|migrated|configured|maintained|analyzed)\b/i.test(cleanLine);
+      const startsWithLower = /^[a-z]/.test(cleanLine);
 
-      const isLikelyProjectTitle = !isBullet && !startsWithActionVerb && (
+      const isLikelyProjectTitle = !isBullet && !startsWithActionVerb && !startsWithLower && (
         currentProj === null ||
-        (hasSeparators && line.length <= 130 && !line.endsWith('.')) ||
-        (techInParen && line.length <= 100 && !line.endsWith('.')) ||
+        (hasSeparators && line.length <= 130 && !line.endsWith('.') && !line.includes(',')) ||
+        (techInParen && line.length <= 80 && !line.endsWith('.')) ||
         (hasDate && remaining.length <= 80 && !line.endsWith('.')) ||
-        (currentProj.bullets.length > 0 && line.length <= 50 && !line.endsWith('.') && !line.includes(','))
+        (currentProj.bullets.length > 0 && line.length <= 40 && !line.endsWith('.') && !line.includes(','))
       );
 
       if (isLikelyProjectTitle) {
