@@ -682,7 +682,7 @@ function generateCustomSectionLatex(customSec) {
  */
 function generateLatexCode(resumeData, options = {}) {
   const {
-    fontSize = '11pt',
+    fontSize = '10pt',
     paperSize = 'letterpaper',
     showCertifications = true,
     showAchievements = true
@@ -728,47 +728,47 @@ function generateLatexCode(resumeData, options = {}) {
   const headerLine = headerLinks.join(' $|$ \n    ');
 
   let marginAdjustments = `% Adjust margins
-\\addtolength{\\oddsidemargin}{-0.5in}
-\\addtolength{\\evensidemargin}{-0.5in}
-\\addtolength{\\textwidth}{1in}
-\\addtolength{\\topmargin}{-.5in}
-\\addtolength{\\textheight}{1.0in}`;
+\\addtolength{\\oddsidemargin}{-0.55in}
+\\addtolength{\\evensidemargin}{-0.55in}
+\\addtolength{\\textwidth}{1.1in}
+\\addtolength{\\topmargin}{-.58in}
+\\addtolength{\\textheight}{1.18in}`;
 
   if (options.compactLevel === 1) {
     marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 1: Micro Spacing)
-\\addtolength{\\oddsidemargin}{-0.50in}
-\\addtolength{\\evensidemargin}{-0.50in}
-\\addtolength{\\textwidth}{1.0in}
-\\addtolength{\\topmargin}{-.52in}
-\\addtolength{\\textheight}{1.04in}`;
+\\addtolength{\\oddsidemargin}{-0.56in}
+\\addtolength{\\evensidemargin}{-0.56in}
+\\addtolength{\\textwidth}{1.12in}
+\\addtolength{\\topmargin}{-.60in}
+\\addtolength{\\textheight}{1.22in}`;
   } else if (options.compactLevel === 2) {
     marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 2: Subtle Full-Page Fit)
-\\addtolength{\\oddsidemargin}{-0.52in}
-\\addtolength{\\evensidemargin}{-0.52in}
-\\addtolength{\\textwidth}{1.04in}
-\\addtolength{\\topmargin}{-.55in}
-\\addtolength{\\textheight}{1.10in}`;
-  } else if (options.compactLevel === 3) {
-    marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 3: Moderate Fit)
-\\addtolength{\\oddsidemargin}{-0.54in}
-\\addtolength{\\evensidemargin}{-0.54in}
-\\addtolength{\\textwidth}{1.08in}
-\\addtolength{\\topmargin}{-.58in}
-\\addtolength{\\textheight}{1.18in}`;
-  } else if (options.compactLevel === 4) {
-    marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 4: Compact Fit)
 \\addtolength{\\oddsidemargin}{-0.58in}
 \\addtolength{\\evensidemargin}{-0.58in}
 \\addtolength{\\textwidth}{1.16in}
 \\addtolength{\\topmargin}{-.62in}
 \\addtolength{\\textheight}{1.26in}`;
-  } else if (options.compactLevel === 5) {
-    marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 5: Maximum Safe Fit)
+  } else if (options.compactLevel === 3) {
+    marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 3: Moderate Fit)
+\\addtolength{\\oddsidemargin}{-0.60in}
+\\addtolength{\\evensidemargin}{-0.60in}
+\\addtolength{\\textwidth}{1.20in}
+\\addtolength{\\topmargin}{-.65in}
+\\addtolength{\\textheight}{1.32in}`;
+  } else if (options.compactLevel === 4) {
+    marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 4: Compact Fit)
 \\addtolength{\\oddsidemargin}{-0.62in}
 \\addtolength{\\evensidemargin}{-0.62in}
 \\addtolength{\\textwidth}{1.24in}
 \\addtolength{\\topmargin}{-.68in}
-\\addtolength{\\textheight}{1.36in}`;
+\\addtolength{\\textheight}{1.38in}`;
+  } else if (options.compactLevel === 5) {
+    marginAdjustments = `% Adjust margins (Smart Auto-Fit Level 5: Maximum Safe Fit)
+\\addtolength{\\oddsidemargin}{-0.65in}
+\\addtolength{\\evensidemargin}{-0.65in}
+\\addtolength{\\textwidth}{1.30in}
+\\addtolength{\\topmargin}{-.72in}
+\\addtolength{\\textheight}{1.46in}`;
   }
 
   const accentHex = (options && options.sectionAccentColor && options.sectionAccentColor !== 'black') 
@@ -834,11 +834,12 @@ ${marginAdjustments}
 \\raggedbottom
 \\raggedright
 \\setlength{\\tabcolsep}{0in}
+\\linespread{0.92}
 
 % Sections formatting
 \\titleformat{\\section}{
-  \\vspace{${options.sectionSpacing || '-4pt'}}\\scshape\\raggedright\\${(options && options.sectionHeaderSize) ? options.sectionHeaderSize : 'large'}${accentHex ? `\\color[HTML]{${accentHex}}` : ''}
-}{}{0em}{}[${titleruleColorCmd}\\titlerule \\vspace{-5pt}]
+  \\vspace{${options.sectionSpacing || '-6pt'}}\\scshape\\raggedright\\${(options && options.sectionHeaderSize) ? options.sectionHeaderSize : 'large'}${accentHex ? `\\color[HTML]{${accentHex}}` : ''}
+}{}{0em}{}[${titleruleColorCmd}\\titlerule \\vspace{-6pt}]
 
 % Ensure that generate pdf is machine readable/ATS parsable
 \\pdfgentounicode=1
@@ -849,13 +850,13 @@ ${marginAdjustments}
 ${(() => {
   const cl = options.compactLevel || 0;
   // itemVspace: negative vspace after each \resumeItem bullet
-  const itemVspace     = cl >= 5 ? '-3.5pt' : cl >= 4 ? '-3pt' : cl >= 3 ? '-2.5pt' : '-2pt';
+  const itemVspace     = cl >= 5 ? '-6pt' : cl >= 4 ? '-5pt' : cl >= 3 ? '-4pt' : cl >= 2 ? '-3.5pt' : cl >= 1 ? '-3pt' : '-2.5pt';
   // subheadVspace: negative vspace before \resumeSubheading
-  const subheadVspace  = cl >= 5 ? '-3.5pt' : cl >= 4 ? '-3pt' : cl >= 3 ? '-2.5pt' : '-2pt';
+  const subheadVspace  = cl >= 5 ? '-6pt' : cl >= 4 ? '-5pt' : cl >= 3 ? '-4pt' : cl >= 2 ? '-3.5pt' : cl >= 1 ? '-3pt' : '-2.5pt';
   // tabVspace: negative vspace after tabularx in subheading/project
-  const tabVspace      = cl >= 5 ? '-9pt' : cl >= 4 ? '-8.5pt' : cl >= 3 ? '-8pt' : cl >= 2 ? '-7.5pt' : '-7pt';
+  const tabVspace      = cl >= 5 ? '-12pt' : cl >= 4 ? '-11pt' : cl >= 3 ? '-10pt' : cl >= 2 ? '-9pt' : cl >= 1 ? '-8pt' : '-7pt';
   // listEndVspace: negative vspace at end of item list
-  const listEndVspace  = cl >= 5 ? '-8pt' : cl >= 4 ? '-7pt' : cl >= 3 ? '-6pt' : '-5pt';
+  const listEndVspace  = cl >= 5 ? '-12pt' : cl >= 4 ? '-10pt' : cl >= 3 ? '-9pt' : cl >= 2 ? '-8pt' : cl >= 1 ? '-7pt' : '-6pt';
   const bs = '\\';
   return `${bs}newcommand{${bs}resumeItem}[1]{
   ${bs}item${bs}small{

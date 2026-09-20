@@ -32,10 +32,10 @@ const SECTION_METADATA = {
 };
 
 let currentOptions = {
-  fontSize: '11pt',
+  fontSize: '10pt',
   paperSize: 'letterpaper',
-  sectionSpacing: '-4pt',
-  itemSpacing: '-2pt',
+  sectionSpacing: '-6pt',
+  itemSpacing: '-2.5pt',
   showCertifications: true,
   showAchievements: true,
   nameSize: 'Huge',
@@ -384,7 +384,7 @@ function handleCreateNewProfile(cloneCurrent = false) {
     id: newId,
     name: name,
     state: newState,
-    options: cloneCurrent ? { ...currentOptions } : { fontSize: '11pt', paperSize: 'letterpaper', sectionSpacing: '-4pt', itemSpacing: '-2pt', showCertifications: true, showAchievements: true },
+    options: cloneCurrent ? { ...currentOptions } : { fontSize: '10pt', paperSize: 'letterpaper', sectionSpacing: '-6pt', itemSpacing: '-2.5pt', showCertifications: true, showAchievements: true },
     updatedAt: Date.now()
   };
 
@@ -560,7 +560,7 @@ function populateFormFromState() {
   if (optModalSecSize) optModalSecSize.value = currentOptions.sectionHeaderSize || 'large';
 
   const optModalBodySize = document.getElementById('modal-opt-body-size') || document.getElementById('opt-modal-body-size');
-  if (optModalBodySize) optModalBodySize.value = currentOptions.fontSize || '11pt';
+  if (optModalBodySize) optModalBodySize.value = currentOptions.fontSize || '10pt';
 
   const optModalAccentColor = document.getElementById('modal-opt-sec-color') || document.getElementById('opt-modal-accent-color');
   if (optModalAccentColor) optModalAccentColor.value = currentOptions.sectionAccentColor || 'black';
@@ -616,9 +616,9 @@ function setupEventListeners() {
         resumeState.skills = normalizeSkills(resumeState.skills);
       }
       // Reset options to default
-      currentOptions.fontSize = '11pt';
-      currentOptions.sectionSpacing = '-4pt';
-      currentOptions.itemSpacing = '-2pt';
+      currentOptions.fontSize = '10pt';
+      currentOptions.sectionSpacing = '-6pt';
+      currentOptions.itemSpacing = '-2.5pt';
       if (visualResume) visualResume.classList.remove('compact-mode');
       populateFormFromState();
       updatePreviews();
@@ -1241,7 +1241,7 @@ function autoFitToOnePage(andDownload = false) {
   // Check if it already fits without any compaction
   if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
     currentOptions.compactLevel = 0;
-    currentOptions.fontSize = '11pt';
+    currentOptions.fontSize = '10pt';
     renderLatexView();
     checkPageHeight();
     showToast('✓ Resume already fits cleanly on 1 page!');
@@ -1249,11 +1249,11 @@ function autoFitToOnePage(andDownload = false) {
     return true;
   }
 
-  // Smart Level 1: Micro Spacing (11pt font, saves ~20px / ~1 line)
+  // Smart Level 1: Micro Spacing (10pt font, saves ~20px / ~1 line)
   visualResume.classList.add('compact-1');
   if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
     currentOptions.compactLevel = 1;
-    currentOptions.fontSize = '11pt';
+    currentOptions.fontSize = '10pt';
     renderLatexView();
     checkPageHeight();
     showToast('✓ Smart Auto-Fit: Micro-tuned spacing to fit 1 full page!');
@@ -1261,12 +1261,12 @@ function autoFitToOnePage(andDownload = false) {
     return true;
   }
 
-  // Smart Level 2: Subtle Spacing (11pt font, saves ~45-55px / ~2-3 lines — EXACTLY 2-3 lines overflow!)
+  // Smart Level 2: Subtle Spacing (10pt font, saves ~45-55px / ~2-3 lines)
   visualResume.classList.remove('compact-1');
   visualResume.classList.add('compact-2');
   if (visualResume.scrollHeight <= PAGE_HEIGHT_MAX + 5) {
     currentOptions.compactLevel = 2;
-    currentOptions.fontSize = '11pt';
+    currentOptions.fontSize = '10pt';
     renderLatexView();
     checkPageHeight();
     showToast('✓ Smart Auto-Fit: Spacing tuned to fit 1 page while looking completely full!');
@@ -2008,14 +2008,14 @@ function buildLatexOptions() {
 
   // Walk up compact levels until the resume fits
   let detectedLevel = 0;
-  let detectedFontSize = opts.fontSize || '11pt';
+  let detectedFontSize = opts.fontSize || '10pt';
 
   if (visualResume.scrollHeight > PAGE_HEIGHT_MAX + 4) {
     const levels = [
-      { level: 1, cls: 'compact-1', fontSize: '11pt' },
-      { level: 2, cls: 'compact-2', fontSize: '11pt' },
-      { level: 3, cls: 'compact-3', fontSize: '10.7pt' },
-      { level: 4, cls: 'compact-4', fontSize: '10.4pt' },
+      { level: 1, cls: 'compact-1', fontSize: '10pt' },
+      { level: 2, cls: 'compact-2', fontSize: '10pt' },
+      { level: 3, cls: 'compact-3', fontSize: '10pt' },
+      { level: 4, cls: 'compact-4', fontSize: '10pt' },
       { level: 5, cls: 'compact-5', fontSize: '10pt' }
     ];
     for (const { level, cls, fontSize } of levels) {
@@ -4713,10 +4713,10 @@ function resetToDefaultDraft() {
   }
 
   currentOptions = {
-    fontSize: '11pt',
+    fontSize: '10pt',
     paperSize: 'letterpaper',
-    sectionSpacing: '-4pt',
-    itemSpacing: '-2pt',
+    sectionSpacing: '-6pt',
+    itemSpacing: '-2.5pt',
     showCertifications: true,
     showAchievements: true
   };
